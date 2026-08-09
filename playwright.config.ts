@@ -3,7 +3,9 @@ import { defineConfig } from "@playwright/test"
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
-  workers: 2,
+  // Keep the release suite deterministic on resource-constrained Windows runners.
+  // The application itself still exercises Web Workers for Excel import/export.
+  workers: 1,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   reporter: "html",
@@ -14,6 +16,7 @@ export default defineConfig({
   webServer: {
     command: "npm run build && npm run preview -- --host 127.0.0.1",
     url: "http://127.0.0.1:4173",
+    timeout: 180_000,
     reuseExistingServer: !process.env.CI,
   },
 })

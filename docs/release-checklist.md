@@ -4,9 +4,9 @@ Datum release-audit: 2026-08-09
 
 ## Releasebesluit
 
-Status: **voorwaardelijk groen totdat de afsluitende volledige kwaliteitsstraat
-opnieuw is uitgevoerd**. De definitieve status wordt in het opleveringsrapport
-vastgelegd.
+Status: **RELEASE READY — JA**. De ongewijzigde releasekandidaat is door de
+volledige kwaliteitsstraat, de twaalf Playwright-hoofdflows en beide release-audits
+gekomen.
 
 ## Product en scope
 
@@ -96,15 +96,15 @@ UI niet meer door worker-offloading. Reguliere werkboeken zijn veel kleiner.
 
 ## Afsluitende gates
 
-- [ ] `npm run format:check`
-- [ ] `npm run lint`
-- [ ] `npm run typecheck`
-- [ ] `npm run test -- --run`
-- [ ] `npm run build`
-- [ ] `npm run test:e2e`
+- [x] `npm run format:check`
+- [x] `npm run lint`
+- [x] `npm run typecheck`
+- [x] `npm run test -- --run` — 24 testbestanden, 127 tests
+- [x] `npm run build`
+- [x] `npm run test:e2e` — 12 hoofdflows in 1,5 minuut
 - [x] `npm run audit:release`
 - [x] `npm run audit:performance`
 
-Deze vijf open vakken worden pas aangevinkt na de definitieve, ongewijzigde
-releasekandidaat-run.
-
+Playwright gebruikt bewust één worker voor reproduceerbaar gedrag op
+resourcebeperkte Windows-runners. De Excelimport en -export van de applicatie zelf
+blijven in een afzonderlijke Web Worker draaien en zijn in de masterflow getest.

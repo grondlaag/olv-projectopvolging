@@ -1,0 +1,210 @@
+.excel-dev {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.excel-dev__toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-thin);
+  background: var(--color-surface);
+}
+
+.excel-dev__file-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  color: var(--color-surface);
+  background: var(--color-brand-primary);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.excel-dev__file-button:focus-within {
+  box-shadow: var(--shadow-focus);
+}
+
+.excel-dev__file-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.excel-dev__repair-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-right: auto;
+  color: var(--color-ink-muted);
+  font-size: var(--font-size-sm);
+}
+
+.excel-dev__results {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+
+.excel-dev__panel {
+  min-width: 0;
+  padding: var(--space-6);
+  border: var(--border-thin);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-subtle);
+}
+
+.excel-dev__panel--wide {
+  grid-column: 1 / -1;
+}
+
+.excel-dev__panel h2 {
+  margin: 0 0 var(--space-4);
+  color: var(--color-ink-strong);
+  font-size: var(--font-size-lg);
+}
+
+.excel-dev__metadata {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.excel-dev__metadata div {
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--color-brand-soft);
+}
+
+.excel-dev__metadata dt {
+  color: var(--color-ink-muted);
+  font-size: var(--font-size-xs);
+}
+
+.excel-dev__metadata dd {
+  margin: var(--space-1) 0 0;
+  overflow-wrap: anywhere;
+  color: var(--color-ink-strong);
+  font-weight: var(--font-weight-medium);
+}
+
+.excel-dev__section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.excel-dev__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.excel-dev__issues {
+  display: grid;
+  gap: var(--space-2);
+  max-height: 20rem;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.excel-dev__issues li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: var(--border-thin);
+  font-size: var(--font-size-sm);
+}
+
+.excel-dev__table-wrap {
+  overflow-x: auto;
+}
+
+.excel-dev table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.excel-dev th,
+.excel-dev td {
+  padding: var(--space-3);
+  border-bottom: var(--border-thin);
+  text-align: left;
+}
+
+.excel-dev th {
+  color: var(--color-ink-muted);
+  background: var(--color-surface-muted);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.excel-dev__number {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.excel-dev__projects {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.excel-dev__projects label {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.excel-dev__projects label span {
+  color: var(--color-ink-muted);
+  font-size: var(--font-size-sm);
+}
+
+.excel-dev__projects input {
+  min-height: 2.5rem;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-ink-strong);
+  background: var(--color-surface);
+}
+
+.excel-dev__projects input:focus {
+  outline: none;
+  border-color: var(--color-brand-primary);
+  box-shadow: var(--shadow-focus);
+}
+
+@media (max-width: 64rem) {
+  .excel-dev__results {
+    grid-template-columns: 1fr;
+  }
+
+  .excel-dev__panel--wide {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 48rem) {
+  .excel-dev__metadata {
+    grid-template-columns: 1fr;
+  }
+
+  .excel-dev__projects label {
+    grid-template-columns: 1fr;
+  }
+}

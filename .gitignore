@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.xlsx
+*.xlsm
+*.xls
+!src/tests/fixtures/excel/*.xlsx
+.env
+.env.*
+!.env.example

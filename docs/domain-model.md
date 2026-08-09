@@ -1,0 +1,449 @@
+# Domeinmodel — OLV Projectopvolging
+
+## Structuur
+
+```text
+Hoofdstuk
+└─ Cluster
+   ├─ Clustertopic
+   └─ Project
+      ├─ Projecttopic
+      ├─ Updates / beslissingen
+      ├─ Acties
+      ├─ Planning
+      ├─ Budget
+      └─ Overleg
+```
+
+Project mag zonder cluster bestaan.
+
+## Hoofdstuk
+
+- id;
+- code;
+- title;
+- order;
+- status;
+- audit.
+
+Initiële hoofdstukken:
+
+- Gebouw en ruimte;
+- Technieken en infrastructuur;
+- Beleid en opvolging.
+
+## Cluster
+
+- id;
+- chapterId;
+- code;
+- title;
+- description;
+- status;
+- currentUpdateId?;
+- order;
+- audit.
+
+## Project
+
+- id;
+- chapterId;
+- clusterId?;
+- code;
+- title;
+- description;
+- status;
+- phase;
+- site?;
+- location?;
+- department?;
+- coordinatorActorId?;
+- startDate?;
+- plannedEndDate?;
+- actualEndDate?;
+- progressPercent?;
+- currentUpdateId?;
+- documentsUrl?;
+- audit.
+
+Status:
+
+- Idee;
+- Voorbereiding;
+- Studie;
+- Aanbesteding;
+- Uitvoering;
+- Oplevering;
+- On hold;
+- Afgesloten;
+- Geannuleerd.
+
+## ProjectClusterHistory
+
+- id;
+- projectId;
+- clusterId;
+- validFrom;
+- validTo?;
+- reason?;
+- authorActorId?;
+- audit.
+
+Maximaal één open koppeling per project.
+
+Mutatieregels in fase 3:
+
+- een nieuw project met cluster krijgt één open historiekrecord;
+- een project zonder cluster krijgt geen vervangend of fictief clusterrecord;
+- bij clusterwijziging worden bestaande open koppelingen gesloten en wordt één
+  nieuwe open koppeling gemaakt;
+- bij verwijderen van de cluster wordt de open koppeling gesloten zonder een
+  record voor "Zonder cluster" te maken;
+- project-ID en bestaande historiekrecords blijven behouden bij bewerken.
+
+## Actor
+
+- id;
+- type;
+- displayName;
+- email?;
+- organization?;
+- role?;
+- active;
+- audit.
+
+## Topic
+
+- id;
+- parentType: `Project | Cluster`;
+- projectId?;
+- clusterId?;
+- code;
+- title;
+- context;
+- ownerActorId?;
+- priority;
+- status;
+- order;
+- currentUpdateId?;
+- audit.
+
+Topic bevat geen dubbele planningdatums; timing zit in `PlanningEntry`.
+
+Mutatieregels in fase 4:
+
+- een nieuw topic krijgt een stabiele UUID v4 en exact één bestaande project-
+  of clusterouder;
+- een ingevulde eigenaar verwijst naar een actieve actor;
+- statusovergangen behouden hetzelfde topicrecord en ondersteunen `Open`,
+  `Afgesloten`, `Geannuleerd` en heropenen naar `Open`;
+- een journaalbijdrage is append-only: bestaande updates en beslissingen worden
+  niet overschreven of verwijderd;
+- `currentUpdateId` is leeg of verwijst naar precies één actieve update waarvan
+  `objectType = Topic` en `objectId` gelijk is aan het topic-ID;
+- een gewone update kan bij opslaan als actuele stand worden gemarkeerd; een
+  beslissing blijft standaard een afzonderlijke journaalbijdrage.
+
+## Update
+
+- id;
+- objectType;
+- objectId;
+- meetingId?;
+- type;
+- date;
+- authorActorId;
+- text;
+- audit.
+
+Types:
+
+- Update;
+- Beslissing;
+- Projectstatus;
+- Clusterstatus;
+- Notitie;
+- Overlegbijdrage;
+- Planningwijziging;
+- Budgetwijziging.
+
+De snelle fase-4-invoer ondersteunt op topicniveau `Update`, `Notitie`,
+`Overlegbijdrage` en `Beslissing`. De overige types blijven importeerbaar en
+zichtbaar in het gecombineerde projectjournaal.
+
+## Action
+
+- id;
+- objectType;
+- objectId;
+- sourceMeetingId?;
+- code;
+- title;
+- description?;
+- ownerActorId;
+- deadline?;
+- status;
+- priority;
+- completedAt?;
+- audit.
+
+Regels:
+
+- `objectType` en `objectId` verwijzen samen naar een bestaand Project, Cluster,
+  Topic of Meeting;
+- eigenaar verwijst naar een actieve actor;
+- deadline is optioneel;
+- status `Afgerond` vereist `completedAt`;
+- iedere andere status heeft geen `completedAt`;
+- heropenen wist de afronddatum;
+- `Geannuleerd` behoudt het record en is geen delete;
+- achterstallig wordt afgeleid als `deadline < vandaag` bij een status anders
+  dan `Afgerond` of `Geannuleerd`.
+
+Statussen:
+
+- Open;
+- Bezig;
+- Wacht op derde;
+- Wacht op beslissing;
+- Afgerond;
+- Geannuleerd.
+
+## ActionHistory
+
+- id;
+- actionId;
+- changedAt;
+- changedByActorId;
+- field;
+- previousValue?;
+- newValue?;
+- reason?;
+- audit.
+
+Wijzigingen aan eigenaar, deadline, status en prioriteit maken elk een apart,
+append-only historierecord. Afronden en heropenen overschrijven bestaande
+historiek niet.
+
+## Evidence
+
+- id;
+- objectType;
+- objectId;
+- type;
+- title;
+- description?;
+- urlOrReference?;
+- date?;
+- authorActorId?;
+- audit.
+
+## PlanningEntry
+
+- id;
+- projectId;
+- topicId?;
+- kind: `Topic | Milestone | Custom`;
+- title;
+- startDate?;
+- plannedEndDate;
+- actualEndDate?;
+- progressPercent?;
+- status;
+- isMilestone;
+- order;
+- audit.
+
+Regels:
+
+- ieder item hoort bij één project;
+- topicId is optioneel;
+- topic hoort bij hetzelfde project;
+- per topic maximaal één primaire entry;
+- milestone heeft één datum;
+- topic zonder entry verschijnt niet in Gantt.
+
+## PlanningDependency
+
+- id;
+- predecessorPlanningId;
+- successorPlanningId;
+- type: `FinishToStart`;
+- audit.
+
+Geen self-link en geen cyclus.
+
+Fase-6-mutatieregels:
+
+- een `PlanningEntry` met `topicId` heeft `kind = Topic`, hoort bij hetzelfde
+  project en is de enige actieve primaire entry voor dat topic;
+- een topicmoment mag als mijlpaal worden weergegeven zonder het topicrecord
+  met datumvelden uit te breiden;
+- een mijlpaal heeft geen `startDate` en alleen 0 of 100 procent voortgang;
+- een periode vereist `startDate`, `plannedEndDate >= startDate` en voortgang
+  tussen 0 en 100;
+- vertraging is afgeleid uit `vandaag > plannedEndDate` voor niet-afgeronde en
+  niet-geannuleerde items en wijzigt de opgeslagen status nooit;
+- een dependency is alleen `FinishToStart`, blijft binnen één project en mag
+  geen duplicaat, self-link of cyclus vormen;
+- projectvoortgang blijft het handmatig beheerde veld op `Project` en wordt
+  nooit uit topicvoortgang gemiddeld.
+
+## BudgetRecord
+
+- id;
+- projectId;
+- topicId?;
+- category;
+- type;
+- description;
+- amountCents;
+- date;
+- status;
+- reference?;
+- supplierActorId?;
+- audit.
+
+Types:
+
+- Goedgekeurd budget;
+- Raming;
+- Contract;
+- Bestelling;
+- Factuur;
+- Betaling;
+- Meerwerk;
+- Minwerk;
+- Contingentie;
+- Correctie.
+
+## BudgetMutation
+
+- id;
+- budgetRecordId;
+- changeType;
+- deltaCents?;
+- previousAmountCents?;
+- newAmountCents?;
+- reason;
+- date;
+- authorActorId;
+- audit.
+
+Fase-7-mutatieregels:
+
+- ieder budgetrecord heeft exact één bestaand `projectId`;
+- een optioneel topic is een projectdimensie en hoort bij hetzelfde project;
+- bedragen zijn niet-negatieve, gehele cents;
+- meer- en minwerk worden positief opgeslagen; alleen de typebetekenis bepaalt
+  respectievelijk `+` en `-` in de netto meer/minwerkanalyse;
+- een ingevulde leverancier verwijst bij nieuwe invoer naar een actieve actor;
+- een nieuw record, inclusief type `Correctie`, is een nieuw financieel feit;
+- een foutcorrectie op een bestaand bedrag vereist een actieve huidige actor,
+  reden en afwijkend nieuw bedrag en maakt één append-only `BudgetMutation`;
+- de mutatiedelta is exact `newAmountCents - previousAmountCents`;
+- ontbrekende businessregels voor kernaggregaties worden expliciet als
+  onbeschikbaar gemodelleerd en niet geïmproviseerd.
+
+## Meeting
+
+- id;
+- type;
+- scopeType;
+- scopeId?;
+- number?;
+- title;
+- date;
+- chairActorId?;
+- reporterActorId?;
+- status;
+- nextMeetingDate?;
+- audit.
+
+Scope:
+
+- Portfolio;
+- Hoofdstuk;
+- Cluster;
+- Project.
+
+Invarianten:
+
+- `Portfolio` heeft geen `scopeId`;
+- `Hoofdstuk`, `Cluster` en `Project` hebben exact één bestaand `scopeId` van
+  het overeenkomstige type;
+- voorzitter, verslaggever en deelnemers verwijzen naar actieve actoren;
+- status is `Concept` of `Definitief`;
+- een definitief overleg blijft historisch beschikbaar en inhoudelijke
+  mutaties vereisen een nieuwe verslagrevisie.
+
+## MeetingParticipant
+
+- id;
+- meetingId;
+- actorId;
+- role?;
+- attended?;
+- audit.
+
+De combinatie `meetingId` + `actorId` is uniek. Aanwezigheid wordt tijdens de
+verwerking geregistreerd; personen worden niet als vrije tekst gedupliceerd.
+
+## AgendaItem
+
+- id;
+- meetingId;
+- order;
+- objectType?;
+- objectId?;
+- title;
+- reason?;
+- notes?;
+- discussionStatus;
+- audit.
+
+Een gekoppeld agendapunt verwijst naar één bestaand `Project`, `Cluster`,
+`Topic` of `Action` binnen de overlegscope. Een vrij punt heeft noch
+`objectType`, noch `objectId`. De volgorde is expliciet en uniek gemaakt door de
+applicatieservice. Bespreekstatus is `Te bespreken`, `Besproken` of
+`Doorgeschoven`.
+
+## Report
+
+- id;
+- meetingId;
+- version;
+- status;
+- draftDate?;
+- finalDate?;
+- authorActorId;
+- pdfReference?;
+- audit.
+
+## ReportItem
+
+Snapshotrecord:
+
+- id;
+- reportId;
+- order;
+- section;
+- contentType;
+- objectType?;
+- objectId?;
+- titleSnapshot;
+- textSnapshot;
+- audit.
+
+Snapshottekst wordt later niet automatisch gewijzigd.
+
+Verslagstatus is `Concept`, `Definitief` of `Gereviseerd`. Versienummers zijn
+positieve, oplopende integers en uniek binnen één overleg. Een definitief
+verslag en zijn `ReportItem`-records worden nooit overschreven. Een correctie
+maakt versie `n + 1` met status `Gereviseerd` en een zichtbare correctienotitie;
+de eerdere snapshot blijft ongewijzigd.
+
+Updates en beslissingen uit een overleg blijven één `Update`-record met zowel
+de broncontext (`objectType`/`objectId`) als `meetingId`. Acties blijven één
+`Action`-record met `sourceMeetingId`. Daardoor verschijnen bijdragen in het
+overleg én in hun brondossier zonder kopie of dubbeltelling.

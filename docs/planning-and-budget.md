@@ -383,3 +383,16 @@ als feitelijk signaal getoond; dit is nog niet gelijk aan een besliste
 Voor activering van de kern-KPI's is een vervolg op ADR-006 nodig dat de vijf
 keuzes hierboven expliciet vastlegt, met rekenvoorbeelden en historische
 semantiek.
+
+## UX-addendum brongebonden planning en budget
+
+Nieuwe planning ontstaat via projectdatums, topic-timing, actiedeadlines of
+gedateerde beslissingen. De Gantt projecteert actie en beslissing rechtstreeks,
+zonder tweede planningrecord. Nieuwe vrije items worden niet aangeboden;
+historische vrije records blijven leesbaar en bewerkbaar.
+
+Projectomvang `XS | S | M | L | XL | XXL` gebruikt de expliciete indicatieve
+factoren `0,10 | 0,25 | 0,50 | 1,00 | 1,50 | 2,00 VTE`. Dit is portfoliovraag,
+geen personeelsallocatie. De budgetmatrix volgt hoofdstuk, cluster en project.
+Nieuwe invoer focust op zeven feittypes; legacytypes blijven roundtripbaar.
+Onbesliste kern-KPI's blijven onbeschikbaar volgens ADR-006.

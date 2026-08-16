@@ -14,7 +14,6 @@ import { Button, SearchableSelect } from "../../design-system/components"
 import { useEscapeKey } from "../../design-system/patterns"
 import {
   budgetStatuses,
-  budgetTypes,
   formatEuroCents,
   type BudgetRecord,
   type UUID,
@@ -31,6 +30,15 @@ import {
 import "./budget.css"
 
 const service = new BudgetManagementService()
+const conciseBudgetTypes = [
+  "Goedgekeurd budget",
+  "Raming",
+  "Contract",
+  "Factuur",
+  "Betaling",
+  "Meerwerk",
+  "Minwerk",
+] as const
 
 function applyZodErrors<T extends FieldValues>(
   issues: readonly { path: PropertyKey[]; message: string }[],
@@ -150,11 +158,15 @@ export function NewBudgetPanel({
           <div className="budget-form-grid">
             <label>
               <span>Type</span>
-              <select {...register("type")}>
-                {budgetTypes.map((type) => (
+              <select aria-label="Type" {...register("type")}>
+                {conciseBudgetTypes.map((type) => (
                   <option key={type}>{type}</option>
                 ))}
               </select>
+              <small>
+                Bestellingen en contingentie worden als categorie bij raming of
+                contract gevolgd; foutcorrecties via Correctiehistoriek.
+              </small>
             </label>
             <label>
               <span>Categorie</span>

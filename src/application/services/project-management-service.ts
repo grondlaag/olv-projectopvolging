@@ -8,6 +8,7 @@ import type {
   Project,
   ProjectClusterHistory,
   ProjectStatus,
+  ProjectSize,
   UUID,
 } from "../../domain"
 import { validateProject } from "../../domain"
@@ -34,6 +35,7 @@ export interface ProjectInput {
   plannedEndDate?: LocalDate
   actualEndDate?: LocalDate
   progressPercent?: number
+  size?: ProjectSize
   documentsUrl?: string
 }
 
@@ -183,6 +185,7 @@ function normalizedProjectInput(input: ProjectInput): ProjectInput {
     ...(input.progressPercent !== undefined
       ? { progressPercent: input.progressPercent }
       : {}),
+    ...(input.size ? { size: input.size } : {}),
     ...(site ? { site } : {}),
     ...(location ? { location } : {}),
     ...(department ? { department } : {}),
@@ -279,6 +282,7 @@ export class ProjectManagementService {
       "plannedEndDate",
       "actualEndDate",
       "progressPercent",
+      "size",
       "documentsUrl",
     ] as const
     for (const field of optionalEditableFields) {

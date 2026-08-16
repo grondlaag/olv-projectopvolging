@@ -104,6 +104,50 @@
   border-top: 3px solid var(--color-brand-muted);
 }
 
+.budget-portfolio-tree {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.budget-chapter,
+.budget-cluster {
+  min-width: 0;
+  border: var(--border-thin);
+  background: var(--color-surface);
+}
+.budget-chapter > summary,
+.budget-cluster > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+}
+.budget-chapter > summary {
+  border-left: 3px solid var(--color-brand-primary);
+  background: var(--color-brand-pale);
+}
+.budget-cluster {
+  margin: var(--space-3);
+}
+.budget-cluster > summary {
+  border-bottom: var(--border-thin);
+  background: var(--color-surface-soft);
+}
+.budget-chapter summary span,
+.budget-cluster summary span {
+  color: var(--color-ink-muted);
+  font-size: var(--font-size-xs);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.budget-table--portfolio th:not(:first-child),
+.budget-table--portfolio td:not(:first-child) {
+  text-align: right;
+  white-space: nowrap;
+}
+
 .budget-section__heading {
   display: flex;
   align-items: flex-end;

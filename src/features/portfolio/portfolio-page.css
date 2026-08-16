@@ -200,19 +200,43 @@
   margin-top: var(--space-6);
 }
 
-.portfolio-chapter > header {
+.portfolio-chapter > summary {
   display: flex;
   align-items: baseline;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   border-left: 3px solid var(--color-brand-primary);
   background: var(--color-brand-pale);
+  cursor: pointer;
+  list-style: none;
 }
 
-.portfolio-chapter > header span {
+.portfolio-chapter > summary::-webkit-details-marker,
+.portfolio-cluster > summary::-webkit-details-marker {
+  display: none;
+}
+
+.portfolio-chapter > summary > span:not(.portfolio-disclosure) {
   color: var(--color-brand-primary);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
+}
+
+.portfolio-chapter > summary small,
+.portfolio-cluster__heading small {
+  margin-left: auto;
+  color: var(--color-ink-muted);
+  font-size: var(--font-size-xs);
+}
+
+.portfolio-disclosure::before {
+  content: "▾";
+  display: inline-block;
+  color: var(--color-brand-primary);
+}
+
+details:not([open]) > summary .portfolio-disclosure::before {
+  transform: rotate(-90deg);
 }
 
 .portfolio-chapter h2,
@@ -232,6 +256,12 @@
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4) var(--space-2);
   border-bottom: var(--border-thin);
+  cursor: pointer;
+  list-style: none;
+}
+
+.portfolio-cluster__heading .button {
+  margin-left: var(--space-2);
 }
 
 .portfolio-cluster h3 {

@@ -51,6 +51,70 @@
   border-bottom: var(--border-thin);
 }
 
+.planning-resources {
+  display: grid;
+  grid-template-columns: minmax(14rem, 0.7fr) minmax(28rem, 1.3fr);
+  gap: var(--space-6);
+  margin: 0 0 var(--space-6);
+  padding: var(--space-4);
+  border: var(--border-thin);
+  background: var(--color-surface);
+}
+
+.planning-resources h2,
+.planning-resources p {
+  margin: 0;
+}
+.planning-resources > div:first-child > span {
+  color: var(--color-brand-primary);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+}
+.planning-resources p {
+  margin-top: var(--space-2);
+  color: var(--color-ink-muted);
+  font-size: var(--font-size-sm);
+}
+.planning-resources__scale {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--space-2);
+}
+.planning-resources__scale > div {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-left: 2px solid var(--color-brand-muted);
+  background: var(--color-brand-pale);
+}
+.planning-resources__scale span,
+.planning-resources__scale small {
+  color: var(--color-ink-muted);
+  font-size: var(--font-size-xs);
+}
+.planning-resources__scale strong {
+  color: var(--color-brand-deep);
+  font-size: var(--font-size-lg);
+}
+
+.planning-source-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0 var(--space-3);
+  border: var(--border-thin);
+  border-radius: var(--radius-sm);
+  color: var(--color-brand-deep);
+  background: var(--color-surface);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
+.planning-source-link:hover {
+  background: var(--color-brand-pale);
+}
+
 .planning-summary > div {
   display: grid;
   gap: var(--space-1);
@@ -198,6 +262,10 @@
   min-width: 0;
   border: var(--border-thin);
   background: var(--color-surface);
+}
+
+.planning-hierarchy + .planning-canvas {
+  border-top: 0;
 }
 
 .planning-canvas__header {
@@ -629,6 +697,12 @@
 }
 
 @media (max-width: 48rem) {
+  .planning-resources {
+    grid-template-columns: 1fr;
+  }
+  .planning-resources__scale {
+    grid-template-columns: repeat(3, 1fr);
+  }
   .planning-actions,
   .planning-canvas__header {
     align-items: stretch;

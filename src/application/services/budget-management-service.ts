@@ -251,4 +251,39 @@ export class BudgetManagementService {
       mutation,
     }
   }
+
+  archiveRecord(
+    state: NormalizedDomainState,
+    budgetRecordId: UUID,
+    reason = "Budgetitem verwijderd via projectbudget",
+    options: BudgetMutationOptions = {},
+  ): BudgetMutationResult<BudgetRecord> {
+    const existing = state.indices.budgetById.get(budgetRecordId)
+    if (!existing?.audit.active) {
+      throw new BudgetManagementError([
+        { field: "budgetRecord", message: "Budgetitem niet gevonden." },
+      ])
+    }
+    const now = options.now ?? new Date()
+    const actorId = activeCurrentActorId(state)
+    const record: BudgetRecord = {
+      ...existing,
+      status: "Geannuleerd",
+      audit: { ...updateAudit(existing.audit, now, actorId), active: false },
+    }
+    const mutation: BudgetMutation = {
+      id: (options.createUuid ?? defaultUuid)(),
+      budgetRecordId: existing.id,
+      changeType: "Gearchiveerd",
+      reason: requiredText(reason),
+      date: todayAsLocalDate(now) as LocalDate,
+      authorActorId: actorId,
+      audit: auditFields(now, actorId),
+    }
+    const records = cloneDomainCollections(state.records)
+    const index = records.budgets.findIndex((item) => item.id === existing.id)
+    records.budgets[index] = record
+    records.budgetMutations.push(mutation)
+    return { state: normalizeDomainState(records), record, mutation }
+  }
 }

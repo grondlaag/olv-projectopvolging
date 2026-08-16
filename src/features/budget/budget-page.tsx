@@ -13,6 +13,8 @@ import {
   budgetStatuses,
   formatEuroCents,
   projectStatuses,
+  type BudgetRecord,
+  type BudgetType,
   type UUID,
 } from "../../domain"
 import "./budget.css"
@@ -25,11 +27,25 @@ const groupingOptions: readonly [BudgetGrouping, string][] = [
   ["type", "Type"],
 ]
 
+const overviewTypes: readonly BudgetType[] = [
+  "Goedgekeurd budget",
+  "Raming",
+  "Contract",
+  "Factuur",
+  "Betaling",
+]
+
+function factualTypeTotal(records: readonly BudgetRecord[], type: BudgetType) {
+  return records
+    .filter((record) => record.type === type && record.status !== "Geannuleerd")
+    .reduce((total, record) => total + record.amountCents, 0)
+}
+
 export function BudgetPage() {
   const session = useAppStore((state) => state.session)
   const setImportPanelOpen = useAppStore((state) => state.setImportPanelOpen)
   const [filters, setFilters] = useState<BudgetFilters>(defaultBudgetFilters)
-  const [grouping, setGrouping] = useState<BudgetGrouping>("project")
+  const [grouping, setGrouping] = useState<BudgetGrouping>("type")
   const model = useMemo(
     () =>
       session
@@ -217,8 +233,108 @@ export function BudgetPage() {
       <section className="budget-section">
         <div className="budget-section__heading">
           <div>
-            <span>Directe ledgeranalyse</span>
-            <h2>Groepering</h2>
+            <span>Hoofdstuk → cluster → project</span>
+            <h2>Financiële portefeuille</h2>
+          </div>
+          <strong>{model.projectRows.length} projecten</strong>
+        </div>
+        <div className="budget-portfolio-tree">
+          {session.state.records.chapters
+            .map((chapter) => ({
+              chapter,
+              rows: model.projectRows.filter(
+                (row) => row.project.chapterId === chapter.id,
+              ),
+            }))
+            .filter((group) => group.rows.length)
+            .map(({ chapter, rows }) => (
+              <details open key={chapter.id} className="budget-chapter">
+                <summary>
+                  <strong>
+                    {chapter.code} · {chapter.title}
+                  </strong>
+                  <span>{rows.length} projecten</span>
+                </summary>
+                {[
+                  ...new Set(
+                    rows.map((row) => row.cluster?.id ?? "without-cluster"),
+                  ),
+                ].map((clusterId) => {
+                  const clusterRows = rows.filter(
+                    (row) =>
+                      (row.cluster?.id ?? "without-cluster") === clusterId,
+                  )
+                  const clusterLabel =
+                    clusterRows[0]?.cluster?.title ?? "Zonder cluster"
+                  const clusterRecords = clusterRows.flatMap(
+                    (row) => row.records,
+                  )
+                  return (
+                    <details open key={clusterId} className="budget-cluster">
+                      <summary>
+                        <strong>{clusterLabel}</strong>
+                        <span>
+                          {overviewTypes
+                            .map(
+                              (type) =>
+                                `${type.replace("Goedgekeurd budget", "Budget")}: ${formatEuroCents(factualTypeTotal(clusterRecords, type))}`,
+                            )
+                            .join(" · ")}
+                        </span>
+                      </summary>
+                      <div className="budget-table-wrap">
+                        <table className="budget-table budget-table--portfolio">
+                          <thead>
+                            <tr>
+                              <th>Project</th>
+                              {overviewTypes.map((type) => (
+                                <th key={type}>
+                                  {type === "Goedgekeurd budget"
+                                    ? "Budget"
+                                    : type}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {clusterRows.map((row) => (
+                              <tr key={row.project.id}>
+                                <td>
+                                  <Link
+                                    to={`/projects/${row.project.id}/budget`}
+                                  >
+                                    <strong>{row.project.code}</strong> ·{" "}
+                                    {row.project.title}
+                                  </Link>
+                                </td>
+                                {overviewTypes.map((type) => (
+                                  <td
+                                    className="budget-table__amount"
+                                    key={type}
+                                  >
+                                    {formatEuroCents(
+                                      factualTypeTotal(row.records, type),
+                                    )}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </details>
+                  )
+                })}
+              </details>
+            ))}
+        </div>
+      </section>
+
+      <section className="budget-section">
+        <div className="budget-section__heading">
+          <div>
+            <span>Verdiepende ledgeranalyse</span>
+            <h2>Andere groepering</h2>
           </div>
           <label className="budget-grouping">
             <span>Groepeer per</span>

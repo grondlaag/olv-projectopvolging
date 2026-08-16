@@ -30,7 +30,7 @@ import type {
   ProjectClusterHistory,
   UUID,
 } from "../../domain"
-import { formatEuroCents } from "../../domain"
+import { formatEuroCents, projectSizeFte } from "../../domain"
 import { TopicWorkspace } from "../topics/topic-workspace"
 import { ProjectActionSection } from "../actions/action-sections"
 import { AgendaSchedulePanel } from "../meetings/agenda-schedule-panel"
@@ -248,6 +248,14 @@ function ProjectOverview({ project, cluster, history }: ProjectOverviewProps) {
                 <dd className="project-readonly__progress">
                   <progress max="100" value={project.progressPercent ?? 0} />
                   <span>{project.progressPercent ?? 0}%</span>
+                </dd>
+              </div>
+              <div>
+                <dt>Projectomvang</dt>
+                <dd>
+                  {project.size
+                    ? `${project.size} · ${projectSizeFte[project.size].toLocaleString("nl-BE")} VTE indicatief`
+                    : "Niet ingeschaald"}
                 </dd>
               </div>
             </dl>
@@ -1029,6 +1037,10 @@ export function ProjectReadonlyPage() {
         <div>
           <span>Voortgang</span>
           <strong>{project.progressPercent ?? 0}%</strong>
+        </div>
+        <div>
+          <span>Omvang</span>
+          <strong>{project.size ?? "—"}</strong>
         </div>
       </div>
 

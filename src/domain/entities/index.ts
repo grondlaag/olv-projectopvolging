@@ -16,6 +16,7 @@ import type {
   PlanningStatus,
   Priority,
   ProjectStatus,
+  ProjectSize,
   RecordStatus,
   ReportStatus,
   TopicParentType,
@@ -65,6 +66,7 @@ export interface Project extends AuditedEntity {
   plannedEndDate?: LocalDate
   actualEndDate?: LocalDate
   progressPercent?: number
+  size?: ProjectSize
   currentUpdateId?: UUID
   documentsUrl?: string
 }

@@ -2,6 +2,7 @@ import { z } from "zod"
 import {
   actorTypes,
   projectStatuses,
+  projectSizes,
   type ActorType,
   type LocalDate,
   type ProjectStatus,
@@ -54,6 +55,7 @@ export const projectFormSchema = z
       const progress = Number(value)
       return Number.isFinite(progress) && progress >= 0 && progress <= 100
     }, "Voortgang moet tussen 0 en 100 liggen."),
+    size: z.union([z.enum(projectSizes), z.literal("")]),
     documentsUrl: z
       .string()
       .refine(
@@ -133,6 +135,7 @@ export function projectValuesToInput(values: ProjectFormValues): ProjectInput {
     ...(values.progressPercent
       ? { progressPercent: Number(values.progressPercent) }
       : {}),
+    ...(values.size ? { size: values.size } : {}),
     ...(values.documentsUrl ? { documentsUrl: values.documentsUrl } : {}),
   }
 }

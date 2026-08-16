@@ -407,33 +407,49 @@ export function PortfolioPage() {
             <span>Te laat</span>
           </div>
           {groups.map((chapterGroup) => (
-            <section
+            <details
               className="portfolio-chapter"
               key={chapterGroup.chapter.id}
-              aria-labelledby={`chapter-${chapterGroup.chapter.id}`}
+              open
             >
-              <header>
+              <summary>
+                <span className="portfolio-disclosure" aria-hidden="true" />
                 <span>{chapterGroup.chapter.code}</span>
                 <h2 id={`chapter-${chapterGroup.chapter.id}`}>
                   {chapterGroup.chapter.title}
                 </h2>
-              </header>
+                <small>
+                  {chapterGroup.clusters.reduce(
+                    (total, cluster) => total + cluster.projects.length,
+                    0,
+                  )}{" "}
+                  projecten
+                </small>
+              </summary>
               {chapterGroup.clusters.map((clusterGroup) => (
-                <div className="portfolio-cluster" key={clusterGroup.id}>
-                  <div className="portfolio-cluster__heading">
+                <details
+                  className="portfolio-cluster"
+                  key={clusterGroup.id}
+                  open
+                >
+                  <summary className="portfolio-cluster__heading">
+                    <span className="portfolio-disclosure" aria-hidden="true" />
                     <h3>{clusterGroup.title}</h3>
+                    <small>{clusterGroup.projects.length} projecten</small>
                     {clusterGroup.cluster ? (
                       <Button
                         variant="tertiary"
-                        onClick={() =>
+                        onClick={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
                           navigate(`/clusters/${clusterGroup.cluster!.id}`)
-                        }
+                        }}
                         aria-label={`${clusterGroup.title} clustertopics openen`}
                       >
                         Clustertopics
                       </Button>
                     ) : null}
-                  </div>
+                  </summary>
                   <div className="portfolio-cluster__projects">
                     {clusterGroup.projects.map((row) => (
                       <button
@@ -486,9 +502,9 @@ export function PortfolioPage() {
                       </button>
                     ))}
                   </div>
-                </div>
+                </details>
               ))}
-            </section>
+            </details>
           ))}
         </div>
       ) : (

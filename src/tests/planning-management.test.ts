@@ -179,9 +179,33 @@ describe("planningitems en topictiming", () => {
       planningItemCount: 1,
       milestoneCount: 1,
       attentionItemCount: 1,
+      indicativeFte: 0,
+      unscaledProjectCount: 3,
+      sizeCounts: { XS: 0, S: 0, M: 0, L: 0, XL: 0, XXL: 0 },
       earliestDate: "2025-05-01",
       latestDate: "2027-03-01",
     })
+  })
+
+  it("projecteert brongebonden acties en beslissingen en berekent omvang-VTE", () => {
+    const records = structuredClone(createPortfolioTestSession().state.records)
+    records.projects[0]!.size = "L"
+    const state = normalizeDomainState(records)
+    const model = buildPortfolioPlanningModel(
+      state,
+      defaultGlobalPlanningFilters,
+      "2026-08-09",
+    )
+    const project = model
+      .flatMap((chapter) => chapter.clusters)
+      .flatMap((cluster) => cluster.projects)
+      .find((item) => item.project.id === testIds.projectOne)!
+    const summary = summarizePortfolioPlanning(model, "2026-08-09")
+
+    expect(project.rows.some((row) => row.actionId)).toBe(true)
+    expect(project.rows.some((row) => row.updateId)).toBe(true)
+    expect(summary.indicativeFte).toBe(1)
+    expect(summary.sizeCounts.L).toBe(1)
   })
 })
 

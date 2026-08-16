@@ -65,6 +65,7 @@ Initiële hoofdstukken:
 - plannedEndDate?;
 - actualEndDate?;
 - progressPercent?;
+- size?: `XS | S | M | L | XL | XXL`;
 - currentUpdateId?;
 - documentsUrl?;
 - audit.

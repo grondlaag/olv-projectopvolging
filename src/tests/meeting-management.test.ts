@@ -437,6 +437,21 @@ describe("verwerking, bronrecords en rapporthistoriek", () => {
     ).toBe(true)
   })
 
+  it("bouwt een conceptverslag met de overlegverslaggever zonder huidige actor", () => {
+    const { meeting, action } = processedMeeting()
+    const records = structuredClone(action.state.records)
+    delete records.config[0]!.currentActorId
+    const state = normalizeDomainState(records)
+
+    const draft = service.saveDraftReport(state, meeting.record.id, {
+      now,
+      createUuid,
+    })
+
+    expect(draft.record.authorActorId).toBe(meeting.record.reporterActorId)
+    expect(draft.record.status).toBe("Concept")
+  })
+
   it("maakt een nieuwe integer verslagversie en behoudt versie 1 intact", () => {
     const { meeting, action } = processedMeeting()
     const finalized = service.finalizeReport(action.state, meeting.record.id, {

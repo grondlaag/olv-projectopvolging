@@ -48,6 +48,18 @@ export const projectStatuses = [
 ] as const
 export type ProjectStatus = (typeof projectStatuses)[number]
 
+export const projectSizes = ["XS", "S", "M", "L", "XL", "XXL"] as const
+export type ProjectSize = (typeof projectSizes)[number]
+
+export const projectSizeFte: Readonly<Record<ProjectSize, number>> = {
+  XS: 0.1,
+  S: 0.25,
+  M: 0.5,
+  L: 1,
+  XL: 1.5,
+  XXL: 2,
+}
+
 export const topicStatuses = ["Open", "Afgesloten", "Geannuleerd"] as const
 export type TopicStatus = (typeof topicStatuses)[number]
 

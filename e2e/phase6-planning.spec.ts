@@ -60,19 +60,17 @@ test("fase-6-hoofdflow beheert planning, Gantt en JSON-roundtrip lokaal", async 
   await expect(
     page.getByRole("heading", { name: "Projectplanning" }),
   ).toBeVisible()
-  await page.getByRole("button", { name: "+ Mijlpaal" }).click()
-  panel = page.getByRole("dialog", { name: "Mijlpaal toevoegen" })
-  await panel.getByLabel("Titel").fill("E2E verhuisstart")
-  await panel.getByLabel("Mijlpaaldatum").fill("2026-10-05")
-  await panel.getByLabel("Voortgang").fill("0")
-  await panel.getByRole("button", { name: "Planningitem opslaan" }).click()
-
   await expect(
     page.getByRole("heading", { name: "Project-Gantt" }),
   ).toBeVisible()
   await expect(
-    page.getByRole("button", { name: /E2E verhuisstart, mijlpaal op/ }),
+    page
+      .locator(".planning-gantt__labels")
+      .getByText("Fasering medische verhuis"),
   ).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: "+ Planningitem" }),
+  ).toHaveCount(0)
   await page.getByLabel("Kwartaal").click()
   await expect(page.locator(".planning-gantt")).toHaveAttribute(
     "data-zoom",
@@ -83,6 +81,8 @@ test("fase-6-hoofdflow beheert planning, Gantt en JSON-roundtrip lokaal", async 
     fullPage: true,
   })
 
+  /* Legacy vrije mijlpalen worden niet meer aangemaakt; dependencyregels blijven
+     in unit tests gedekt omdat deze flow nu slechts één brongebonden topic heeft.
   await page.getByRole("button", { name: "+ Afhankelijkheid" }).click()
   panel = page.getByRole("dialog", { name: "Afhankelijkheid toevoegen" })
   await panel
@@ -107,6 +107,7 @@ test("fase-6-hoofdflow beheert planning, Gantt en JSON-roundtrip lokaal", async 
   await panel.getByRole("button", { name: "Afhankelijkheid opslaan" }).click()
   await expect(panel.getByRole("alert")).toContainText("cyclus in de planning")
   await panel.getByRole("button", { name: "Sluiten" }).click()
+  */
 
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })
@@ -121,6 +122,7 @@ test("fase-6-hoofdflow beheert planning, Gantt en JSON-roundtrip lokaal", async 
   await expect(planningSummary).toContainText("Planningdekking")
   await expect(planningSummary).toContainText("Planningitems")
   await expect(planningSummary).toContainText("Aandacht")
+  await expect(planningSummary).toContainText("Indicatieve resourcevraag")
   await expect(page.getByText("Zonder cluster", { exact: true })).toBeVisible()
   await page.screenshot({
     path: "test-results/phase6-portfolio-gantt.png",
@@ -157,6 +159,7 @@ test("fase-6-hoofdflow beheert planning, Gantt en JSON-roundtrip lokaal", async 
     .getByRole("navigation", { name: "Projectdossierweergave" })
     .getByRole("link", { name: "Planning" })
     .click()
+  /* Geen nieuw vrij mijlpaalrecord na roundtrip.
   await expect(
     page
       .locator(".planning-gantt__labels")
@@ -170,4 +173,5 @@ test("fase-6-hoofdflow beheert planning, Gantt en JSON-roundtrip lokaal", async 
       .locator(".planning-dependency-list li")
       .filter({ hasText: "Fasering medische verhuis" }),
   ).toContainText("E2E verhuisstart")
+  */
 })

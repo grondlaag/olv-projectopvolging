@@ -165,3 +165,9 @@ geblokkeerd; er is geen opportunistische repair. Een toekomstige wijziging moet:
 Een IndexedDB v1-snapshot uit de voormalige Excelperiode kan alleen als lokale
 domain records worden hersteld en moet vervolgens als JSON worden opgeslagen.
 Operationele Excel-import en -export maken geen deel meer uit van dit contract.
+
+## Optionele projectomvang
+
+`Project.size` bevat optioneel `XS`, `S`, `M`, `L`, `XL` of `XXL`. Ontbreken
+betekent dat het project nog niet is ingeschaald. Het veld is achterwaarts
+compatibel binnen schema 1.0.0; oude bestanden blijven geldig.

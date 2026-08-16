@@ -198,3 +198,7 @@ Voor release:
 7. controleer 1920, 1440, 1280, 1024 en 768 px;
 8. controleer toetsenbord, focus, labels, lege states en Nederlandstalige fouten;
 9. controleer dat DevTools Network geen projectdata verzendt.
+
+Nieuwe gerichte regressies controleren conceptverslagopbouw zonder huidige
+actor, brongebonden actie-/beslissingslagen, XS-XXL/VTE-samenvatting,
+inklapbare portfoliohiÃ«rarchie en audit-safe archiveren van topic en budget.

@@ -25,6 +25,8 @@ import { useEscapeKey } from "../../design-system/patterns"
 import {
   actorTypes,
   projectStatuses,
+  projectSizes,
+  projectSizeFte,
   type Actor,
   type Chapter,
   type Cluster,
@@ -66,6 +68,7 @@ function emptyProjectValues(): ProjectFormValues {
     plannedEndDate: "",
     actualEndDate: "",
     progressPercent: "0",
+    size: "",
     documentsUrl: "",
   }
 }
@@ -87,6 +90,7 @@ function projectValues(project: Project): ProjectFormValues {
     plannedEndDate: project.plannedEndDate ?? "",
     actualEndDate: project.actualEndDate ?? "",
     progressPercent: String(project.progressPercent ?? 0),
+    size: project.size ?? "",
     documentsUrl: project.documentsUrl ?? "",
   }
 }
@@ -842,6 +846,23 @@ export function ProjectFormPage() {
                 {errors.progressPercent ? (
                   <small role="alert">{errors.progressPercent.message}</small>
                 ) : null}
+              </label>
+              <label>
+                <span>
+                  Projectomvang <em>optioneel</em>
+                </span>
+                <select {...register("size")}>
+                  <option value="">Nog niet ingeschaald</option>
+                  {projectSizes.map((size) => (
+                    <option value={size} key={size}>
+                      {size} · indicatief{" "}
+                      {projectSizeFte[size].toLocaleString("nl-BE")} VTE
+                    </option>
+                  ))}
+                </select>
+                <small>
+                  Gebruikt voor de indicatieve resourcevraag in Planning.
+                </small>
               </label>
             </div>
           </section>

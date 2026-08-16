@@ -1,6 +1,10 @@
 import { useMemo, useState } from "react"
 import { Link, useParams, useSearchParams } from "react-router-dom"
 import { buildProjectBudgetModel } from "../../application/queries"
+import {
+  BudgetManagementError,
+  BudgetManagementService,
+} from "../../application/services"
 import { useAppStore } from "../../app/state/app-store"
 import {
   Badge,
@@ -30,6 +34,7 @@ const metricLabels = [
   "Resterend",
   "Afwijking",
 ] as const
+const budgetService = new BudgetManagementService()
 
 function BudgetBusinessMetricStrip() {
   return (
@@ -47,9 +52,10 @@ function BudgetBusinessMetricStrip() {
 interface BudgetTableProps {
   records: readonly BudgetRecord[]
   onCorrect: (recordId: UUID) => void
+  onArchive: (recordId: UUID) => void
 }
 
-function BudgetTable({ records, onCorrect }: BudgetTableProps) {
+function BudgetTable({ records, onCorrect, onArchive }: BudgetTableProps) {
   const session = useAppStore((state) => state.session)!
   if (!records.length) {
     return (
@@ -73,7 +79,7 @@ function BudgetTable({ records, onCorrect }: BudgetTableProps) {
             <th>Status</th>
             <th>Bedrag</th>
             <th>Referentie</th>
-            <th>Correcties</th>
+            <th>Acties</th>
           </tr>
         </thead>
         <tbody>
@@ -122,6 +128,12 @@ function BudgetTable({ records, onCorrect }: BudgetTableProps) {
                     onClick={() => onCorrect(record.id)}
                   >
                     Corrigeren{mutations.length ? ` (${mutations.length})` : ""}
+                  </Button>
+                  <Button
+                    variant="tertiary"
+                    onClick={() => onArchive(record.id)}
+                  >
+                    Verwijderen
                   </Button>
                 </td>
               </tr>
@@ -262,6 +274,29 @@ export function ProjectBudgetPage() {
         <BudgetTable
           records={model.records}
           onCorrect={(recordId) => setPanel(recordId)}
+          onArchive={(recordId) => {
+            if (
+              !window.confirm(
+                "Dit budgetitem verwijderen? Het blijft bewaard in de audit-historiek.",
+              )
+            )
+              return
+            try {
+              const latest = useAppStore.getState().session?.state
+              if (!latest) return
+              const result = budgetService.archiveRecord(latest, recordId)
+              useAppStore.getState().replaceDomainState(result.state)
+              setStatusMessage(
+                "Budgetitem verwijderd en audit-historiek bewaard · JSON nog opslaan",
+              )
+            } catch (error) {
+              setStatusMessage(
+                error instanceof BudgetManagementError
+                  ? error.message
+                  : "Budgetitem kon niet worden verwijderd.",
+              )
+            }
+          }}
         />
       </section>
 

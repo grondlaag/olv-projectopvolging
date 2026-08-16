@@ -54,7 +54,9 @@ test("fase-5-hoofdflow beheert, groepeert en roundtript acties volledig lokaal",
     fullPage: true,
   })
   await panel.getByRole("button", { name: "Actie opslaan" }).click()
-  await expect(page.getByText("Controle medische toegang")).toBeVisible()
+  await expect(
+    page.getByText("Controle medische toegang").first(),
+  ).toBeVisible()
 
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })

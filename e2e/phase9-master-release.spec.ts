@@ -140,12 +140,12 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
     .getByRole("navigation", { name: "Projectdossierweergave" })
     .getByRole("link", { name: "Planning" })
     .click()
-  await page.getByRole("button", { name: "+ Mijlpaal" }).click()
-  panel = page.getByRole("dialog", { name: "Mijlpaal toevoegen" })
-  await panel.getByLabel("Titel").fill("Vrijgave patiëntenzone")
-  await panel.getByLabel("Mijlpaaldatum").fill("2026-11-15")
-  await panel.getByRole("button", { name: "Planningitem opslaan" }).click()
-  await expect(page.getByText("Vrijgave patiëntenzone")).toBeVisible()
+  await expect(page.locator(".planning-gantt__labels")).toContainText(
+    "Signalisatie werfroute plaatsen",
+  )
+  await expect(page.locator(".planning-gantt__labels")).toContainText(
+    "De voorgestelde toegangsroute is goedgekeurd.",
+  )
 
   await page.goto(`/#/projects/${projectId}/budget`)
   await page.getByRole("button", { name: "+ Budgetitem" }).click()
@@ -278,7 +278,9 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
     .getByRole("navigation", { name: "Projectdossierweergave" })
     .getByRole("link", { name: "Planning" })
     .click()
-  await expect(page.getByText("Vrijgave patiëntenzone")).toBeVisible()
+  await expect(page.locator(".planning-gantt__labels")).toContainText(
+    "Façade en medische toegang",
+  )
   await page.goto(`/#/projects/${projectId}/budget`)
   await expect(
     page.getByText("Extra signalisatie en tijdelijke afscheiding"),

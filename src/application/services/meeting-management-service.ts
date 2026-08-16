@@ -107,18 +107,27 @@ function updateAudit(
   }
 }
 
-function activeCurrentActorId(state: NormalizedDomainState): UUID {
-  const actorId = state.records.config[0]?.currentActorId
-  const actor = actorId ? state.indices.actorById.get(actorId) : undefined
-  if (!actor?.active || !actor.audit.active) {
-    throw new MeetingManagementError([
-      {
-        field: "authorActorId",
-        message: "Kies een actieve huidige actor voor deze overlegmutatie.",
-      },
-    ])
+function reportAuthorId(state: NormalizedDomainState, meeting: Meeting): UUID {
+  const participantIds = (
+    state.indices.meetingParticipantsByMeeting.get(meeting.id) ?? []
+  ).map((participant) => participant.actorId)
+  const candidates = [
+    meeting.reporterActorId,
+    meeting.chairActorId,
+    ...participantIds,
+    state.records.config[0]?.currentActorId,
+  ]
+  for (const actorId of candidates) {
+    const actor = actorId ? state.indices.actorById.get(actorId) : undefined
+    if (actor?.active && actor.audit.active) return actor.id
   }
-  return actor.id
+  throw new MeetingManagementError([
+    {
+      field: "reporterActorId",
+      message:
+        "Voeg een actieve verslaggever, voorzitter of deelnemer aan het overleg toe.",
+    },
+  ])
 }
 
 function scopeReferences(state: NormalizedDomainState): MeetingScopeReferences {
@@ -652,7 +661,7 @@ export class MeetingManagementService {
     const meeting = ensureConceptMeeting(state, meetingId)
     const now = options.now ?? new Date()
     const createUuid = options.createUuid ?? defaultUuid
-    const actorId = activeCurrentActorId(state)
+    const actorId = reportAuthorId(state, meeting)
     const reports = state.indices.reportsByMeeting.get(meetingId) ?? []
     const existing = reports.find((report) => report.status === "Concept")
     const version =
@@ -709,7 +718,7 @@ export class MeetingManagementService {
     }
     const meeting = ensureConceptMeeting(workingState, meetingId)
     const now = options.now ?? new Date()
-    const actorId = activeCurrentActorId(workingState)
+    const actorId = draft.authorActorId
     const status = draft.version === 1 ? "Definitief" : "Gereviseerd"
     const report: Report = {
       ...draft,
@@ -756,7 +765,7 @@ export class MeetingManagementService {
     }
     const now = options.now ?? new Date()
     const createUuid = options.createUuid ?? defaultUuid
-    const actorId = activeCurrentActorId(state)
+    const actorId = reportAuthorId(state, meeting)
     const reports = state.indices.reportsByMeeting.get(meetingId) ?? []
     const previous = [...reports].sort(
       (left, right) => right.version - left.version,

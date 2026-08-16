@@ -259,6 +259,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: var(--space-3);
 }
 
@@ -277,6 +278,13 @@
 .topic-journal__entry small {
   color: var(--color-ink-muted);
   font-size: var(--font-size-xs);
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.topic-journal__entry article > header > :first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .topic-current > p {

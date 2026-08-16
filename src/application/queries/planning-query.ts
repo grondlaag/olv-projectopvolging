@@ -1,3 +1,4 @@
+import { projectSizeFte } from "../../domain"
 import type {
   Actor,
   Chapter,
@@ -5,6 +6,7 @@ import type {
   PlanningDependency,
   PlanningEntry,
   PlanningStatus,
+  ProjectSize,
   Project,
   Topic,
   UUID,
@@ -27,6 +29,8 @@ export interface PlanningRow {
   projectId: UUID
   entry?: PlanningEntry
   topic?: Topic
+  actionId?: UUID
+  updateId?: UUID
   owner?: Actor
   startDate?: string
   endDate?: string
@@ -90,6 +94,9 @@ export interface PortfolioPlanningSummary {
   attentionItemCount: number
   earliestDate?: string
   latestDate?: string
+  indicativeFte: number
+  unscaledProjectCount: number
+  sizeCounts: Readonly<Record<ProjectSize, number>>
 }
 
 export function isPlanningEntryDelayed(
@@ -159,6 +166,80 @@ function projectRow(project: Project): PlanningRow {
   }
 }
 
+function sourceRows(
+  state: NormalizedDomainState,
+  project: Project,
+  depth: PlanningRow["depth"],
+  today: string,
+): PlanningRow[] {
+  const topicIds = new Set(
+    (state.indices.topicsByProject.get(project.id) ?? []).map(
+      (topic) => topic.id,
+    ),
+  )
+  const actions = [
+    ...(state.indices.actionsByObject.get(`Project:${project.id}`) ?? []),
+    ...[...topicIds].flatMap(
+      (topicId) => state.indices.actionsByObject.get(`Topic:${topicId}`) ?? [],
+    ),
+  ]
+  const updates = [
+    ...(state.indices.updatesByObject.get(`Project:${project.id}`) ?? []),
+    ...[...topicIds].flatMap(
+      (topicId) => state.indices.updatesByObject.get(`Topic:${topicId}`) ?? [],
+    ),
+  ]
+  const actionRows: PlanningRow[] = actions.flatMap((action) => {
+    if (!action.audit.active || !action.deadline) return []
+    const topic =
+      action.objectType === "Topic"
+        ? state.indices.topicById.get(action.objectId)
+        : undefined
+    return [
+      {
+        id: `action:${action.id}`,
+        title: action.title,
+        subtitle: `Actie${topic ? ` · ${topic.code}` : ""}`,
+        depth,
+        kind: "milestone",
+        projectId: project.id,
+        ...(topic ? { topic } : {}),
+        actionId: action.id,
+        endDate: action.deadline,
+        progressPercent: action.status === "Afgerond" ? 100 : 0,
+        isMilestone: true,
+        delayed:
+          action.deadline < today &&
+          !["Afgerond", "Geannuleerd"].includes(action.status),
+      },
+    ]
+  })
+  const decisionRows: PlanningRow[] = updates.flatMap((update) => {
+    if (!update.audit.active || update.type !== "Beslissing") return []
+    const topic =
+      update.objectType === "Topic"
+        ? state.indices.topicById.get(update.objectId)
+        : undefined
+    return [
+      {
+        id: `decision:${update.id}`,
+        title: update.text,
+        subtitle: `Beslissing${topic ? ` · ${topic.code}` : ""}`,
+        depth,
+        kind: "milestone",
+        projectId: project.id,
+        ...(topic ? { topic } : {}),
+        updateId: update.id,
+        endDate: update.date,
+        progressPercent: 100,
+        isMilestone: true,
+        delayed: false,
+      },
+    ]
+  })
+  return [...actionRows, ...decisionRows]
+}
+
 export function buildProjectPlanningModel(
   state: NormalizedDomainState,
   projectId: UUID,
@@ -185,6 +266,7 @@ export function buildProjectPlanningModel(
     rows: [
       projectRow(project),
       ...entries.map((entry) => entryRow(state, entry, today)),
+      ...sourceRows(state, project, 1, today),
     ],
     entries,
     dependencies,
@@ -290,6 +372,7 @@ export function buildPortfolioPlanningModel(
                 rows: [
                   projectRow(project),
                   ...entries.map((entry) => entryRow(state, entry, today, 2)),
+                  ...sourceRows(state, project, 2, today),
                 ],
               })),
           }
@@ -317,12 +400,26 @@ export function summarizePortfolioPlanning(
   let planningItemCount = 0
   let milestoneCount = 0
   let attentionItemCount = 0
+  let indicativeFte = 0
+  let unscaledProjectCount = 0
+  const sizeCounts: Record<ProjectSize, number> = {
+    XS: 0,
+    S: 0,
+    M: 0,
+    L: 0,
+    XL: 0,
+    XXL: 0,
+  }
   const dates: string[] = []
 
   for (const chapter of model) {
     for (const cluster of chapter.clusters) {
       for (const item of cluster.projects) {
         totalProjects += 1
+        if (item.project.size) {
+          sizeCounts[item.project.size] += 1
+          indicativeFte += projectSizeFte[item.project.size]
+        } else unscaledProjectCount += 1
         const hasProjectPlanning = Boolean(
           item.project.startDate || item.project.plannedEndDate,
         )
@@ -361,6 +458,9 @@ export function summarizePortfolioPlanning(
     planningItemCount,
     milestoneCount,
     attentionItemCount,
+    indicativeFte,
+    unscaledProjectCount,
+    sizeCounts,
     ...(earliestDate ? { earliestDate } : {}),
     ...(latestDate ? { latestDate } : {}),
   }

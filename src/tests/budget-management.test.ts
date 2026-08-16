@@ -177,6 +177,41 @@ describe("pure budgetledgerregels", () => {
 })
 
 describe("budgetbeheer, projectcontext en correctiehistorie", () => {
+  it("archiveert een budgetitem met een append-only auditmutatie", () => {
+    const session = createPortfolioTestSession()
+    const created = service.createRecord(
+      session.state,
+      {
+        projectId: testIds.projectOne,
+        category: "Werken",
+        type: "Raming",
+        description: "Te verwijderen dubbellijn",
+        amountCents: 25_000,
+        date: date("2026-03-01"),
+        status: "Concept",
+      },
+      { createUuid: () => uuid("b1000000-0000-4000-8000-000000000001") },
+    )
+    const archived = service.archiveRecord(
+      created.state,
+      created.record.id,
+      "Dubbel ingevoerd",
+      {
+        now: new Date("2026-03-02T10:00:00Z"),
+        createUuid: () => uuid("b1000000-0000-4000-8000-000000000002"),
+      },
+    )
+
+    expect(archived.record.audit.active).toBe(false)
+    expect(archived.record.status).toBe("Geannuleerd")
+    expect(archived.mutation).toMatchObject({
+      changeType: "Gearchiveerd",
+      reason: "Dubbel ingevoerd",
+    })
+    expect(
+      buildProjectBudgetModel(archived.state, testIds.projectOne)?.records,
+    ).not.toContainEqual(archived.record)
+  })
   it("maakt een projectbudgetrecord en telt een topicrecord nergens dubbel", () => {
     const session = createPortfolioTestSession()
     const created = service.createRecord(

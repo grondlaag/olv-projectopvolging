@@ -48,6 +48,24 @@ beforeEach(() => {
 })
 
 describe("topicbeheer", () => {
+  it("archiveert een topic zonder de gekoppelde historie te wissen", () => {
+    const session = createPortfolioTestSession()
+    const beforeUpdates = session.state.records.updates.length
+    const result = service.archiveTopic(session.state, testIds.topicCritical, {
+      now,
+    })
+
+    expect(result.record).toMatchObject({
+      status: "Geannuleerd",
+      audit: { active: false },
+    })
+    expect(result.state.records.updates).toHaveLength(beforeUpdates)
+    expect(
+      buildTopicListItems(result.state, "Project", testIds.projectOne).some(
+        (item) => item.topic.id === testIds.topicCritical,
+      ),
+    ).toBe(false)
+  })
   it("maakt een projecttopic met stabiele UUID en exact één projectouder", () => {
     const result = service.createTopic(
       createPortfolioTestSession().state,

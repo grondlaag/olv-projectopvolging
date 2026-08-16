@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 import { useForm, type FieldPath } from "react-hook-form"
-import { Link, useParams } from "react-router-dom"
+import { Link, useNavigate, useParams } from "react-router-dom"
 import {
   buildProjectPlanningModel,
   type PlanningZoom,
@@ -344,6 +344,7 @@ function DependencyPanel({ entries, onClose, onSaved }: DependencyPanelProps) {
 }
 
 export function ProjectPlanningPage() {
+  const navigate = useNavigate()
   const { projectId } = useParams<{ projectId: string }>()
   const session = useAppStore((state) => state.session)
   const setImportPanelOpen = useAppStore((state) => state.setImportPanelOpen)
@@ -412,12 +413,21 @@ export function ProjectPlanningPage() {
         description={`${model.project.title} · ${cluster?.title ?? "Zonder cluster"}`}
         actions={
           <div className="planning-actions">
-            <Button variant="secondary" onClick={() => setPanel("custom")}>
-              + Planningitem
-            </Button>
-            <Button variant="secondary" onClick={() => setPanel("milestone")}>
-              + Mijlpaal
-            </Button>
+            <Link
+              className="planning-source-link"
+              to={`/projects/${model.project.id}`}
+            >
+              + Topic
+            </Link>
+            <Link className="planning-source-link" to="/actions">
+              + Actie
+            </Link>
+            <Link
+              className="planning-source-link"
+              to={`/projects/${model.project.id}`}
+            >
+              + Beslissing
+            </Link>
             <Button onClick={() => setPanel("dependency")}>
               + Afhankelijkheid
             </Button>
@@ -488,7 +498,15 @@ export function ProjectPlanningPage() {
           dependencies={model.dependencies}
           zoom={zoom}
           today={today}
-          onSelectEntry={(entryId) => setSelectedEntryId(entryId)}
+          onSelectRow={(row) => {
+            if (row.kind === "project")
+              navigate(`/projects/${row.projectId}/edit`)
+            else if (row.entry) setSelectedEntryId(row.entry.id)
+            else if (row.topic)
+              navigate(`/projects/${row.projectId}/topics/${row.topic.id}`)
+            else if (row.actionId) navigate("/actions")
+            else navigate(`/projects/${row.projectId}`)
+          }}
         />
       </section>
       <section

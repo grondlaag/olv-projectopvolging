@@ -13,6 +13,7 @@ import {
   planningStatuses,
   priorities,
   projectStatuses,
+  projectSizes,
   recordStatuses,
   reportStatuses,
   topicStatuses,
@@ -84,6 +85,7 @@ const projectSchema = z
     plannedEndDate: localDateSchema.optional(),
     actualEndDate: localDateSchema.optional(),
     progressPercent: z.number().min(0).max(100).optional(),
+    size: z.enum(projectSizes).optional(),
     currentUpdateId: uuidSchema.optional(),
     documentsUrl: z.string().optional(),
   })

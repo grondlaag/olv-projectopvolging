@@ -74,7 +74,7 @@ test("project en topic worden vanuit hun dossier op een overlegagenda geplaatst"
 
   await expect(page.getByText("1 keer ingepland")).toBeVisible()
   await page.getByRole("link", { name: "Projectoverleg agenda" }).click()
-  const agenda = page.locator(".meeting-agenda")
+  const agenda = page.locator(".meeting-agenda--grouped")
   await expect(agenda).toContainText("PRJ-001 · Synthetisch renovatieproject")
   await expect(agenda).toContainText("TOP-001 · Tijdelijke toegang")
 })

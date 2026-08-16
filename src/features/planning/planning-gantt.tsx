@@ -87,6 +87,7 @@ interface PlanningGanttProps {
   zoom: PlanningZoom
   today: string
   onSelectEntry?: (entryId: UUID) => void
+  onSelectRow?: (row: PlanningRow) => void
   emptyMessage?: string
 }
 
@@ -96,6 +97,7 @@ export const PlanningGantt = memo(function PlanningGantt({
   zoom,
   today,
   onSelectEntry,
+  onSelectRow,
   emptyMessage = "Nog geen planningitems om weer te geven.",
 }: PlanningGanttProps) {
   const scrollerRef = useRef<HTMLDivElement>(null)
@@ -196,8 +198,12 @@ export const PlanningGantt = memo(function PlanningGantt({
             type="button"
             key={row.id}
             className={`planning-gantt__label planning-gantt__label--depth-${row.depth}`}
-            disabled={!row.entry || !onSelectEntry}
-            onClick={() => row.entry && onSelectEntry?.(row.entry.id)}
+            disabled={!onSelectRow && (!row.entry || !onSelectEntry)}
+            onClick={() =>
+              onSelectRow
+                ? onSelectRow(row)
+                : row.entry && onSelectEntry?.(row.entry.id)
+            }
           >
             <span>
               <strong>{row.title}</strong>
@@ -283,7 +289,11 @@ export const PlanningGantt = memo(function PlanningGantt({
                     className={`planning-gantt__milestone ${row.delayed ? "is-delayed" : ""}`}
                     style={{ left: position.end - 8, top }}
                     aria-label={`${row.title}, mijlpaal op ${formatLocalDate(row.endDate)}`}
-                    onClick={() => row.entry && onSelectEntry?.(row.entry.id)}
+                    onClick={() =>
+                      onSelectRow
+                        ? onSelectRow(row)
+                        : row.entry && onSelectEntry?.(row.entry.id)
+                    }
                   />
                 )
               }
@@ -295,7 +305,11 @@ export const PlanningGantt = memo(function PlanningGantt({
                   className={`planning-gantt__bar planning-gantt__bar--${row.kind} ${row.delayed ? "is-delayed" : ""}`}
                   style={{ left: position.start, top, width }}
                   aria-label={`${row.title}, ${formatLocalDate(row.startDate)} tot ${formatLocalDate(row.endDate)}, ${row.progressPercent}%`}
-                  onClick={() => row.entry && onSelectEntry?.(row.entry.id)}
+                  onClick={() =>
+                    onSelectRow
+                      ? onSelectRow(row)
+                      : row.entry && onSelectEntry?.(row.entry.id)
+                  }
                 >
                   <span style={{ width: `${row.progressPercent}%` }} />
                 </button>

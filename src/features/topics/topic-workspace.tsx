@@ -794,6 +794,33 @@ export function TopicWorkspace({
     }
   }
 
+  function archiveSelectedTopic() {
+    if (
+      !selected ||
+      !window.confirm(
+        "Dit topic verwijderen? Updates, beslissingen en acties blijven als historie bewaard.",
+      )
+    )
+      return
+    try {
+      const latestState = useAppStore.getState().session?.state
+      if (!latestState) return
+      const result = topicService.archiveTopic(latestState, selected.topic.id)
+      replaceDomainState(result.state)
+      setStatusMessage(
+        "Topic verwijderd; gekoppelde historie blijft bewaard · JSON nog opslaan",
+      )
+      setPanel(undefined)
+      navigate(basePath)
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error
+          ? error.message
+          : "Topic verwijderen is mislukt.",
+      )
+    }
+  }
+
   return (
     <section
       className={`topic-workspace ${panel === "new" || panel === "timing" ? "topic-workspace--panel" : ""}`}
@@ -958,6 +985,9 @@ export function TopicWorkspace({
                     {selected.planning ? "Timing bewerken" : "+ Timing"}
                   </Button>
                 ) : null}
+                <Button variant="tertiary" onClick={archiveSelectedTopic}>
+                  Topic verwijderen
+                </Button>
               </div>
             </header>
 

@@ -10,7 +10,7 @@ import {
 } from "../../application/queries"
 import { useAppStore } from "../../app/state/app-store"
 import { Button, EmptyState, PageHeader } from "../../design-system/components"
-import { planningStatuses, type UUID } from "../../domain"
+import { planningStatuses, projectSizes, projectSizeFte } from "../../domain"
 import { formatLocalDate, todayAsLocalDate } from "../../utils"
 import { PlanningGantt } from "./planning-gantt"
 import "./planning.css"
@@ -165,6 +165,37 @@ export function PlanningPage() {
               : "Nog geen datums"}
           </strong>
           <small>volgens de huidige filters</small>
+        </div>
+        <div>
+          <span>Indicatieve resourcevraag</span>
+          <strong>{summary.indicativeFte.toLocaleString("nl-BE")} VTE</strong>
+          <small>
+            {summary.unscaledProjectCount} projecten nog niet ingeschaald
+          </small>
+        </div>
+      </section>
+      <section
+        className="planning-resources"
+        aria-labelledby="planning-resources-title"
+      >
+        <div>
+          <span>Resourcemanagement</span>
+          <h2 id="planning-resources-title">Projectomvang in portefeuille</h2>
+          <p>
+            Indicatieve gelijktijdige vraag op basis van de gekozen
+            XS–XXL-omvang; geen personeelsplanning.
+          </p>
+        </div>
+        <div className="planning-resources__scale">
+          {projectSizes.map((size) => (
+            <div key={size}>
+              <span>{size}</span>
+              <strong>{summary.sizeCounts[size]}</strong>
+              <small>
+                {projectSizeFte[size].toLocaleString("nl-BE")} VTE/project
+              </small>
+            </div>
+          ))}
         </div>
       </section>
       <section className="planning-filters" aria-label="Planningfilters">
@@ -416,11 +447,16 @@ export function PlanningPage() {
               rows={rows}
               zoom={zoom}
               today={today}
-              onSelectEntry={(entryId) => {
-                const entry = session.state.indices.planningById.get(
-                  entryId as UUID,
-                )
-                if (entry) navigate(`/projects/${entry.projectId}/planning`)
+              onSelectRow={(row) => {
+                if (row.kind === "project") {
+                  navigate(`/projects/${row.projectId}/edit`)
+                } else if (row.topic) {
+                  navigate(`/projects/${row.projectId}/topics/${row.topic.id}`)
+                } else if (row.actionId) {
+                  navigate("/actions")
+                } else {
+                  navigate(`/projects/${row.projectId}/planning`)
+                }
               }}
             />
           </section>

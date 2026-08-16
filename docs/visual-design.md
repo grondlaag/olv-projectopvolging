@@ -430,3 +430,12 @@ Respecteer `prefers-reduced-motion`.
 - geen verplichte externe font-CDN;
 - iconen lokaal gebundeld;
 - assets werken onder Vite base path.
+
+## Aanvullende interactiepatronen
+
+- Portfoliohoofdstukken en clusters zijn standaard open en apart inklapbaar.
+- Ganttlabels en balken zijn hetzelfde klikdoel naar hun bronrecord.
+- De XS-XXL-band toont aantallen en indicatieve VTE zonder extra chartwand.
+- Topicdatums breken op smalle breedte af zonder titel of metadata te overlappen.
+- Agenda- en verslag-PDF gebruiken een rustige documentkop, metadataband,
+  sectiescheidingen, ruime tekstkolom en paginanummers.

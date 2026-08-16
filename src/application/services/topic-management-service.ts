@@ -277,4 +277,28 @@ export class TopicManagementService {
     records.topics[topicIndex] = updated
     return { state: normalizeDomainState(records), record: updated }
   }
+
+  archiveTopic(
+    state: NormalizedDomainState,
+    topicId: UUID,
+    options: TopicMutationOptions = {},
+  ): TopicMutationResult<Topic> {
+    const topic = state.indices.topicById.get(topicId)
+    if (!topic?.audit.active) {
+      throw new TopicManagementError([
+        { field: "topic", message: "Topic niet gevonden." },
+      ])
+    }
+    const now = options.now ?? new Date()
+    const actorId = currentActorId(state)
+    const updated: Topic = {
+      ...topic,
+      status: "Geannuleerd",
+      audit: { ...updateAudit(topic.audit, now, actorId), active: false },
+    }
+    const records = cloneDomainCollections(state.records)
+    const index = records.topics.findIndex((item) => item.id === topic.id)
+    records.topics[index] = updated
+    return { state: normalizeDomainState(records), record: updated }
+  }
 }

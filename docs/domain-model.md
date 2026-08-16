@@ -17,6 +17,9 @@ Hoofdstuk
 
 Project mag zonder cluster bestaan.
 
+Alle persistente records worden als arrays in het JSON-datacontract bewaard;
+Maps en aggregaties zijn afgeleide runtime-indices.
+
 ## Hoofdstuk
 
 - id;
@@ -112,6 +115,34 @@ Mutatieregels in fase 3:
 - active;
 - audit.
 
+## Config
+
+- id;
+- schemaVersion;
+- dataSetId;
+- createdAt;
+- appVersion;
+- defaultCurrency;
+- currentActorId?;
+- audit.
+
+Er bestaat exact één Config-record per gegevensset. `dataSetId` is stabiel over
+opslaan en opnieuw openen en is onafhankelijk van de gedownloade bestandsnaam.
+
+## ChoiceList
+
+- id;
+- listKey;
+- valueKey;
+- label;
+- order;
+- system;
+- active;
+- audit.
+
+De combinatie `listKey + valueKey` is uniek. Keuzelijsten leveren suggesties;
+bestaande vrije tekst blijft geldig waar het domein dat toestaat.
+
 ## Topic
 
 - id;
@@ -170,6 +201,13 @@ Types:
 De snelle fase-4-invoer ondersteunt op topicniveau `Update`, `Notitie`,
 `Overlegbijdrage` en `Beslissing`. De overige types blijven importeerbaar en
 zichtbaar in het gecombineerde projectjournaal.
+
+Bij nieuwe invoer verwijst `authorActorId` naar een actieve actor. De gebruiker
+kan de auteur expliciet kiezen of inline een actor toevoegen. Wanneer een actieve
+huidige actor is ingesteld, blijft die de auditactor (`createdByActorId` en
+`updatedByActorId`); de gekozen auteur kan daarvan verschillen. Zonder huidige
+actor wordt de gekozen auteur ook als auditactor gebruikt. Historische updates
+met een later gedeactiveerde auteur blijven geldig en zichtbaar.
 
 ## Action
 
@@ -288,6 +326,16 @@ Fase-6-mutatieregels:
   geen duplicaat, self-link of cyclus vormen;
 - projectvoortgang blijft het handmatig beheerde veld op `Project` en wordt
   nooit uit topicvoortgang gemiddeld.
+
+De globale planningssamenvatting is afgeleid uit het gefilterde portfoliomodel:
+
+- planningdekking telt een project met een projectdatum of minstens één zichtbaar
+  actief planningitem;
+- planningitems en mijlpalen worden als records geteld, zonder projectrecords
+  dubbel mee te tellen;
+- aandacht telt elk item maximaal één keer bij status `Risico`, `Vertraagd` of
+  een afgeleide overschreden einddatum;
+- de zichtbare periode is de vroegste tot laatste project- of planningdatum.
 
 ## BudgetRecord
 

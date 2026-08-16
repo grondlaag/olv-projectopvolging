@@ -26,11 +26,11 @@ export function DashboardPage() {
         />
         <div className="dashboard-page__empty">
           <EmptyState
-            title="Laad een projectworkbook"
+            title="Open een projectgegevensbestand"
             description="Kies een canonical OLV .xlsx-bestand, controleer het validatierapport en bevestig de import."
             action={
               <Button onClick={() => setImportPanelOpen(true)}>
-                Excelbestand laden
+                JSON openen of nieuw starten
               </Button>
             }
           />

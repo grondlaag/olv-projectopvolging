@@ -20,7 +20,7 @@ describe("budgetwerkruimte", () => {
     useAppStore.getState().reset()
     useAppStore.setState({
       session: createPortfolioTestSession(),
-      loadedFileName: "portfolio-test.xlsx",
+      loadedFileName: "portfolio-test.json",
     })
   })
 
@@ -82,7 +82,7 @@ describe("budgetwerkruimte", () => {
     })
     expect(
       await screen.findByText(
-        "Budgetitem opgeslagen in de lokale sessie · nog exporteren",
+        "Budgetitem opgeslagen in de lokale sessie · JSON nog opslaan",
       ),
     ).toBeInTheDocument()
     view.unmount()

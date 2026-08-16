@@ -3,21 +3,14 @@ import { expect, test, type Locator, type Page } from "@playwright/test"
 
 test.setTimeout(240_000)
 
-async function importWorkbook(page: Page, path: string) {
-  const initialTrigger = page.getByRole("button", {
-    name: "Excelbestand laden",
-    exact: true,
-  })
-  const trigger = (await initialTrigger.count())
-    ? initialTrigger
-    : page.getByRole("button", { name: "Excel laden", exact: true })
-  await trigger.click()
-  const dialog = page.getByRole("dialog", { name: "Excelbestand laden" })
+async function openDataFile(page: Page, path: string) {
+  await page.getByRole("button", { name: "JSON openen", exact: true }).click()
+  const dialog = page.getByRole("dialog", { name: "JSON-gegevensbestand" })
   await dialog.locator('input[type="file"]').setInputFiles(path)
   await expect(dialog.getByText("Blocking: 0")).toBeVisible({
     timeout: 25_000,
   })
-  await dialog.getByRole("button", { name: "Import bevestigen" }).click()
+  await dialog.getByRole("button", { name: "Bestand openen" }).click()
 }
 
 async function addActor(panel: Locator, name: string, role: string) {
@@ -42,12 +35,10 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
   page.setDefaultTimeout(15_000)
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto("/#/dashboard")
-  const importWorkerPromise = page.waitForEvent("worker")
-  await importWorkbook(
+  await openDataFile(
     page,
-    resolve(process.cwd(), "src/tests/fixtures/excel/small-valid.xlsx"),
+    resolve(process.cwd(), "src/tests/fixtures/json/small-valid.json"),
   )
-  await expect((await importWorkerPromise).url()).toContain("excel.worker")
 
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })
@@ -239,16 +230,14 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
   await expect(page.getByText("Historisch vastgelegd")).toBeVisible()
 
   const downloadPromise = page.waitForEvent("download")
-  const exportWorkerPromise = page.waitForEvent("worker")
-  await page.getByRole("button", { name: "Exporteren" }).click()
-  await expect((await exportWorkerPromise).url()).toContain("excel.worker")
+  await page.getByRole("button", { name: "JSON opslaan" }).click()
   const download = await downloadPromise
   const exportedPath = resolve(
     process.cwd(),
-    "test-results/phase9-master-roundtrip.xlsx",
+    "test-results/phase9-master-roundtrip.json",
   )
   await download.saveAs(exportedPath)
-  await importWorkbook(page, exportedPath)
+  await openDataFile(page, exportedPath)
 
   const globalSearch = page.getByRole("combobox", { name: "Globaal zoeken" })
   await globalSearch.fill("PRJ-REL-09")

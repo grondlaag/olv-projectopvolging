@@ -364,10 +364,10 @@ export function ProjectPlanningPage() {
     return (
       <EmptyState
         title="Planning kan nog niet worden geopend"
-        description="Laad eerst een geldig Excelworkbook."
+        description="Open een bestaand JSON-bestand of start een nieuwe gegevensset."
         action={
           <Button onClick={() => setImportPanelOpen(true)}>
-            Excelbestand laden
+            JSON openen of nieuw starten
           </Button>
         }
       />
@@ -392,7 +392,7 @@ export function ProjectPlanningPage() {
     : undefined
 
   function saved(message: string) {
-    setStatusMessage(`${message} in de lokale sessie · nog exporteren`)
+    setStatusMessage(`${message} in de lokale sessie · JSON nog opslaan`)
     setPanel(undefined)
     setSelectedEntryId(undefined)
   }

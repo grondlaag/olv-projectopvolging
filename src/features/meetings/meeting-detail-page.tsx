@@ -191,7 +191,7 @@ function AgendaPanel({ meetingId, item, onClose, onSaved }: AgendaPanelProps) {
       )
       replaceDomainState(result.state)
       onSaved(
-        `${item ? "Agendapunt bijgewerkt" : "Agendapunt toegevoegd"} in de lokale sessie · nog exporteren`,
+        `${item ? "Agendapunt bijgewerkt" : "Agendapunt toegevoegd"} in de lokale sessie · JSON nog opslaan`,
       )
     } catch (error) {
       if (error instanceof MeetingManagementError) {
@@ -367,7 +367,7 @@ function ContributionPanel({
       })
       replaceDomainState(result.state)
       onSaved(
-        `${mode === "decision" ? "Beslissing" : "Update"} opgeslagen in overleg én brondossier · nog exporteren`,
+        `${mode === "decision" ? "Beslissing" : "Update"} opgeslagen in overleg én brondossier · JSON nog opslaan`,
       )
     } catch (error) {
       if (error instanceof UpdateManagementError)
@@ -452,7 +452,7 @@ function RevisionPanel({ meetingId, onClose, onSaved }: RevisionPanelProps) {
       const result = meetingService.createRevision(latest, meetingId, reason)
       replaceDomainState(result.state)
       onSaved(
-        `Verslagrevisie ${result.record.version} definitief opgeslagen · nog exporteren`,
+        `Verslagrevisie ${result.record.version} definitief opgeslagen · JSON nog opslaan`,
       )
     } catch (error) {
       if (error instanceof MeetingManagementError)
@@ -527,11 +527,11 @@ export function MeetingDetailPage() {
   if (!session)
     return (
       <EmptyState
-        title="Laad eerst een projectworkbook"
+        title="Open eerst een projectgegevensbestand"
         description="Overlegdossiers worden uit de actieve lokale sessie gelezen."
         action={
           <Button onClick={() => setImportPanelOpen(true)}>
-            Excelbestand laden
+            JSON openen of nieuw starten
           </Button>
         }
       />
@@ -540,7 +540,7 @@ export function MeetingDetailPage() {
     return (
       <ErrorState
         title="Overleg niet gevonden"
-        description="Dit overleg-ID bestaat niet in het geladen workbook."
+        description="Dit overleg-ID bestaat niet in de geopende gegevensset."
       />
     )
 
@@ -561,7 +561,7 @@ export function MeetingDetailPage() {
       const result = meetingService.moveAgendaItem(latest, item.id, direction)
       replaceDomainState(result.state)
       setStatusMessage(
-        "Agendavolgorde opgeslagen in de lokale sessie · nog exporteren",
+        "Agendavolgorde opgeslagen in de lokale sessie · JSON nog opslaan",
       )
     } catch (error) {
       setStatusMessage(
@@ -588,7 +588,7 @@ export function MeetingDetailPage() {
         objectId,
       })
       replaceDomainState(result.state)
-      setStatusMessage("Suggestie aan de agenda toegevoegd · nog exporteren")
+      setStatusMessage("Suggestie aan de agenda toegevoegd · JSON nog opslaan")
     } catch (error) {
       setStatusMessage(
         error instanceof Error
@@ -608,7 +608,7 @@ export function MeetingDetailPage() {
       )
       replaceDomainState(result.state)
       setStatusMessage(
-        "Aanwezigheid opgeslagen in de lokale sessie · nog exporteren",
+        "Aanwezigheid opgeslagen in de lokale sessie · JSON nog opslaan",
       )
     } catch (error) {
       setStatusMessage(
@@ -625,7 +625,7 @@ export function MeetingDetailPage() {
       const result = topicService.setTopicStatus(latest, topicId, status)
       replaceDomainState(result.state)
       setStatusMessage(
-        `Topicstatus gewijzigd naar ${status.toLocaleLowerCase("nl")} · nog exporteren`,
+        `Topicstatus gewijzigd naar ${status.toLocaleLowerCase("nl")} · JSON nog opslaan`,
       )
     } catch (error) {
       setStatusMessage(
@@ -644,7 +644,7 @@ export function MeetingDetailPage() {
       setMode("report")
       setSearchParameters({ versie: String(result.record.version) })
       setStatusMessage(
-        `Conceptverslag versie ${result.record.version} opgebouwd · nog exporteren`,
+        `Conceptverslag versie ${result.record.version} opgebouwd · JSON nog opslaan`,
       )
     } catch (error) {
       setStatusMessage(
@@ -663,7 +663,7 @@ export function MeetingDetailPage() {
       setMode("report")
       setSearchParameters({ versie: String(result.record.version) })
       setStatusMessage(
-        `Verslag versie ${result.record.version} is definitief en historisch bevroren · nog exporteren`,
+        `Verslag versie ${result.record.version} is definitief en historisch bevroren · JSON nog opslaan`,
       )
       setConfirmFinalize(false)
     } catch (error) {
@@ -703,9 +703,12 @@ export function MeetingDetailPage() {
       {dirty || savedInNavigation || statusMessage ? (
         <div className="meeting-session-status" role="status">
           <strong>
-            {statusMessage || "Opgeslagen in sessie · nog exporteren"}
+            {statusMessage || "Opgeslagen in sessie · JSON nog opslaan"}
           </strong>
-          <small>De wijziging blijft lokaal tot de volgende Excelexport.</small>
+          <small>
+            De wijziging blijft lokaal tot het volgende JSON-bestand wordt
+            opgeslagen.
+          </small>
         </div>
       ) : null}
 
@@ -1378,7 +1381,7 @@ export function MeetingDetailPage() {
           onClose={() => setPanel(undefined)}
           onSaved={() =>
             setStatusMessage(
-              "Actie opgeslagen in overleg en globale werklijst · nog exporteren",
+              "Actie opgeslagen in overleg en globale werklijst · JSON nog opslaan",
             )
           }
         />
@@ -1388,7 +1391,9 @@ export function MeetingDetailPage() {
           actionId={panel.actionId}
           contextLabel={meeting.title}
           onClose={() => setPanel(undefined)}
-          onSaved={() => setStatusMessage("Actie bijgewerkt · nog exporteren")}
+          onSaved={() =>
+            setStatusMessage("Actie bijgewerkt · JSON nog opslaan")
+          }
         />
       ) : null}
       {panel?.type === "topic" && canCreateTopic && meeting.scopeId ? (
@@ -1406,7 +1411,9 @@ export function MeetingDetailPage() {
               objectId: topic.id,
             })
             replaceDomainState(agenda.state)
-            commit("Nieuw topic en agendakoppeling opgeslagen · nog exporteren")
+            commit(
+              "Nieuw topic en agendakoppeling opgeslagen · JSON nog opslaan",
+            )
           }}
         />
       ) : null}

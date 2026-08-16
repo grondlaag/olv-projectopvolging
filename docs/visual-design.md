@@ -154,13 +154,27 @@ Compact.
 Bevat:
 
 - productnaam;
-- geladen bestand;
+- geopend JSON-gegevensbestand;
 - dirty indicator;
-- export;
+- duidelijke acties **JSON openen** en **JSON opslaan**;
 - globale zoekfunctie;
 - eventueel current actor.
 
 Geen grote brandingbanner.
+
+## Instellingen
+
+Instellingen is een beheerwerkruimte, geen ruwe database-editor:
+
+- compacte samenvatting bovenaan;
+- maximaal vijf duidelijke categorie-tabs;
+- hoofdstukken, clusters en actoren als rustige lijsten;
+- toevoegen/bewerken in een smalle drawer naast de lijst;
+- contextlabels en concrete deactivatiefouten;
+- gegevensbestandsstatus en privacy-uitleg in een afzonderlijke sectie.
+
+Inline hoofdstuk-, cluster- en actorbeheer in een project gebruikt dezelfde
+drawermaat en laat het hoofdformulier zichtbaar. Geen modalstapeling.
 
 ## Kaarten
 
@@ -268,6 +282,10 @@ Selectie via subtiele accentlijn.
 
 Geen grote kaart per topic.
 
+Nieuwe topics tonen de actieve actorselectie als eigenaar met een compacte
+inline actie voor een nieuwe actor. Updates en beslissingen tonen de auteurkeuze
+altijd zichtbaar; de gebruiker hoeft hiervoor niet eerst naar Instellingen.
+
 ## Journaal
 
 Verticale tijdlijn.
@@ -291,6 +309,10 @@ Zoom:
 - maand;
 - kwartaal;
 - jaar.
+
+De globale planning plaatst vóór filters en Gantt één compacte cijferstrook met
+planningdekking, item- en mijlpaalaantallen, aandachtspunten en periode. Dit is
+een rustige samenvatting, geen extra dashboard met losse kaarten.
 
 ## Budget
 

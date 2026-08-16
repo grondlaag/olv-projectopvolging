@@ -143,7 +143,7 @@ function createConfig(): Config {
   return {
     id,
     schemaVersion: EXCEL_SCHEMA_VERSION,
-    workbookId: crypto.randomUUID() as UUID,
+    dataSetId: crypto.randomUUID() as UUID,
     createdAt: now,
     appVersion: "1.0.0",
     defaultCurrency: "EUR",

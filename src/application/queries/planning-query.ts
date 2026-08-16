@@ -81,6 +81,17 @@ export interface PortfolioPlanningChapter {
   clusters: readonly PortfolioPlanningCluster[]
 }
 
+export interface PortfolioPlanningSummary {
+  totalProjects: number
+  projectsWithPlanning: number
+  projectsWithoutPlanning: number
+  planningItemCount: number
+  milestoneCount: number
+  attentionItemCount: number
+  earliestDate?: string
+  latestDate?: string
+}
+
 export function isPlanningEntryDelayed(
   entry: Pick<PlanningEntry, "plannedEndDate" | "status">,
   today: string,
@@ -295,6 +306,64 @@ export function buildPortfolioPlanningModel(
         left.chapter.order - right.chapter.order ||
         left.chapter.title.localeCompare(right.chapter.title, "nl"),
     )
+}
+
+export function summarizePortfolioPlanning(
+  model: readonly PortfolioPlanningChapter[],
+  today: string,
+): PortfolioPlanningSummary {
+  let totalProjects = 0
+  let projectsWithPlanning = 0
+  let planningItemCount = 0
+  let milestoneCount = 0
+  let attentionItemCount = 0
+  const dates: string[] = []
+
+  for (const chapter of model) {
+    for (const cluster of chapter.clusters) {
+      for (const item of cluster.projects) {
+        totalProjects += 1
+        const hasProjectPlanning = Boolean(
+          item.project.startDate || item.project.plannedEndDate,
+        )
+        if (hasProjectPlanning || item.entries.length) {
+          projectsWithPlanning += 1
+        }
+        if (item.project.startDate) dates.push(item.project.startDate)
+        if (item.project.plannedEndDate) dates.push(item.project.plannedEndDate)
+
+        planningItemCount += item.entries.length
+        for (const entry of item.entries) {
+          if (entry.startDate) dates.push(entry.startDate)
+          dates.push(entry.plannedEndDate)
+          if (entry.isMilestone || entry.kind === "Milestone") {
+            milestoneCount += 1
+          }
+          if (
+            entry.status === "Risico" ||
+            entry.status === "Vertraagd" ||
+            isPlanningEntryDelayed(entry, today)
+          ) {
+            attentionItemCount += 1
+          }
+        }
+      }
+    }
+  }
+
+  dates.sort((left, right) => left.localeCompare(right))
+  const earliestDate = dates[0]
+  const latestDate = dates.at(-1)
+  return {
+    totalProjects,
+    projectsWithPlanning,
+    projectsWithoutPlanning: totalProjects - projectsWithPlanning,
+    planningItemCount,
+    milestoneCount,
+    attentionItemCount,
+    ...(earliestDate ? { earliestDate } : {}),
+    ...(latestDate ? { latestDate } : {}),
+  }
 }
 
 export function planningRiskProjectIds(

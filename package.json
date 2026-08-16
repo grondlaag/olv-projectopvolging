@@ -1,7 +1,7 @@
 {
   "name": "olv-projectopvolging",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,6 +16,7 @@
     "audit:performance": "tsx scripts/performance-audit.ts",
     "audit:release": "tsx scripts/release-audit.ts",
     "fixtures:excel": "tsx scripts/generate-excel-fixtures.ts",
+    "fixtures:json": "tsx scripts/generate-json-fixtures.ts",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test -- --run && npm run build"
   },
   "dependencies": {

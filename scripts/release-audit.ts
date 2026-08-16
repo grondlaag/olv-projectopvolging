@@ -55,6 +55,21 @@ const productionSpreadsheetFindings = repositoryFiles
   .map(normalizedPath)
   .filter((path) => /\.(xlsx|xlsm|xls)$/iu.test(path))
   .filter((path) => !path.startsWith("src/tests/fixtures/excel/"))
+const portableDataFiles = (
+  await Promise.all(
+    repositoryFiles
+      .filter((path) => extname(path).toLowerCase() === ".json")
+      .map(async (path) => ({
+        path: normalizedPath(path),
+        text: await readFile(path, "utf8"),
+      })),
+  )
+)
+  .filter(({ text }) => text.includes('"format": "olv-projectopvolging"'))
+  .map(({ path }) => path)
+const operationalDataFindings = portableDataFiles.filter(
+  (path) => !path.startsWith("src/tests/fixtures/json/"),
+)
 const environmentFindings = repositoryFiles
   .map(normalizedPath)
   .filter((path) => /(^|\/)\.env($|\.)/u.test(path) && path !== ".env.example")
@@ -77,14 +92,19 @@ const distributionFiles = await stat(resolve(root, "dist"))
 const distributionSpreadsheets = distributionFiles
   .map(normalizedPath)
   .filter((path) => /\.(xlsx|xlsm|xls)$/iu.test(path))
+const distributionDataFiles = portableDataFiles.filter((path) =>
+  path.startsWith("dist/"),
+)
 
 const findings = {
   onverwachtNetwerkverkeer: networkFindings,
   operationeleSpreadsheets: productionSpreadsheetFindings,
+  operationeleJsonGegevensbestanden: operationalDataFindings,
   omgevingsbestanden: environmentFindings,
   mogelijkeSecrets: secretFindings,
   nietSynthetischeEmailsInRuntime: nonSyntheticEmails,
   spreadsheetsInProductiebuild: distributionSpreadsheets,
+  jsonGegevensbestandenInProductiebuild: distributionDataFiles,
 }
 const findingCount = Object.values(findings).reduce(
   (total, items) => total + items.length,

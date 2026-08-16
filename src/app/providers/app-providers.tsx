@@ -1,7 +1,7 @@
 import { useEffect, useState, type PropsWithChildren } from "react"
 import {
-  createWorkbookSessionSnapshot,
-  restoreWorkbookSession,
+  createDataSessionSnapshot,
+  restoreDataSession,
 } from "../../application/services"
 import { useAppStore } from "../state/app-store"
 import { sessionSnapshotRepository } from "./session-persistence"
@@ -10,7 +10,7 @@ export function AppProviders({ children }: PropsWithChildren) {
   const [hydrated, setHydrated] = useState(false)
   const session = useAppStore((state) => state.session)
   const dirty = useAppStore((state) => state.dirty)
-  const lastExportAt = useAppStore((state) => state.lastExportAt)
+  const lastSavedAt = useAppStore((state) => state.lastSavedAt)
 
   useEffect(() => {
     let active = true
@@ -32,18 +32,18 @@ export function AppProviders({ children }: PropsWithChildren) {
     if (!hydrated || !session) return
     const timer = window.setTimeout(() => {
       void sessionSnapshotRepository.save(
-        createWorkbookSessionSnapshot(session, dirty, lastExportAt),
+        createDataSessionSnapshot(session, dirty, lastSavedAt),
       )
     }, 250)
     return () => window.clearTimeout(timer)
-  }, [dirty, hydrated, lastExportAt, session])
+  }, [dirty, hydrated, lastSavedAt, session])
 
   useEffect(() => {
     const snapshot = useAppStore.getState().recoveryCandidate
     if (!snapshot || useAppStore.getState().session) return
     // Validate that a recoverable snapshot can be normalized before offering it.
     try {
-      restoreWorkbookSession(snapshot)
+      restoreDataSession(snapshot)
     } catch {
       void sessionSnapshotRepository.clear()
       useAppStore.setState({ recoveryCandidate: undefined })

@@ -1,5 +1,9 @@
 # UX-audit fase 9
 
+> Historisch auditdocument voor release 1.0.0. De Excel-import/-exportbevindingen
+> zijn vanaf 1.1.0 vervangen door de JSON-bestandsflow uit ADR-011; overige
+> visuele en toegankelijkheidsbevindingen blijven als ontwerpgeschiedenis staan.
+
 Datum: 2026-08-09
 
 ## Methode

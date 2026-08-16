@@ -5,21 +5,21 @@ test("fase-2-hoofdflow werkt volledig lokaal en herstelt de projectroute", async
   page,
 }) => {
   await page.goto("/#/dashboard")
-  await page.getByRole("button", { name: "Excelbestand laden" }).click()
-  const dialog = page.getByRole("dialog", { name: "Excelbestand laden" })
+  await page.getByRole("button", { name: "JSON openen", exact: true }).click()
+  const dialog = page.getByRole("dialog", { name: "JSON-gegevensbestand" })
   await dialog
     .locator('input[type="file"]')
     .setInputFiles(
-      resolve(process.cwd(), "src/tests/fixtures/excel/small-valid.xlsx"),
+      resolve(process.cwd(), "src/tests/fixtures/json/small-valid.json"),
     )
 
-  await expect(dialog.getByText("Importcontrole")).toBeVisible()
+  await expect(dialog.getByText("Gegevenscontrole")).toBeVisible()
   await expect(dialog.getByText("Blocking: 0")).toBeVisible()
-  await dialog.getByRole("button", { name: "Import bevestigen" }).click()
+  await dialog.getByRole("button", { name: "Bestand openen" }).click()
 
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible()
   await expect(
-    page.getByText("small-valid.xlsx", { exact: true }),
+    page.getByText("small-valid.json", { exact: true }),
   ).toBeVisible()
   await page.screenshot({
     path: "test-results/phase2-dashboard.png",

@@ -16,7 +16,7 @@ describe("projectformulier met inline beheer", () => {
     useAppStore.getState().reset()
     useAppStore.setState({
       session: createPortfolioTestSession(),
-      loadedFileName: "portfolio-test.xlsx",
+      loadedFileName: "portfolio-test.json",
     })
     window.location.hash = "#/projects/new"
   })
@@ -107,7 +107,7 @@ describe("projectformulier met inline beheer", () => {
       ),
     ).toBeInTheDocument()
     expect(
-      screen.getByText("Opgeslagen in sessie · nog exporteren"),
+      screen.getByText("Opgeslagen in sessie · JSON nog opslaan"),
     ).toBeInTheDocument()
     expect(useAppStore.getState().dirty).toBe(true)
     expect(useAppStore.getState().session?.state.records.projects).toHaveLength(
@@ -134,6 +134,77 @@ describe("projectformulier met inline beheer", () => {
     expect(useAppStore.getState().session?.state.records.projects).toHaveLength(
       originalCount,
     )
+    router.dispose()
+  })
+
+  it("kan een hoofdstuk en cluster toevoegen en onmiddellijk selecteren", async () => {
+    const router = createAppRouter()
+    render(<RouterProvider router={router} />)
+
+    fireEvent.change(await screen.findByLabelText("Projectcode"), {
+      target: { value: "PRJ-STRUCT" },
+    })
+    fireEvent.change(screen.getByLabelText("Titel"), {
+      target: { value: "Project met nieuwe structuur" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "+ Nieuw hoofdstuk" }))
+    const chapterDialog = screen.getByRole("dialog", {
+      name: "Nieuw hoofdstuk",
+    })
+    fireEvent.change(within(chapterDialog).getByLabelText("Hoofdstukcode"), {
+      target: { value: "H-NEW" },
+    })
+    fireEvent.change(within(chapterDialog).getByLabelText("Hoofdstuktitel"), {
+      target: { value: "Nieuw beheerhoofdstuk" },
+    })
+    fireEvent.click(
+      within(chapterDialog).getByRole("button", {
+        name: "Hoofdstuk opslaan",
+      }),
+    )
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    )
+    expect(screen.getByLabelText("Hoofdstuk")).toHaveDisplayValue(
+      "H-NEW · Nieuw beheerhoofdstuk",
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Nieuwe cluster" }))
+    const clusterDialog = screen.getByRole("dialog", { name: "Nieuwe cluster" })
+    fireEvent.change(within(clusterDialog).getByLabelText("Clustercode"), {
+      target: { value: "CL-NEW" },
+    })
+    fireEvent.change(within(clusterDialog).getByLabelText("Clusternaam"), {
+      target: { value: "Nieuwe beheercluster" },
+    })
+    fireEvent.click(
+      within(clusterDialog).getByRole("button", { name: "Cluster opslaan" }),
+    )
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    )
+    expect(screen.getByLabelText(/Cluster/)).toHaveDisplayValue(
+      "CL-NEW · Nieuwe beheercluster",
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "Project opslaan" }))
+    await waitFor(() => {
+      const project = useAppStore
+        .getState()
+        .session?.state.records.projects.find(
+          (item) => item.code === "PRJ-STRUCT",
+        )
+      const chapter = useAppStore
+        .getState()
+        .session?.state.records.chapters.find((item) => item.code === "H-NEW")
+      const cluster = useAppStore
+        .getState()
+        .session?.state.records.clusters.find((item) => item.code === "CL-NEW")
+      expect(project?.chapterId).toBe(chapter?.id)
+      expect(project?.clusterId).toBe(cluster?.id)
+    })
     router.dispose()
   })
 })

@@ -5,15 +5,15 @@ test("fase-3-hoofdflow beheert en roundtript een project volledig lokaal", async
   page,
 }) => {
   await page.goto("/#/dashboard")
-  await page.getByRole("button", { name: "Excelbestand laden" }).click()
-  let importDialog = page.getByRole("dialog", { name: "Excelbestand laden" })
+  await page.getByRole("button", { name: "JSON openen", exact: true }).click()
+  let importDialog = page.getByRole("dialog", { name: "JSON-gegevensbestand" })
   await importDialog
     .locator('input[type="file"]')
     .setInputFiles(
-      resolve(process.cwd(), "src/tests/fixtures/excel/small-valid.xlsx"),
+      resolve(process.cwd(), "src/tests/fixtures/json/small-valid.json"),
     )
   await expect(importDialog.getByText("Blocking: 0")).toBeVisible()
-  await importDialog.getByRole("button", { name: "Import bevestigen" }).click()
+  await importDialog.getByRole("button", { name: "Bestand openen" }).click()
 
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })
@@ -60,7 +60,7 @@ test("fase-3-hoofdflow beheert en roundtript een project volledig lokaal", async
     page.getByRole("heading", { name: "Fase 3 hoofdflow" }),
   ).toBeVisible()
   await expect(
-    page.getByText("Opgeslagen in sessie · nog exporteren"),
+    page.getByText("Opgeslagen in sessie · JSON nog opslaan"),
   ).toBeVisible()
   await expect(
     page.getByText("E2E cluster", { exact: true }).first(),
@@ -74,21 +74,21 @@ test("fase-3-hoofdflow beheert en roundtript een project volledig lokaal", async
   ).toBeVisible()
 
   const downloadPromise = page.waitForEvent("download")
-  await page.getByRole("button", { name: "Exporteren" }).click()
+  await page.getByRole("button", { name: "JSON opslaan" }).click()
   const download = await downloadPromise
   const exportedPath = resolve(
     process.cwd(),
-    "test-results/phase3-roundtrip.xlsx",
+    "test-results/phase3-roundtrip.json",
   )
   await download.saveAs(exportedPath)
 
-  await page.getByRole("button", { name: "Excel laden" }).click()
-  importDialog = page.getByRole("dialog", { name: "Excelbestand laden" })
+  await page.getByRole("button", { name: "JSON openen", exact: true }).click()
+  importDialog = page.getByRole("dialog", { name: "JSON-gegevensbestand" })
   await importDialog.locator('input[type="file"]').setInputFiles(exportedPath)
   await expect(importDialog.getByText("Blocking: 0")).toBeVisible({
     timeout: 20_000,
   })
-  await importDialog.getByRole("button", { name: "Import bevestigen" }).click()
+  await importDialog.getByRole("button", { name: "Bestand openen" }).click()
 
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })

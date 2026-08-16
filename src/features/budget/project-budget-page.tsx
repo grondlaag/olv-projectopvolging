@@ -157,10 +157,10 @@ export function ProjectBudgetPage() {
     return (
       <EmptyState
         title="Budget kan nog niet worden geopend"
-        description="Laad eerst het bijbehorende Excelworkbook."
+        description="Open eerst het bijbehorende JSON-gegevensbestand."
         action={
           <Button onClick={() => setImportPanelOpen(true)}>
-            Excelbestand laden
+            JSON openen of nieuw starten
           </Button>
         }
       />
@@ -170,7 +170,7 @@ export function ProjectBudgetPage() {
     return (
       <ErrorState
         title="Project niet gevonden"
-        description="Dit project-ID bestaat niet in het geladen workbook."
+        description="Dit project-ID bestaat niet in de geopende gegevensset."
       />
     )
   }
@@ -293,7 +293,7 @@ export function ProjectBudgetPage() {
           onClose={() => setPanel(undefined)}
           onSaved={() =>
             setStatusMessage(
-              "Budgetitem opgeslagen in de lokale sessie · nog exporteren",
+              "Budgetitem opgeslagen in de lokale sessie · JSON nog opslaan",
             )
           }
         />
@@ -303,7 +303,7 @@ export function ProjectBudgetPage() {
           onClose={() => setPanel(undefined)}
           onSaved={() =>
             setStatusMessage(
-              "Foutcorrectie opgeslagen met historie · nog exporteren",
+              "Foutcorrectie opgeslagen met historie · JSON nog opslaan",
             )
           }
         />

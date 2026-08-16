@@ -1,9 +1,9 @@
 import { useEffect } from "react"
 import { Outlet, useLocation } from "react-router-dom"
-import { restoreWorkbookSession } from "../../application/services"
+import { restoreDataSession } from "../../application/services"
 import { discardPersistedSession } from "../../app/providers/session-persistence"
 import { useAppStore } from "../../app/state/app-store"
-import { WorkbookImportPanel } from "../../features/workbook/workbook-import-panel"
+import { DataFilePanel } from "../../features/workbook/workbook-import-panel"
 import { useDialogFocusManagement } from "../patterns"
 import { Button } from "./button"
 import { AppHeader } from "./app-header"
@@ -34,10 +34,7 @@ export function AppShell() {
 
   function restore() {
     if (!recoveryCandidate) return
-    restoreSnapshot(
-      recoveryCandidate,
-      restoreWorkbookSession(recoveryCandidate),
-    )
+    restoreSnapshot(recoveryCandidate, restoreDataSession(recoveryCandidate))
   }
 
   function discard() {
@@ -60,7 +57,7 @@ export function AppShell() {
           <div>
             <strong>
               {recoveryCandidate.dirty
-                ? "Er zijn niet-geëxporteerde wijzigingen gevonden."
+                ? "Er zijn niet-opgeslagen wijzigingen gevonden."
                 : "Er is een lokale werksessie gevonden."}
             </strong>
             <span>
@@ -83,7 +80,7 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
-      <WorkbookImportPanel />
+      <DataFilePanel />
     </div>
   )
 }

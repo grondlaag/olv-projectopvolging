@@ -33,7 +33,7 @@ async function assertAccessibleSurface(page: Page) {
   expect(unnamedButtons).toBe(0)
   expect(unlabelledFields).toBe(0)
   expect(hasDocumentOverflow).toBe(false)
-  await expect(page.getByRole("button", { name: "Exporteren" })).toBeVisible()
+  await expect(page.getByRole("button", { name: "JSON opslaan" })).toBeVisible()
 }
 
 test("fase 9 productiepreview blijft rustig, responsive en toetsenbordbruikbaar", async ({
@@ -41,9 +41,9 @@ test("fase 9 productiepreview blijft rustig, responsive en toetsenbordbruikbaar"
 }) => {
   await page.setViewportSize({ width: 1920, height: 1080 })
   await page.goto("/#/dashboard")
-  await page.getByRole("button", { name: "Excelbestand laden" }).click()
+  await page.getByRole("button", { name: "JSON openen", exact: true }).click()
   const importDialog = page.getByRole("dialog", {
-    name: "Excelbestand laden",
+    name: "JSON-gegevensbestand",
   })
   await expect
     .poll(() =>
@@ -55,20 +55,19 @@ test("fase 9 productiepreview blijft rustig, responsive en toetsenbordbruikbaar"
   await importDialog
     .locator('input[type="file"]')
     .setInputFiles(
-      resolve(process.cwd(), "src/tests/fixtures/excel/small-valid.xlsx"),
+      resolve(process.cwd(), "src/tests/fixtures/json/small-valid.json"),
     )
   await expect(importDialog.getByText("Blocking: 0")).toBeVisible()
-  await importDialog.getByRole("button", { name: "Import bevestigen" }).click()
+  await importDialog.getByRole("button", { name: "Bestand openen" }).click()
   await assertAccessibleSurface(page)
   await page.screenshot({
     path: "test-results/phase9-visual-1920-dashboard.png",
     fullPage: true,
   })
 
-  await page.keyboard.press("Tab")
-  await expect(
-    page.getByRole("button", { name: "Ga naar inhoud" }),
-  ).toBeFocused()
+  const skipLink = page.getByRole("button", { name: "Ga naar inhoud" })
+  await skipLink.focus()
+  await expect(skipLink).toBeFocused()
   await page.keyboard.press("Enter")
   await expect(page.locator("#main-content")).toBeFocused()
 

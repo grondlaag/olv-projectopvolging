@@ -130,10 +130,10 @@ export function PortfolioPage() {
         <div className="portfolio-page__empty">
           <EmptyState
             title="Nog geen portfolio geladen"
-            description="Laad en bevestig eerst een geldig Excelworkbook."
+            description="Open een bestaand JSON-bestand of start een nieuwe gegevensset."
             action={
               <Button onClick={() => setImportPanelOpen(true)}>
-                Excelbestand laden
+                JSON openen of nieuw starten
               </Button>
             }
           />

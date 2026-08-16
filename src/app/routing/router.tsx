@@ -5,7 +5,6 @@ import {
   ErrorState,
   LoadingState,
 } from "../../design-system/components"
-import { TechnicalPage } from "./technical-page"
 import { DashboardPage } from "../../features/dashboard/dashboard-page"
 import { PortfolioPage } from "../../features/portfolio/portfolio-page"
 import { ProjectReadonlyPage } from "../../features/projects/project-readonly-page"
@@ -13,9 +12,9 @@ import { ProjectFormPage } from "../../features/projects/project-form-page"
 import { ClusterTopicsPage } from "../../features/clusters/cluster-topics-page"
 import { ActionsPage } from "../../features/actions/actions-page"
 
-const ExcelDevelopmentPage = lazy(() =>
-  import("../../features/dev-excel/excel-development-page").then((module) => ({
-    default: module.ExcelDevelopmentPage,
+const SettingsPage = lazy(() =>
+  import("../../features/settings/settings-page").then((module) => ({
+    default: module.SettingsPage,
   })),
 )
 
@@ -186,18 +185,8 @@ export function createAppRouter() {
         {
           path: "settings",
           element: (
-            <TechnicalPage
-              eyebrow="Beheer"
-              title="Instellingen"
-              description="Actoren en keuzelijsten worden in een latere productfase beheerd."
-            />
-          ),
-        },
-        {
-          path: "dev/excel",
-          element: (
-            <Suspense fallback={<LoadingState label="Excelmodule laden…" />}>
-              <ExcelDevelopmentPage />
+            <Suspense fallback={<LoadingState label="Instellingen laden…" />}>
+              <SettingsPage />
             </Suspense>
           ),
         },

@@ -35,6 +35,7 @@ export interface TopicInput {
 }
 
 export interface TopicJournalEntryInput {
+  authorActorId?: UUID
   type: TopicJournalEntryType
   date: LocalDate
   text: string
@@ -223,6 +224,9 @@ export class TopicManagementService {
           objectType: "Topic",
           objectId: topic.id,
           ...(input.meetingId ? { meetingId: input.meetingId } : {}),
+          ...(input.authorActorId
+            ? { authorActorId: input.authorActorId }
+            : {}),
           type: input.type,
           date: input.date,
           text: input.text,

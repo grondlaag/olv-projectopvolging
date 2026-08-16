@@ -23,6 +23,7 @@ export interface UpdateInput {
   objectType: UpdateContextType
   objectId: UUID
   meetingId?: UUID
+  authorActorId?: UUID
   type: UpdateType
   date: LocalDate
   text: string
@@ -66,19 +67,34 @@ function auditFields(now: Date, actorId: UUID): AuditFields {
   }
 }
 
-function activeCurrentActorId(state: NormalizedDomainState): UUID {
-  const actorId = state.records.config[0]?.currentActorId
+function activeAuthorActorId(
+  state: NormalizedDomainState,
+  requestedActorId?: UUID,
+): UUID {
+  const actorId = requestedActorId ?? state.records.config[0]?.currentActorId
   const actor = actorId ? state.indices.actorById.get(actorId) : undefined
   if (!actor?.active || !actor.audit.active) {
     throw new UpdateManagementError([
       {
         field: "authorActorId",
-        message:
-          "Kies een actieve huidige actor voordat je een bijdrage toevoegt.",
+        message: "Kies een actieve actor als auteur van deze bijdrage.",
       },
     ])
   }
   return actor.id
+}
+
+function activeAuditActorId(
+  state: NormalizedDomainState,
+  fallbackActorId: UUID,
+): UUID {
+  const currentActorId = state.records.config[0]?.currentActorId
+  const currentActor = currentActorId
+    ? state.indices.actorById.get(currentActorId)
+    : undefined
+  return currentActor?.active && currentActor.audit.active
+    ? currentActor.id
+    : fallbackActorId
 }
 
 function objectExists(
@@ -165,7 +181,8 @@ export class UpdateManagementService {
     if (issues.length) throw new UpdateManagementError(issues)
 
     const now = options.now ?? new Date()
-    const actorId = activeCurrentActorId(state)
+    const authorActorId = activeAuthorActorId(state, input.authorActorId)
+    const auditActorId = activeAuditActorId(state, authorActorId)
     const record: Update = {
       id: (options.createUuid ?? defaultUuid)(),
       objectType: input.objectType,
@@ -173,9 +190,9 @@ export class UpdateManagementService {
       ...(input.meetingId ? { meetingId: input.meetingId } : {}),
       type: input.type,
       date: input.date,
-      authorActorId: actorId,
+      authorActorId,
       text,
-      audit: auditFields(now, actorId),
+      audit: auditFields(now, auditActorId),
     }
     const records = cloneDomainCollections(state.records)
     records.updates.push(record)
@@ -196,7 +213,7 @@ export class UpdateManagementService {
           audit: {
             ...source.audit,
             updatedAt: now.toISOString() as DateTime,
-            updatedByActorId: actorId,
+            updatedByActorId: auditActorId,
           },
         }
       }

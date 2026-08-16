@@ -693,10 +693,10 @@ export function ProjectReadonlyPage() {
     return (
       <EmptyState
         title="Project kan nog niet worden geopend"
-        description="Herstel een lokale sessie of laad eerst het bijbehorende Excelworkbook."
+        description="Herstel een lokale sessie of open eerst het bijbehorende JSON-gegevensbestand."
         action={
           <Button onClick={() => setImportPanelOpen(true)}>
-            Excelbestand laden
+            JSON openen of nieuw starten
           </Button>
         }
       />
@@ -706,7 +706,7 @@ export function ProjectReadonlyPage() {
     return (
       <ErrorState
         title="Project niet gevonden"
-        description="Dit project-ID bestaat niet in het geladen workbook."
+        description="Dit project-ID bestaat niet in de geopende gegevensset."
       />
     )
   }
@@ -758,10 +758,10 @@ export function ProjectReadonlyPage() {
         <div className="project-readonly__session-status" role="status">
           <span aria-hidden="true">✓</span>
           <div>
-            <strong>Opgeslagen in sessie · nog exporteren</strong>
+            <strong>Opgeslagen in sessie · JSON nog opslaan</strong>
             <small>
-              De wijziging staat lokaal klaar en is nog niet naar Excel
-              geëxporteerd.
+              De wijziging staat lokaal klaar en zit nog niet in een gedownload
+              JSON-bestand.
             </small>
           </div>
         </div>

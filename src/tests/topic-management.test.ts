@@ -164,6 +164,28 @@ describe("topicbeheer", () => {
     ).toBe(false)
   })
 
+  it("scheidt de gekozen auteur van de huidige auditactor", () => {
+    const topic = service.createTopic(
+      createPortfolioTestSession().state,
+      projectTopicInput(),
+      { now, createUuid },
+    )
+    const contribution = service.addJournalEntry(
+      topic.state,
+      topic.record.id,
+      {
+        authorActorId: testIds.actorTwo,
+        type: "Update",
+        date: "2026-08-09" as LocalDate,
+        text: "Bijdrage geschreven door een andere actieve actor.",
+      },
+      { now, createUuid },
+    )
+
+    expect(contribution.record.authorActorId).toBe(testIds.actorTwo)
+    expect(contribution.record.audit.createdByActorId).toBe(testIds.actorOne)
+  })
+
   it("houdt een beslissing apart van de actuele stand", () => {
     const topic = service.createTopic(
       createPortfolioTestSession().state,

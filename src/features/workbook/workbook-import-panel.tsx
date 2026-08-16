@@ -1,7 +1,8 @@
 import { useState, type ChangeEvent } from "react"
 import { useNavigate } from "react-router-dom"
+import { jsonDataFileService } from "../../app/providers/data-file-services"
 import { useAppStore } from "../../app/state/app-store"
-import type { ExcelValidationLevel } from "../../application/services"
+import type { DataValidationLevel } from "../../application/services"
 import {
   Badge,
   Button,
@@ -11,12 +12,8 @@ import {
 import { useEscapeKey } from "../../design-system/patterns"
 import "./workbook-import-panel.css"
 
-const levelTone: Record<
-  ExcelValidationLevel,
-  "danger" | "warning" | "info" | "success"
-> = {
+const levelTone: Record<DataValidationLevel, "danger" | "warning" | "info"> = {
   Blocking: "danger",
-  Recoverable: "warning",
   Warning: "warning",
   Info: "info",
 }
@@ -24,26 +21,28 @@ const levelTone: Record<
 function userImportError(cause: unknown): string {
   if (
     cause instanceof Error &&
-    cause.message === "Selecteer een .xlsx- of .xlsm-bestand."
-  )
+    cause.message === "Selecteer een .json-bestand."
+  ) {
     return cause.message
-  return "Het Excelbestand kon niet lokaal worden gelezen. Controleer het bestandsformaat en probeer opnieuw."
+  }
+  return "Het JSON-bestand kon niet lokaal worden gelezen. Controleer het bestand en probeer opnieuw."
 }
 
-export function WorkbookImportPanel() {
+export function DataFilePanel() {
   const navigate = useNavigate()
   const open = useAppStore((state) => state.importPanelOpen)
-  const pendingImport = useAppStore((state) => state.pendingImport)
+  const dirty = useAppStore((state) => state.dirty)
+  const pendingSession = useAppStore((state) => state.pendingSession)
   const setOpen = useAppStore((state) => state.setImportPanelOpen)
-  const setPendingImport = useAppStore((state) => state.setPendingImport)
-  const confirmPendingImport = useAppStore(
-    (state) => state.confirmPendingImport,
+  const setPendingSession = useAppStore((state) => state.setPendingSession)
+  const confirmPendingSession = useAppStore(
+    (state) => state.confirmPendingSession,
   )
-  const [repairMode, setRepairMode] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
+
   useEscapeKey(() => {
-    setPendingImport(undefined)
+    setPendingSession(undefined)
     setError(undefined)
     setOpen(false)
   }, open)
@@ -55,11 +54,9 @@ export function WorkbookImportPanel() {
     if (!file) return
     setBusy(true)
     setError(undefined)
-    setPendingImport(undefined)
+    setPendingSession(undefined)
     try {
-      const { excelWorkbookService } =
-        await import("../../app/providers/excel-services")
-      setPendingImport(await excelWorkbookService.importFile(file, repairMode))
+      setPendingSession(await jsonDataFileService.importFile(file))
     } catch (cause) {
       setError(userImportError(cause))
     } finally {
@@ -68,39 +65,32 @@ export function WorkbookImportPanel() {
     }
   }
 
-  async function downloadTemplate() {
-    setBusy(true)
+  function startNewDataSet() {
     setError(undefined)
-    try {
-      const { excelWorkbookService } =
-        await import("../../app/providers/excel-services")
-      await excelWorkbookService.downloadTemplate()
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "Het lege sjabloon kon niet worden gemaakt.",
-      )
-    } finally {
-      setBusy(false)
-    }
+    setPendingSession(jsonDataFileService.createNewSession())
   }
 
   function close() {
-    setPendingImport(undefined)
+    setPendingSession(undefined)
     setError(undefined)
     setOpen(false)
   }
 
   function confirm() {
-    confirmPendingImport()
-    navigate("/dashboard")
+    confirmPendingSession()
+    navigate(pendingSession?.origin === "new" ? "/settings" : "/dashboard")
   }
 
-  const issueCounts = new Map<ExcelValidationLevel, number>()
-  for (const issue of pendingImport?.issues ?? []) {
+  const issueCounts = new Map<DataValidationLevel, number>()
+  for (const issue of pendingSession?.issues ?? []) {
     issueCounts.set(issue.level, (issueCounts.get(issue.level) ?? 0) + 1)
   }
+  const recordCount = pendingSession
+    ? Object.values(pendingSession.state.records).reduce(
+        (total, collection) => total + collection.length,
+        0,
+      )
+    : 0
 
   return (
     <div className="workbook-panel__backdrop">
@@ -108,12 +98,12 @@ export function WorkbookImportPanel() {
         className="workbook-panel"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="workbook-panel-title"
+        aria-labelledby="data-file-panel-title"
       >
         <header className="workbook-panel__header">
           <div>
             <p>Lokale gegevensbron</p>
-            <h2 id="workbook-panel-title">Excelbestand laden</h2>
+            <h2 id="data-file-panel-title">JSON-gegevensbestand</h2>
           </div>
           <Button variant="tertiary" onClick={close} aria-label="Sluiten">
             Sluiten
@@ -122,87 +112,81 @@ export function WorkbookImportPanel() {
 
         <div className="workbook-panel__intro">
           <p>
-            Het bestand wordt uitsluitend in deze browser gelezen. Importeer pas
-            na controle van het validatierapport.
+            Open een eerder opgeslagen OLV-gegevensbestand of start een nieuwe
+            lege gegevensset. Alles blijft uitsluitend in deze browser.
           </p>
+          {dirty ? (
+            <p className="workbook-panel__warning" role="status">
+              De huidige sessie bevat nog niet opgeslagen wijzigingen. Een
+              andere gegevensset vervangt die pas na jouw bevestiging.
+            </p>
+          ) : null}
           <div className="workbook-panel__actions">
             <label className="workbook-panel__file">
-              Bestand kiezen
+              JSON-bestand kiezen
               <input
                 type="file"
-                accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel.sheet.macroEnabled.12"
+                accept=".json,application/json"
                 onChange={(event) => void importFile(event)}
               />
             </label>
             <Button
               variant="secondary"
               disabled={busy}
-              onClick={() => void downloadTemplate()}
+              onClick={startNewDataSet}
             >
-              Leeg sjabloon downloaden
+              Nieuwe gegevensset
             </Button>
           </div>
-          <label className="workbook-panel__repair">
-            <input
-              type="checkbox"
-              checked={repairMode}
-              onChange={(event) => setRepairMode(event.target.checked)}
-            />
-            Veilige herstelmodus gebruiken
-          </label>
         </div>
 
-        {busy ? <LoadingState label="Workbook lokaal controleren…" /> : null}
+        {busy ? <LoadingState label="JSON lokaal controleren…" /> : null}
         {error ? <ErrorState description={error} /> : null}
 
-        {pendingImport ? (
+        {pendingSession ? (
           <div className="workbook-panel__report">
             <div className="workbook-panel__report-heading">
               <div>
-                <p>Importcontrole</p>
-                <h3>{pendingImport.fileName}</h3>
+                <p>Gegevenscontrole</p>
+                <h3>{pendingSession.fileName}</h3>
               </div>
               <span>
-                Schema {pendingImport.schemaVersion ?? "onbekend"} ·{" "}
-                {pendingImport.tables.length} tabellen
+                Schema {pendingSession.schemaVersion} · {recordCount} records
               </span>
             </div>
             <div className="workbook-panel__badges">
-              {(["Blocking", "Recoverable", "Warning", "Info"] as const).map(
-                (level) => (
-                  <Badge tone={levelTone[level]} key={level}>
-                    {level}: {issueCounts.get(level) ?? 0}
-                  </Badge>
-                ),
-              )}
+              {(["Blocking", "Warning", "Info"] as const).map((level) => (
+                <Badge tone={levelTone[level]} key={level}>
+                  {level}: {issueCounts.get(level) ?? 0}
+                </Badge>
+              ))}
             </div>
             <ul className="workbook-panel__issues">
-              {pendingImport.issues
-                .filter((issue) => issue.level !== "Info")
-                .slice(0, 12)
-                .map((issue, index) => (
-                  <li key={`${issue.code}-${index}`}>
-                    <Badge tone={levelTone[issue.level]}>{issue.level}</Badge>
-                    <span>{issue.message}</span>
-                  </li>
-                ))}
+              {pendingSession.issues.slice(0, 12).map((issue, index) => (
+                <li key={`${issue.code}-${index}`}>
+                  <Badge tone={levelTone[issue.level]}>{issue.level}</Badge>
+                  <span>{issue.message}</span>
+                </li>
+              ))}
             </ul>
-            {!pendingImport.issues.some((issue) => issue.level !== "Info") ? (
+            {!pendingSession.issues.length ? (
               <p className="workbook-panel__valid">
-                Geen problemen gevonden. Dit workbook kan worden geïmporteerd.
+                Geen problemen gevonden. Het bestand kan veilig worden geopend.
               </p>
             ) : null}
             <footer className="workbook-panel__footer">
               <span>
-                {pendingImport.hasBlockingIssues
-                  ? "Los blokkerende fouten op vóór import."
+                {pendingSession.hasBlockingIssues
+                  ? "Los de blokkerende gegevensfouten op vóór het openen."
                   : "Na bevestiging wordt dit de actieve lokale sessie."}
               </span>
               <Button
-                disabled={pendingImport.hasBlockingIssues}
+                disabled={pendingSession.hasBlockingIssues}
                 onClick={confirm}
               >
-                Import bevestigen
+                {pendingSession.origin === "new"
+                  ? "Gegevensset starten"
+                  : "Bestand openen"}
               </Button>
             </footer>
           </div>

@@ -7,15 +7,15 @@ test("fase-4-hoofdflow beheert topics, actuele stand en beslissingen volledig lo
   page,
 }) => {
   await page.goto("/#/dashboard")
-  await page.getByRole("button", { name: "Excelbestand laden" }).click()
-  let importDialog = page.getByRole("dialog", { name: "Excelbestand laden" })
+  await page.getByRole("button", { name: "JSON openen", exact: true }).click()
+  let importDialog = page.getByRole("dialog", { name: "JSON-gegevensbestand" })
   await importDialog
     .locator('input[type="file"]')
     .setInputFiles(
-      resolve(process.cwd(), "src/tests/fixtures/excel/small-valid.xlsx"),
+      resolve(process.cwd(), "src/tests/fixtures/json/small-valid.json"),
     )
   await expect(importDialog.getByText("Blocking: 0")).toBeVisible()
-  await importDialog.getByRole("button", { name: "Import bevestigen" }).click()
+  await importDialog.getByRole("button", { name: "Bestand openen" }).click()
 
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })
@@ -66,6 +66,17 @@ test("fase-4-hoofdflow beheert topics, actuele stand en beslissingen volledig lo
   await panel
     .getByRole("textbox", { name: "Schrijf een update", exact: true })
     .fill("De verpleegkundige looplijnen zijn nagekeken en akkoord.")
+  await panel.getByRole("button", { name: "+ Nieuwe actor" }).click()
+  const actorPanel = page.getByRole("dialog", { name: "Nieuwe actor" })
+  await actorPanel.getByLabel("Naam").fill("E2E Update-auteur")
+  await actorPanel.getByRole("button", { name: "Actor opslaan" }).click()
+  panel = page.getByRole("form", { name: "Update toevoegen" })
+  await expect(
+    panel.getByRole("textbox", { name: "Schrijf een update", exact: true }),
+  ).toHaveValue("De verpleegkundige looplijnen zijn nagekeken en akkoord.")
+  await expect(panel.getByLabel("Auteur").locator("option:checked")).toHaveText(
+    "E2E Update-auteur",
+  )
   await panel.getByLabel("Maak actuele stand").check()
   await panel.getByRole("button", { name: "Toevoegen" }).click()
   await expect(
@@ -89,6 +100,7 @@ test("fase-4-hoofdflow beheert topics, actuele stand en beslissingen volledig lo
   await expect(journalEntries.nth(1)).toContainText(
     "De verpleegkundige looplijnen zijn nagekeken en akkoord.",
   )
+  await expect(journalEntries.nth(1)).toContainText("E2E Update-auteur")
   await page.screenshot({
     path: "test-results/phase4-topic-workspace.png",
     fullPage: true,
@@ -118,21 +130,21 @@ test("fase-4-hoofdflow beheert topics, actuele stand en beslissingen volledig lo
   await expect(page.locator(".topic-detail__header")).toContainText("Open")
 
   const downloadPromise = page.waitForEvent("download")
-  await page.getByRole("button", { name: "Exporteren" }).click()
+  await page.getByRole("button", { name: "JSON opslaan" }).click()
   const download = await downloadPromise
   const exportedPath = resolve(
     process.cwd(),
-    "test-results/phase4-topic-roundtrip.xlsx",
+    "test-results/phase4-topic-roundtrip.json",
   )
   await download.saveAs(exportedPath)
 
-  await page.getByRole("button", { name: "Excel laden" }).click()
-  importDialog = page.getByRole("dialog", { name: "Excelbestand laden" })
+  await page.getByRole("button", { name: "JSON openen", exact: true }).click()
+  importDialog = page.getByRole("dialog", { name: "JSON-gegevensbestand" })
   await importDialog.locator('input[type="file"]').setInputFiles(exportedPath)
   await expect(importDialog.getByText("Blocking: 0")).toBeVisible({
     timeout: 20_000,
   })
-  await importDialog.getByRole("button", { name: "Import bevestigen" }).click()
+  await importDialog.getByRole("button", { name: "Bestand openen" }).click()
 
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })
@@ -158,6 +170,11 @@ test("fase-4-hoofdflow beheert topics, actuele stand en beslissingen volledig lo
       .locator(".topic-current")
       .getByText("De verpleegkundige looplijnen zijn nagekeken en akkoord."),
   ).toBeVisible()
+  await expect(
+    page
+      .locator(".topic-journal__entry")
+      .filter({ hasText: "De verpleegkundige looplijnen" }),
+  ).toContainText("E2E Update-auteur")
   await expect(
     page.getByText("De huidige bouwvariant wordt zonder aanpassing behouden."),
   ).toBeVisible()

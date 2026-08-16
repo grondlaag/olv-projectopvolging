@@ -44,11 +44,11 @@ export function MeetingsPage() {
           description="Voorbereiden, verwerken en historisch vastleggen in één projectcontext."
         />
         <EmptyState
-          title="Laad eerst een projectworkbook"
+          title="Open eerst een projectgegevensbestand"
           description="Na import verschijnen hier overlegmomenten, agenda's en verslagen."
           action={
             <Button onClick={() => setImportPanelOpen(true)}>
-              Excelbestand laden
+              JSON openen of nieuw starten
             </Button>
           }
         />

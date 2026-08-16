@@ -47,11 +47,11 @@ export function BudgetPage() {
           description="Portfolio-overzicht van projectgebonden financiële feiten."
         />
         <EmptyState
-          title="Laad een projectworkbook"
-          description="Budgetrecords worden volledig lokaal uit Excel gelezen."
+          title="Open een projectgegevensbestand"
+          description="Budgetrecords worden volledig lokaal uit het JSON-bestand gelezen."
           action={
             <Button onClick={() => setImportPanelOpen(true)}>
-              Excelbestand laden
+              JSON openen of nieuw starten
             </Button>
           }
         />

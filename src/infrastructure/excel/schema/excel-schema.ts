@@ -455,7 +455,7 @@ export const excelSchema: ExcelSchema = {
       required: true,
       columns: audited([
         column("schema-versie", "schemaVersion"),
-        column("workbook-guid", "workbookId", "uuid"),
+        column("workbook-guid", "dataSetId", "uuid"),
         column("config-aangemaakt-op", "createdAt", "dateTime"),
         column("app-versie", "appVersion"),
         column("standaardvaluta", "defaultCurrency"),

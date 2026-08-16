@@ -3,20 +3,20 @@ import { expect, test } from "@playwright/test"
 
 test.setTimeout(180_000)
 
-test("fase-8-hoofdflow verwerkt overleg en bewaart een historisch verslag via Excel", async ({
+test("fase-8-hoofdflow verwerkt overleg en bewaart een historisch verslag via JSON", async ({
   page,
 }) => {
   page.setDefaultTimeout(10_000)
   await page.goto("/#/dashboard")
-  await page.getByRole("button", { name: "Excelbestand laden" }).click()
-  let importDialog = page.getByRole("dialog", { name: "Excelbestand laden" })
+  await page.getByRole("button", { name: "JSON openen", exact: true }).click()
+  let importDialog = page.getByRole("dialog", { name: "JSON-gegevensbestand" })
   await importDialog
     .locator('input[type="file"]')
     .setInputFiles(
-      resolve(process.cwd(), "src/tests/fixtures/excel/small-valid.xlsx"),
+      resolve(process.cwd(), "src/tests/fixtures/json/small-valid.json"),
     )
   await expect(importDialog.getByText("Blocking: 0")).toBeVisible()
-  await importDialog.getByRole("button", { name: "Import bevestigen" }).click()
+  await importDialog.getByRole("button", { name: "Bestand openen" }).click()
 
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })
@@ -212,21 +212,21 @@ test("fase-8-hoofdflow verwerkt overleg en bewaart een historisch verslag via Ex
   ).toHaveCount(0)
 
   const downloadPromise = page.waitForEvent("download")
-  await page.getByRole("button", { name: "Exporteren" }).click()
+  await page.getByRole("button", { name: "JSON opslaan" }).click()
   const download = await downloadPromise
   const exportedPath = resolve(
     process.cwd(),
-    "test-results/phase8-meeting-roundtrip.xlsx",
+    "test-results/phase8-meeting-roundtrip.json",
   )
   await download.saveAs(exportedPath)
 
-  await page.getByRole("button", { name: "Excel laden" }).click()
-  importDialog = page.getByRole("dialog", { name: "Excelbestand laden" })
+  await page.getByRole("button", { name: "JSON openen", exact: true }).click()
+  importDialog = page.getByRole("dialog", { name: "JSON-gegevensbestand" })
   await importDialog.locator('input[type="file"]').setInputFiles(exportedPath)
   await expect(importDialog.getByText("Blocking: 0")).toBeVisible({
     timeout: 20_000,
   })
-  await importDialog.getByRole("button", { name: "Import bevestigen" }).click()
+  await importDialog.getByRole("button", { name: "Bestand openen" }).click()
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })
     .getByRole("link", { name: "Overleg" })

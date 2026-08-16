@@ -206,6 +206,8 @@ export function NewTopicPanel({
           })
           setActorMode(false)
         }}
+        contextLabel="Vanuit nieuw topic"
+        selectionDescription="De nieuwe actor wordt meteen als topic-eigenaar geselecteerd."
       />
     )
   }
@@ -311,17 +313,32 @@ export function JournalPanel({
 }: JournalPanelProps) {
   const session = useAppStore((state) => state.session)
   const replaceDomainState = useAppStore((state) => state.replaceDomainState)
+  const [actorMode, setActorMode] = useState(false)
   const currentActorId = session?.state.records.config[0]?.currentActorId
   const currentActor = currentActorId
     ? session?.state.indices.actorById.get(currentActorId)
     : undefined
+  const activeActors = useMemo(
+    () =>
+      session?.state.records.actors
+        .filter((actor) => actor.active && actor.audit.active)
+        .sort((left, right) =>
+          left.displayName.localeCompare(right.displayName, "nl"),
+        ) ?? [],
+    [session],
+  )
   const {
     register,
     handleSubmit,
     setError,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<TopicJournalFormValues>({
     defaultValues: {
+      authorActorId:
+        currentActor?.active && currentActor.audit.active
+          ? currentActor.id
+          : "",
       type: mode === "decision" ? "Beslissing" : "Update",
       date: todayAsLocalDate(),
       text: "",
@@ -346,9 +363,30 @@ export function JournalPanel({
       onSaved()
     } catch (error) {
       if (!(error instanceof TopicManagementError)) return
-      setError("text", { message: error.message })
+      for (const issue of error.issues) {
+        setError(issue.field === "authorActorId" ? "authorActorId" : "text", {
+          message: issue.message,
+        })
+      }
     }
   })
+
+  if (actorMode) {
+    return (
+      <InlineActorPanel
+        onClose={() => setActorMode(false)}
+        onSaved={(actor) => {
+          setValue("authorActorId", actor.id, {
+            shouldDirty: true,
+            shouldValidate: true,
+          })
+          setActorMode(false)
+        }}
+        contextLabel="Vanuit journaalbijdrage"
+        selectionDescription="De nieuwe actor wordt meteen als auteur geselecteerd."
+      />
+    )
+  }
 
   return (
     <TopicPanel
@@ -387,12 +425,26 @@ export function JournalPanel({
             <small role="alert">{errors.date.message}</small>
           ) : null}
         </label>
-        <div className="topic-panel__fixed-value">
-          <span>Auteur</span>
-          <strong>
-            {currentActor?.displayName ?? "Geen actieve actor gekozen"}
-          </strong>
-        </div>
+        <SearchableSelect
+          label="Auteur"
+          emptyLabel="Kies een actieve actor"
+          options={activeActors.map((actor) => ({
+            value: actor.id,
+            label: actor.displayName,
+          }))}
+          action={
+            <Button variant="tertiary" onClick={() => setActorMode(true)}>
+              + Nieuwe actor
+            </Button>
+          }
+          aria-invalid={Boolean(errors.authorActorId)}
+          error={
+            errors.authorActorId ? (
+              <small role="alert">{errors.authorActorId.message}</small>
+            ) : null
+          }
+          {...register("authorActorId")}
+        />
         <label>
           <span>{mode === "decision" ? "Beslissing" : "Bijdrage"}</span>
           <textarea
@@ -411,7 +463,7 @@ export function JournalPanel({
           </label>
         ) : null}
         <footer>
-          <Button type="submit" disabled={isSubmitting || !currentActor}>
+          <Button type="submit" disabled={isSubmitting}>
             {mode === "decision" ? "Beslissing opslaan" : "Update opslaan"}
           </Button>
           <Button variant="tertiary" onClick={onClose}>
@@ -438,24 +490,39 @@ function TopicJournalQuickEntry({
 }: TopicJournalQuickEntryProps) {
   const session = useAppStore((state) => state.session)
   const replaceDomainState = useAppStore((state) => state.replaceDomainState)
+  const [actorMode, setActorMode] = useState(false)
   const currentActorId = session?.state.records.config[0]?.currentActorId
   const currentActor = currentActorId
     ? session?.state.indices.actorById.get(currentActorId)
     : undefined
+  const activeActors = useMemo(
+    () =>
+      session?.state.records.actors
+        .filter((actor) => actor.active && actor.audit.active)
+        .sort((left, right) =>
+          left.displayName.localeCompare(right.displayName, "nl"),
+        ) ?? [],
+    [session],
+  )
   const {
     register,
     handleSubmit,
     setError,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<TopicJournalFormValues>({
     defaultValues: {
+      authorActorId:
+        currentActor?.active && currentActor.audit.active
+          ? currentActor.id
+          : "",
       type: mode === "decision" ? "Beslissing" : "Update",
       date: todayAsLocalDate(),
       text: "",
       makeCurrent: mode === "current",
     },
   })
-  useEscapeKey(onClose)
+  useEscapeKey(onClose, !actorMode)
 
   const submit = handleSubmit((values) => {
     const parsed = topicJournalFormSchema.safeParse({
@@ -484,12 +551,15 @@ function TopicJournalQuickEntry({
             : "Update opgeslagen",
       )
     } catch (error) {
-      setError("text", {
-        message:
-          error instanceof Error
-            ? error.message
-            : "De bijdrage kon niet worden opgeslagen.",
-      })
+      if (error instanceof TopicManagementError) {
+        for (const issue of error.issues) {
+          setError(issue.field === "authorActorId" ? "authorActorId" : "text", {
+            message: issue.message,
+          })
+        }
+        return
+      }
+      setError("text", { message: "De bijdrage kon niet worden opgeslagen." })
     }
   })
 
@@ -498,6 +568,23 @@ function TopicJournalQuickEntry({
       event.preventDefault()
       event.currentTarget.requestSubmit()
     }
+  }
+
+  if (actorMode) {
+    return (
+      <InlineActorPanel
+        onClose={() => setActorMode(false)}
+        onSaved={(actor) => {
+          setValue("authorActorId", actor.id, {
+            shouldDirty: true,
+            shouldValidate: true,
+          })
+          setActorMode(false)
+        }}
+        contextLabel="Vanuit topicupdate"
+        selectionDescription="De nieuwe actor wordt meteen als auteur geselecteerd; je update blijft ingevuld."
+      />
+    )
   }
 
   return (
@@ -537,6 +624,26 @@ function TopicJournalQuickEntry({
         />
         {errors.text ? <small role="alert">{errors.text.message}</small> : null}
       </label>
+      <SearchableSelect
+        label="Auteur"
+        emptyLabel="Kies een actieve actor"
+        options={activeActors.map((actor) => ({
+          value: actor.id,
+          label: actor.displayName,
+        }))}
+        action={
+          <Button variant="tertiary" onClick={() => setActorMode(true)}>
+            + Nieuwe actor
+          </Button>
+        }
+        aria-invalid={Boolean(errors.authorActorId)}
+        error={
+          errors.authorActorId ? (
+            <small role="alert">{errors.authorActorId.message}</small>
+          ) : null
+        }
+        {...register("authorActorId")}
+      />
       {mode === "current" ? (
         <label className="topic-quick-entry__check">
           <input type="checkbox" checked readOnly />
@@ -565,12 +672,6 @@ function TopicJournalQuickEntry({
             <span>Datum</span>
             <input type="date" {...register("date")} />
           </label>
-          <div>
-            <span>Auteur</span>
-            <strong>
-              {currentActor?.displayName ?? "Geen actieve actor gekozen"}
-            </strong>
-          </div>
         </div>
       </details>
       <footer>
@@ -578,7 +679,7 @@ function TopicJournalQuickEntry({
         <Button variant="tertiary" onClick={onClose}>
           Annuleren
         </Button>
-        <Button type="submit" disabled={isSubmitting || !currentActor}>
+        <Button type="submit" disabled={isSubmitting}>
           {mode === "decision" ? "Beslissing toevoegen" : "Toevoegen"}
         </Button>
       </footer>
@@ -665,8 +766,8 @@ export function TopicWorkspace({
       replaceDomainState(result.state)
       setStatusMessage(
         status === "Open"
-          ? "Topic heropend in de lokale sessie · nog exporteren"
-          : `Topic ${status.toLocaleLowerCase("nl")} in de lokale sessie · nog exporteren`,
+          ? "Topic heropend in de lokale sessie · JSON nog opslaan"
+          : `Topic ${status.toLocaleLowerCase("nl")} in de lokale sessie · JSON nog opslaan`,
       )
     } catch (error) {
       setStatusMessage(
@@ -888,7 +989,7 @@ export function TopicWorkspace({
                 mode={panel}
                 onClose={() => setPanel(undefined)}
                 onSaved={(message) => {
-                  setStatusMessage(`${message} · nog exporteren`)
+                  setStatusMessage(`${message} · JSON nog opslaan`)
                   setPanel(undefined)
                 }}
               />
@@ -1095,7 +1196,7 @@ export function TopicWorkspace({
           onClose={() => setPanel(undefined)}
           onSaved={(topic) => {
             setStatusMessage(
-              "Topic opgeslagen in de lokale sessie · nog exporteren",
+              "Topic opgeslagen in de lokale sessie · JSON nog opslaan",
             )
             setPanel(undefined)
             selectTopic(topic)
@@ -1109,7 +1210,7 @@ export function TopicWorkspace({
           onClose={() => setPanel(undefined)}
           onSaved={() => {
             setStatusMessage(
-              "Timing opgeslagen in de lokale sessie · nog exporteren",
+              "Timing opgeslagen in de lokale sessie · JSON nog opslaan",
             )
             setPanel(undefined)
           }}

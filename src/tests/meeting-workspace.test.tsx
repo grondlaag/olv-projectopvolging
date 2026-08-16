@@ -20,7 +20,7 @@ describe("overlegwerkruimte", () => {
     useAppStore.getState().reset()
     useAppStore.setState({
       session: createPortfolioTestSession(),
-      loadedFileName: "portfolio-test.xlsx",
+      loadedFileName: "portfolio-test.json",
     })
   })
 
@@ -115,7 +115,7 @@ describe("overlegwerkruimte", () => {
     )
     expect(
       await screen.findByText(
-        "Suggestie aan de agenda toegevoegd · nog exporteren",
+        "Suggestie aan de agenda toegevoegd · JSON nog opslaan",
       ),
     ).toBeInTheDocument()
 

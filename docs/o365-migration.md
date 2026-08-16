@@ -1,131 +1,131 @@
-# O365-migratievoorbereiding
+# O365-migratiepad
 
-## Uitgangspunt
+## Huidige situatie
 
-Versie 1 gebruikt Excel als browser-side opslagadapter.
-
-Latere doelarchitectuur:
+Versie 1.1 gebruikt een lokaal JSON-bestand als draagbare opslagadapter en
+IndexedDB voor sessieherstel. De React-UI werkt tegen application services,
+genormaliseerde domain state en repository-/gatewaycontracten.
 
 ```text
-zelfde frontend + use cases
-+
-andere repositoryimplementatie
+UI
+ ↓
+Application services en queries
+ ↓
+Domain + repository interfaces
+ ↓
+JSONDataFileGateway / IndexedDB
 ```
 
-## Mogelijke mapping
+Daardoor hoeft een latere O365-adapter geen componenten of domeinregels te
+herschrijven.
 
-### SharePoint Lists
+## Doelopties
 
-Geschikt voor:
+Mogelijke infrastructuuradapters:
 
-- projecten;
-- clusters;
-- topics;
-- acties;
-- planning;
-- budgetmetadata;
-- overleg;
-- actoren;
-- keuzelijsten.
+- SharePoint Lists;
+- Microsoft Graph;
+- Dataverse;
+- een eigen REST API.
 
-### Documentbibliotheken
+De keuze hangt af van aantallen, permissies, transactiebehoefte, auditvereisten,
+licenties en beheerorganisatie. Dit document kiest nog geen platform.
 
-Geschikt voor:
+## Contractgrenzen
 
-- bewijsstukken;
-- verslagen;
-- projectdocumenten.
+Een remote implementatie moet dezelfde capabilities bieden:
 
-### Microsoft Graph
+- records per collectie lezen;
+- record aanmaken/bijwerken/deactiveren;
+- stabiele GUIDs behouden;
+- relaties en optimistic concurrency bewaken;
+- auditvelden en append-only historie bewaren;
+- domeinfouten in dezelfde application-vorm teruggeven;
+- financiële integer cents ongewijzigd behandelen.
 
-Geschikt voor:
+De UI weet niet of records uit een lokaal JSON-bestand of een remote repository
+komen.
 
-- gebruikers;
-- Entra ID actor mapping;
-- SharePoint toegang;
-- documentmetadata.
+## Mapping
 
-### Dataverse
+Het JSON-contract is het huidige overdrachtscontract. Iedere collectie kan naar
+een lijst/tabel worden gemapt, bijvoorbeeld:
 
-Interessant bij:
-
-- strengere relaties;
-- grotere schaal;
-- Power Platform;
-- security roles;
-- complexere workflow.
-
-## Repositorycontract
-
-UI weet niet of data uit Excel of SharePoint komt.
-
-```ts
-interface ProjectRepository {
-  list(): Promise<Project[]>
-  get(id: UUID): Promise<Project | undefined>
-  create(input: NewProject): Promise<Project>
-  update(id: UUID, patch: ProjectPatch): Promise<Project>
-}
+```text
+projects                 → Projects
+projectClusterHistory    → ProjectClusterHistory
+topics                   → Topics
+updates                  → Updates
+actions                  → Actions
+actionHistory            → ActionHistory
+planning                 → PlanningEntries
+planningDependencies     → PlanningDependencies
+budgets                  → BudgetRecords
+budgetMutations          → BudgetMutations
+meetings                 → Meetings
+meetingParticipants      → MeetingParticipants
+agendaItems              → AgendaItems
+reports                  → Reports
+reportItems              → ReportItems
 ```
 
-## Concurrency
+Foreign keys blijven GUIDs. Current-updateverwijzingen, clusterhistoriek,
+budgetmutaties en verslagsnapshots mogen niet worden afgeplat tot ontraceerbare
+tekstvelden.
 
-Excel MVP:
+## Authenticatie en beveiliging
 
-- één actieve browsercontext;
-- lokale dirty state.
+De huidige statische app bevat geen secrets. Een O365-versie vereist een aparte
+beslissing over:
 
-O365 later:
+- Microsoft Entra ID en MSAL;
+- delegated versus application permissions;
+- tenantconsent;
+- record-/lijstautorisatie;
+- tokenopslag en CSP;
+- audit en bewaartermijnen.
 
-- ETag/version;
-- optimistic concurrency;
-- conflictmelding;
-- merge/retry;
-- serveraudit.
+Client secrets horen nooit in de browser. Een flow die application permissions
+of geheime credentials vereist, heeft een vertrouwde backend/BFF nodig en valt
+buiten het huidige GitHub Pages-contract.
 
-## Authenticatie
+## Synchronisatiekeuzes
 
-Niet nodig in GitHub Pages MVP.
+Voor een remote fase moet expliciet gekozen worden tussen:
 
-Later:
+1. online-only repository;
+2. read-through cache;
+3. offline-first synchronisatie met conflictresolutie.
 
-- MSAL/Entra ID;
-- actor ↔ Entra object ID;
-- auth in infrastructuur/app provider;
-- domein blijft Actor-ID gebruiken.
+IndexedDB mag niet stilzwijgend tot gedeelde source of truth worden gepromoveerd.
+Bij offline-first zijn recordversies, tombstones, conflictregels en batchgrenzen
+vereist.
 
-## GitHub Pages later
+## Gefaseerd migratieplan
 
-De frontend kan technisch op GitHub Pages blijven indien organisatiebeleid dit toelaat.
+1. Stabiliseer JSON-schema en repositorycontracten.
+2. Leg representatieve volumes en permissies vast.
+3. Maak een proof-of-concept adapter voor één read-only collectie.
+4. Voeg contracttests toe die zowel JSON als remote adapter doorlopen.
+5. Migreer writes per bounded context, met optimistic concurrency.
+6. Bouw expliciete JSON → remote import met dry-run en validatierapport.
+7. Vergelijk recordcounts, GUIDs, relaties, cents en historie semantisch.
+8. Voer pilot, rollback en audit uit.
+9. Beslis daarna of JSON lokale import/export, backup of alleen migratieformaat
+   blijft.
 
-Dan afzonderlijk beoordelen:
+## Niet doen
 
-- tenantconfiguratie;
-- CORS;
-- informatiebeveiliging;
-- authenticatie;
-- publieke beschikbaarheid van de app-shell.
+- O365-aanroepen rechtstreeks vanuit React-componenten;
+- GUIDs vervangen door lijstindices;
+- financiële cents via floating point migreren;
+- historie samenvouwen tot alleen de laatste waarde;
+- browsersecrets toevoegen om GitHub Pages te behouden;
+- tegelijk opslag, domeinmodel en UI herschrijven.
 
-Geen O365-secret in repository of browserbundle.
+## Migratieacceptatie
 
-## Migratiepad
-
-1. Excel schema stabiliseren.
-2. Repositoryinterfaces stabiliseren.
-3. O365 storage PoC.
-4. Mapping workbook → remote records.
-5. Migratietool.
-6. Datamigratie.
-7. Remote repository wordt primaire bron.
-8. Excel blijft import/export of rapportformaat.
-
-## Niet nu bouwen
-
-- Graph calls;
-- SharePoint REST;
-- MSAL;
-- Dataverse SDK;
-- remote sync;
-- offline conflict engine.
-
-Alleen architecturale seams voorzien.
+Een remote adapter is pas gelijkwaardig wanneer contracttests aantonen dat een
+JSON-fixture na import dezelfde projecten, relaties, histories, budgetbedragen,
+verslagversies en zoek-/aggregatieresultaten oplevert en wanneer autorisatie en
+rollback operationeel zijn getest.

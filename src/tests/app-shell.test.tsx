@@ -16,7 +16,7 @@ describe("hashrouting en applicatieshell", () => {
     expect(
       screen.getByRole("navigation", { name: "Hoofdnavigatie" }),
     ).toBeInTheDocument()
-    expect(screen.getByText("Geen bestand geladen")).toBeInTheDocument()
+    expect(screen.getByText("Geen gegevensbestand geopend")).toBeInTheDocument()
 
     await act(async () => {
       await router.navigate("/dashboard")

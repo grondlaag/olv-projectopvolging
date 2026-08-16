@@ -9,6 +9,7 @@ import { RouterProvider } from "react-router-dom"
 import { beforeEach, describe, expect, it } from "vitest"
 import { createAppRouter } from "../app/routing"
 import { useAppStore } from "../app/state/app-store"
+import { normalizeDomainState } from "../application/services"
 import { createPortfolioTestSession, testIds } from "./test-data"
 
 describe("topicwerkruimte", () => {
@@ -16,7 +17,7 @@ describe("topicwerkruimte", () => {
     useAppStore.getState().reset()
     useAppStore.setState({
       session: createPortfolioTestSession(),
-      loadedFileName: "portfolio-test.xlsx",
+      loadedFileName: "portfolio-test.json",
     })
   })
 
@@ -64,12 +65,22 @@ describe("topicwerkruimte", () => {
         { timeout: 10_000 },
       ),
     ).toBeInTheDocument()
+    expect(
+      useAppStore
+        .getState()
+        .session?.state.records.topics.find(
+          (topic) => topic.title === "Nieuwe projectvraag",
+        )?.ownerActorId,
+    ).toBe(testIds.actorOne)
     expect(useAppStore.getState().dirty).toBe(true)
 
     fireEvent.click(screen.getByRole("button", { name: "+ Update" }))
     panel = screen.getByRole("form", { name: "Update toevoegen" })
     fireEvent.change(within(panel).getByLabelText("Schrijf een update"), {
       target: { value: "De uitvoering is klaar voor medische validatie." },
+    })
+    fireEvent.change(within(panel).getByLabelText("Auteur"), {
+      target: { value: testIds.actorTwo },
     })
     fireEvent.click(within(panel).getByLabelText("Maak actuele stand"))
     fireEvent.keyDown(panel, { key: "Enter", ctrlKey: true })
@@ -81,6 +92,13 @@ describe("topicwerkruimte", () => {
         )
       ).length,
     ).toBeGreaterThanOrEqual(2)
+    expect(
+      useAppStore
+        .getState()
+        .session?.state.records.updates.find((update) =>
+          update.text.includes("medische validatie"),
+        )?.authorActorId,
+    ).toBe(testIds.actorTwo)
 
     fireEvent.click(screen.getByRole("button", { name: "+ Beslissing" }))
     panel = screen.getByRole("form", { name: "Beslissing toevoegen" })
@@ -98,6 +116,44 @@ describe("topicwerkruimte", () => {
       screen.getByRole("heading", { name: "Open acties" }),
     ).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "+ Actie" })).toBeInTheDocument()
+    router.dispose()
+  }, 30_000)
+
+  it("laat een auteur kiezen wanneer geen huidige actor ingesteld is", async () => {
+    const session = createPortfolioTestSession()
+    const records = structuredClone(session.state.records)
+    delete records.config[0]!.currentActorId
+    useAppStore.setState({
+      session: { ...session, state: normalizeDomainState(records) },
+    })
+    window.location.hash = `#/projects/${testIds.projectOne}/topics/${testIds.topicCritical}`
+    const router = createAppRouter()
+    render(<RouterProvider router={router} />)
+
+    expect(
+      await screen.findByRole("heading", { name: "Toegang spoed" }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "+ Update" }))
+    const panel = screen.getByRole("form", { name: "Update toevoegen" })
+    expect(within(panel).getByLabelText("Auteur")).toHaveValue("")
+    fireEvent.change(within(panel).getByLabelText("Schrijf een update"), {
+      target: { value: "Update zonder vooraf ingestelde huidige actor." },
+    })
+    fireEvent.change(within(panel).getByLabelText("Auteur"), {
+      target: { value: testIds.actorTwo },
+    })
+    fireEvent.click(within(panel).getByRole("button", { name: "Toevoegen" }))
+
+    expect(
+      await screen.findByText("Update zonder vooraf ingestelde huidige actor."),
+    ).toBeInTheDocument()
+    expect(
+      useAppStore
+        .getState()
+        .session?.state.records.updates.find((update) =>
+          update.text.includes("zonder vooraf ingestelde"),
+        )?.authorActorId,
+    ).toBe(testIds.actorTwo)
     router.dispose()
   })
 
@@ -180,7 +236,7 @@ describe("topicwerkruimte", () => {
     expect(useAppStore.getState().dirty).toBe(true)
     expect(
       screen.getByText(
-        "Timing opgeslagen in de lokale sessie · nog exporteren",
+        "Timing opgeslagen in de lokale sessie · JSON nog opslaan",
       ),
     ).toBeInTheDocument()
     expect(

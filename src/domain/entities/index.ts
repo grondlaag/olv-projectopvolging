@@ -253,7 +253,7 @@ export interface ChoiceList extends AuditedEntity {
 
 export interface Config extends AuditedEntity {
   schemaVersion: string
-  workbookId: UUID
+  dataSetId: UUID
   createdAt: DateTime
   appVersion: string
   defaultCurrency: string

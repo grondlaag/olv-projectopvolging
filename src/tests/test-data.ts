@@ -1,7 +1,7 @@
 import {
   normalizeDomainState,
   createEmptyDomainCollections,
-  type ImportedExcelSession,
+  type DataFileSession,
 } from "../application/services"
 import type {
   Action,
@@ -47,7 +47,7 @@ function audit(actorId = testIds.actorOne): AuditFields {
   }
 }
 
-export function createPortfolioTestSession(): ImportedExcelSession {
+export function createPortfolioTestSession(): DataFileSession {
   const records = createEmptyDomainCollections()
   const chapter: Chapter = {
     id: testIds.chapter,
@@ -250,7 +250,7 @@ export function createPortfolioTestSession(): ImportedExcelSession {
   records.config.push({
     id: uuid("90000000-0000-4000-8000-000000000001"),
     schemaVersion: "1.0.0",
-    workbookId: uuid("90000000-0000-4000-8000-000000000002"),
+    dataSetId: uuid("90000000-0000-4000-8000-000000000002"),
     createdAt: auditDate,
     appVersion: "test",
     defaultCurrency: "EUR",
@@ -260,12 +260,10 @@ export function createPortfolioTestSession(): ImportedExcelSession {
 
   return {
     state: normalizeDomainState(records),
-    sourceBuffer: new ArrayBuffer(16),
-    fileName: "portfolio-test.xlsx",
+    fileName: "portfolio-test.json",
     schemaVersion: "1.0.0",
-    tables: [],
-    missingTables: [],
-    unknownTables: [],
+    format: "json",
+    origin: "import",
     issues: [],
     hasBlockingIssues: false,
   }

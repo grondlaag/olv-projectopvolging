@@ -182,6 +182,9 @@ De productie-interface ondersteunt nu:
 - project-Gantt op `#/projects/<projectId>/planning`;
 - portfolio-Gantt op `#/planning`, inclusief `Zonder cluster`, filters en
   standaard ingeklapte detailplanning;
+- compacte portefeuillesamenvatting zonder projectselectie: geplande projecten,
+  projecten zonder planning, planningitems, mijlpalen, aandachtspunten en
+  zichtbare periode;
 - week-, maand-, kwartaal- en jaarzoom met automatische viewport;
 - afgeleide waarschuwingen voor overschreden planning zonder statusmutatie;
 - dashboardlijsten voor komende mijlpalen, vertraagde items en projecten met
@@ -190,6 +193,12 @@ De productie-interface ondersteunt nu:
 De Gantt is read-only-first. Selecteren opent formulierbewerking in een
 zijpaneel; drag/drop, auto-scheduling en automatisch berekende
 projectvoortgang zijn niet geïmplementeerd. Zie ADR-009.
+
+De portefeuillesamenvatting volgt de actieve filters. Een project telt als
+ingepland wanneer het een projectstart/einddatum of minstens één zichtbaar actief
+planningitem heeft. Een aandachtspunt is een uniek planningitem met status
+`Risico` of `Vertraagd`, of met een overschreden einddatum terwijl het niet
+afgerond/geannuleerd is.
 
 # B. Budget
 
@@ -305,9 +314,9 @@ UI:
 € 123.456,78
 ```
 
-Excel:
+JSON:
 
-numeriek met 2 decimalen.
+dezelfde integer cents als het domein, zonder conversie naar floating point.
 
 ## Projectbudgetdashboard
 
@@ -343,7 +352,7 @@ Fase 7 levert de financiële ledger volledig op:
 - expliciete positieve opslag voor meer- en minwerk, waarbij het type het teken
   bepaalt voor de afzonderlijke netto meer/minwerkanalyse;
 - append-only `BudgetMutation` voor een foutcorrectie van een bestaand bedrag;
-- Excelroundtrip via `tblBudget` en `tblBudgetMutaties`.
+- JSON-roundtrip via de collecties `budgets` en `budgetMutations`.
 
 Een nieuw record van het type `Correctie` is een nieuw financieel feit. Een
 correctie van een fout in een bestaand record wijzigt het recordbedrag en maakt

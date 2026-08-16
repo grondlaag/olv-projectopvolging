@@ -3,19 +3,19 @@ import { expect, test } from "@playwright/test"
 
 test.setTimeout(150_000)
 
-test("fase-7-hoofdflow beheert budget, correctiehistorie en Excelroundtrip lokaal", async ({
+test("fase-7-hoofdflow beheert budget, correctiehistorie en JSON-roundtrip lokaal", async ({
   page,
 }) => {
   await page.goto("/#/dashboard")
-  await page.getByRole("button", { name: "Excelbestand laden" }).click()
-  let importDialog = page.getByRole("dialog", { name: "Excelbestand laden" })
+  await page.getByRole("button", { name: "JSON openen", exact: true }).click()
+  let importDialog = page.getByRole("dialog", { name: "JSON-gegevensbestand" })
   await importDialog
     .locator('input[type="file"]')
     .setInputFiles(
-      resolve(process.cwd(), "src/tests/fixtures/excel/small-valid.xlsx"),
+      resolve(process.cwd(), "src/tests/fixtures/json/small-valid.json"),
     )
   await expect(importDialog.getByText("Blocking: 0")).toBeVisible()
-  await importDialog.getByRole("button", { name: "Import bevestigen" }).click()
+  await importDialog.getByRole("button", { name: "Bestand openen" }).click()
 
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })
@@ -57,7 +57,7 @@ test("fase-7-hoofdflow beheert budget, correctiehistorie en Excelroundtrip lokaa
     await panel.getByRole("button", { name: "Budgetitem opslaan" }).click()
     await expect(
       page.getByText(
-        "Budgetitem opgeslagen in de lokale sessie · nog exporteren",
+        "Budgetitem opgeslagen in de lokale sessie · JSON nog opslaan",
       ),
     ).toBeVisible()
   }
@@ -142,7 +142,7 @@ test("fase-7-hoofdflow beheert budget, correctiehistorie en Excelroundtrip lokaa
     .fill("E2E foutcorrectie van het ingelezen bedrag.")
   await panel.getByRole("button", { name: "Correctie opslaan" }).click()
   await expect(
-    page.getByText("Foutcorrectie opgeslagen met historie · nog exporteren"),
+    page.getByText("Foutcorrectie opgeslagen met historie · JSON nog opslaan"),
   ).toBeVisible()
   await approvedRow.getByRole("button", { name: "Corrigeren (1)" }).click()
   panel = page.getByRole("dialog", { name: "Bedrag corrigeren" })
@@ -152,21 +152,21 @@ test("fase-7-hoofdflow beheert budget, correctiehistorie en Excelroundtrip lokaa
   await panel.getByRole("button", { name: "Sluiten" }).click()
 
   const downloadPromise = page.waitForEvent("download")
-  await page.getByRole("button", { name: "Exporteren" }).click()
+  await page.getByRole("button", { name: "JSON opslaan" }).click()
   const download = await downloadPromise
   const exportedPath = resolve(
     process.cwd(),
-    "test-results/phase7-budget-roundtrip.xlsx",
+    "test-results/phase7-budget-roundtrip.json",
   )
   await download.saveAs(exportedPath)
 
-  await page.getByRole("button", { name: "Excel laden" }).click()
-  importDialog = page.getByRole("dialog", { name: "Excelbestand laden" })
+  await page.getByRole("button", { name: "JSON openen", exact: true }).click()
+  importDialog = page.getByRole("dialog", { name: "JSON-gegevensbestand" })
   await importDialog.locator('input[type="file"]').setInputFiles(exportedPath)
   await expect(importDialog.getByText("Blocking: 0")).toBeVisible({
     timeout: 20_000,
   })
-  await importDialog.getByRole("button", { name: "Import bevestigen" }).click()
+  await importDialog.getByRole("button", { name: "Bestand openen" }).click()
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })
     .getByRole("link", { name: "Portfolio" })

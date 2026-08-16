@@ -1,402 +1,190 @@
 # Teststrategie — OLV Projectopvolging
 
-## Testlagen
+## Doel
 
-### Unit
+De suite bewijst domeinregels, hoofdflows, draagbare JSON-roundtrips,
+GitHub Pages-compatibiliteit, privacy, toegankelijkheid en performance.
 
-Vitest:
-
-- domeinregels;
-- validators;
-- aggregaties;
-- mappings;
-- indices.
-
-### Component
-
-React Testing Library:
-
-- formulieren;
-- filters;
-- tabellen;
-- drawers;
-- empty/error states.
-
-### Integration
-
-- repositories;
-- Excel importer/exporter;
-- IndexedDB;
-- migratie;
-- planning;
-- budget.
-
-### E2E
-
-Playwright voor hoofdflows.
-
-## Kernunit-tests
-
-### Project
-
-- hoofdstuk verplicht;
-- cluster optioneel;
-- cluster hoort bij hoofdstuk;
-- clusterhistoriek.
-
-### Topic
-
-- exact één ouder;
-- eigenaar actief;
-- current update.
-
-### Actie
-
-- afronddatum;
-- status;
-- eigenaar;
-- historie.
-
-### Planning
-
-- topic zonder planning;
-- periode;
-- milestone;
-- datumvalidatie;
-- progress;
-- self-link;
-- dependency cycle;
-- vertraging.
-
-### Budget
-
-- cents;
-- aggregaties;
-- topic geen dubbeltelling;
-- correcties;
-- meer/minwerk;
-- prognose.
-
-### Overleg
-
-- centrale scope-invariant voor alle vier scopetypes;
-- actieve, unieke deelnemers en aanwezigheid;
-- vrij en gekoppeld agendapunt binnen scope;
-- expliciete agendaorder en herordenen;
-- update/beslissing met één gedeeld bronrecord;
-- actie met `sourceMeetingId`;
-- unieke, oplopende verslagversies;
-- onveranderlijke definitieve snapshots en revisie;
-- Excelroundtrip van overleg, deelnemers, agenda, bijdragen en verslagen.
-
-## Excel fixtures
-
-Synthetisch:
-
-- `empty-valid.xlsx`;
-- `small-valid.xlsx`;
-- `duplicate-guid.xlsx`;
-- `broken-reference.xlsx`;
-- `invalid-topic-parent.xlsx`;
-- `planning-cycle.xlsx`;
-- `invalid-budget.xlsx`.
-
-Deze zeven fase-1-fixtures staan in `src/tests/fixtures/excel` en worden
-reproduceerbaar opgebouwd met `npm run fixtures:excel`. `small-valid.xlsx`
-bevat ook het onbekende werkblad `NietBeheerd` voor preservationcontrole.
-
-Latere performance- en migratiefasen voegen afzonderlijk `large-valid.xlsx` en
-`legacy-schema.xlsx` toe; deze horen niet bij de fase-1-oplevering.
-
-Geen operationele OLV-data in Git.
-
-## Roundtrip
-
-```text
-read ArrayBuffer
-→ import
-→ normalize
-→ mutate
-→ export
-→ reimport
-→ semantic compare
-```
-
-Vergelijk:
-
-- IDs;
-- aantallen;
-- relaties;
-- datums;
-- bedragen;
-- status;
-- dependencies;
-- audit.
-
-## GitHub Pages routingtest
-
-Build met Pages-base.
-
-Controleer:
-
-- root;
-- `#/portfolio`;
-- `#/projects/<id>`;
-- refresh;
-- assets onder subpath;
-- geen broken root-absolute assets.
-
-## CI/build
-
-Minimaal:
+## Verplichte releasechecks
 
 ```bash
-npm ci
 npm run format:check
 npm run lint
 npm run typecheck
 npm run test -- --run
 npm run build
+npm run test:e2e
+npm run audit:performance
+npm run audit:release
 ```
 
-## Playwright hoofdflow
+Een check wordt alleen als geslaagd gerapporteerd wanneer hij in de actuele
+worktree is uitgevoerd.
 
-Fase 1 automatiseert op `#/dev/excel`:
+## Testlagen
 
-1. importeer `small-valid.xlsx` via de browser File API;
-2. controleer schema, tabellen en nul blocking issues;
-3. wijzig een projecttitel;
-4. exporteer in memory;
-5. herimporteer;
-6. verwacht `Semantisch identiek`.
+### Unit
 
-Fase 2 automatiseert in de productie-interface:
+Pure domein- en applicationlogica:
 
-1. open `#/dashboard`;
-2. laad `small-valid.xlsx` via de lokale File API;
-3. controleer het validatierapport en bevestig de import;
-4. open portfolio;
-5. pas een zoekfilter toe;
-6. klik één keer op een typed projectregel;
-7. controleer `#/projects/<guid>`;
-8. reload;
-9. herstel de IndexedDB-sessie;
-10. controleer dat dezelfde projectroute geldig blijft.
+- project- en clusterinvarianten plus clusterhistoriek;
+- topics, current update, journaal en beslissingen;
+- expliciete actieve auteurkeuze, onderscheid tussen auteur en auditactor en
+  update-invoer zonder ingestelde huidige actor;
+- acties en append-only historie;
+- planning, afhankelijkheden en cyclusdetectie;
+- globale planningssamenvatting en filtergebonden tellingen;
+- centsconversie, budgetaggregaties, topicdubbeltelling en mutaties;
+- overlegscope, deelnemers, agenda en verslagsnapshots;
+- instellingen, duplicaten en veilige deactivatie;
+- normalized indices en selectors.
 
-Fase 3 automatiseert aanvullend in de productie-interface:
+### Integratie
 
-1. importeer `small-valid.xlsx`;
-2. open portfolio en start een nieuw project;
-3. voeg een actieve actor inline toe en selecteer die als coördinator;
-4. voeg binnen het gekozen hoofdstuk een cluster inline toe;
-5. sla het project expliciet op en controleer dirty state en dossier;
-6. bewerk het project zonder de dossiercontext te verliezen;
-7. exporteer het workbook via de browserdownload;
-8. importeer die export opnieuw;
-9. vind en open het project opnieuw;
-10. controleer actor, cluster en clusterhistoriek.
+- JSON syntax-, schema- en referentievalidatie;
+- JSON open → mutate → save → reopen → semantic compare;
+- IndexedDB snapshot v2 en herstel van een legacy-v1-snapshot;
+- instellingenpagina tegen de echte store;
+- projectformulier met inline hoofdstuk, cluster en actor;
+- dirty state en handmatige save;
+- router en GitHub Pages base-assets.
 
-De Vitest-laag dekt daarnaast project zonder/met cluster, onverenigbaar
-hoofdstuk/cluster, inline actor/cluster, stabiele project-ID, clusterwissel,
-clusterverwijdering, open/sluiten van historiek en de semantische Excelroundtrip.
+### End-to-end
 
-Fase 4 automatiseert aanvullend:
+Playwright gebruikt de gebouwde productieapp. De hoofdflows openen de
+synthetische JSON-fixture, voeren echte UI-mutaties uit, downloaden JSON, openen
+de download opnieuw en controleren kritieke records en relaties.
 
-1. importeer `small-valid.xlsx` en open een projectdossier;
-2. controleer de projectoverview en open de topicwerkruimte;
-3. maak een projecttopic met actieve eigenaar, prioriteit en vaste context;
-4. voeg een update toe en stel die in als actuele stand;
-5. voeg een afzonderlijke beslissing toe en controleer de newest-first tijdlijn;
-6. bekijk dezelfde bijdragen in het gecombineerde projectjournaal;
-7. sluit en heropen het topic zonder historie te verliezen;
-8. exporteer, herimporteer en vind topic, actuele update en beslissing terug;
-9. reload de directe topicroute en herstel de IndexedDB-sessie.
+## JSON-fixtures
 
-Vitest dekt daarnaast exact één project- of clusterouder, inactieve eigenaar,
-stabiele UUID, current-update-invariant, append-only historie, sluiten/heropenen,
-zoeken en filters, geïndexeerde actiecounts, dirty state, read-only
-actie-uitbreidingspunten en de fase-4-Excelroundtrip.
+Canonical synthetische fixture:
 
-Fase 5 automatiseert aanvullend:
+```text
+src/tests/fixtures/json/small-valid.json
+```
 
-1. importeer `small-valid.xlsx`, open portfolio, project en topic;
-2. start quick-input voor een topicactie;
-3. voeg een actieve eigenaar inline toe zonder actie-invoer te verliezen;
-4. sla de actie op en controleer dashboardcounters;
-5. open `#/actions`, filter en groepeer per eigenaar;
-6. wijzig eigenaar, deadline, status en prioriteit;
-7. rond de actie af met afronddatum;
-8. exporteer en importeer de download opnieuw;
-9. vind de afgeronde actie terug in de globale werklijst.
+Ze wordt reproduceerbaar gegenereerd met `npm run fixtures:json` en bevat onder
+meer Unicode, lokale datums, integer cents, optionele relaties en alle relevante
+collecties. Operationele data is verboden in fixtures.
 
-Vitest dekt daarnaast project-, topic- en clustercontext, verplichte actieve
-eigenaar, optionele deadline, afgeleide achterstalligheid, afronden/heropenen,
-append-only `ActionHistory`, groepering per eigenaar, projectaggregatie zonder
-dubbeltelling, dirty state en de fase-5-Excelroundtrip van `tblActies` en
-`tblActieHistoriek`.
+Ongeldige JSON-situaties worden bij voorkeur in de test zelf opgebouwd, zodat
+syntax-, structurele en relationele fouten compact en expliciet blijven:
 
-Fase 6 automatiseert aanvullend:
-
-1. importeer `small-valid.xlsx` en open een projecttopic;
-2. voeg topictiming en een projectmijlpaal toe;
-3. open de project-Gantt en wissel zoom;
-4. voeg een geldige finish-to-start-afhankelijkheid toe;
-5. probeer de omgekeerde link en controleer de cyclusmelding;
-6. open de globale portfolio-Gantt met `Zonder cluster`;
-7. exporteer, herimporteer en vind timing, mijlpaal en dependency terug.
-
-Vitest dekt topic zonder/met één entry, weigering van een tweede primaire
-entry, mijlpaal- en periodevalidatie, progressgrenzen, afgeleide vertraging,
-self- en cross-projectlinks, pure cyclusdetectie, dirty state, Gantt-routes,
-filters en de Excelroundtrip van `tblPlanning` en
-`tblPlanningAfhankelijkheden`. Een synthetische test bouwt 500 projecten en
-5.000 planningrecords als snelle regressie op het query- en indexpad; de
-volledige gedocumenteerde performancefixture blijft bedoeld voor profiling.
-
-Fase 7 automatiseert aanvullend:
-
-1. importeer `small-valid.xlsx` en open het projectbudget;
-2. voeg goedgekeurd budget, raming en contract toe;
-3. voeg topicgekoppeld meerwerk toe en controleer dat het project dit eenmaal
-   bevat;
-4. open topicdetail en controleer dezelfde gekoppelde records;
-5. open `#/budget`, filter op project en controleer de groepering;
-6. corrigeer een bedrag met reden en controleer de append-only historie;
-7. exporteer, herimporteer en controleer bedragen, relaties en historie.
-
-Vitest dekt daarnaast centsconversie, Belgische euro-opmaak, percentages en de
-nulbudget-edgecase, bedragen per type/status, meer- en minwerk, contingentie,
-factuur, betaling, correctie, `BudgetMutation`, topicdubbeltelling, dirty state,
-strikte importfouten en de Excelroundtrip van `tblBudget` en
-`tblBudgetMutaties`. Tests bewaken expliciet dat de onbesliste kernaggregaties
-geen willekeurige uitkomst leveren maar `business-rule-required` blijven.
-
-Fase 8 automatiseert aanvullend:
-
-1. importeer `small-valid.xlsx` en maak een projectoverleg;
-2. voeg een bestaand topic, een bestaande actie en een vrij punt aan de agenda
-   toe en wijzig de volgorde;
-3. registreer aanwezigheid, update, beslissing en nieuwe actie vanuit de
-   agendacontext;
-4. controleer acties gegroepeerd per eigenaar;
-5. bouw en finaliseer versie 1 van het verslag;
-6. wijzig het brontopic en controleer dat de historische snapshot gelijk blijft;
-7. maak indien nodig revisie 2 zonder versie 1 te overschrijven;
-8. exporteer, herimporteer en vind overleg, relaties, versies en snapshots terug.
-
-Vitest dekt daarnaast formulieren en de volledige overlegwerkruimte, dirty
-state, project- en dashboardselecties, suggesties zonder persistente afgeleide
-velden, scopefouten aan de importgrens en de semantische Excelroundtrip. De
-Playwright-hoofdflow controleert dezelfde keten in de browser inclusief
-printactie en hashrouting.
-
-Daarnaast bouwt een Vitest-smoke de app met
-`base=/olv-projectopvolging/`, leest de gegenereerde `index.html` en verifieert
-dat iedere script- en stylesheetreferentie onder dat subpad bestaat.
-
-De volledige producthoofdflow voor latere fasen blijft:
-
-1. importeer fixture;
-2. portfolio;
-3. project openen;
-4. project wijzigen;
-5. actor toevoegen;
-6. cluster toevoegen;
-7. topic toevoegen;
-8. topic timing;
-9. Gantt;
-10. actie;
-11. budgetrecord;
-12. budgettotalen;
-13. export;
-14. herimport;
-15. vergelijking.
-
-## Performancefixture
-
-- 500 projecten;
-- 5.000 topics;
-- 25.000 updates;
-- 20.000 acties;
-- 10.000 planningrecords;
-- 25.000 budgetrecords/mutaties.
-
-Meet:
-
-- import;
-- portfolio render;
-- zoeken;
-- projectopen;
-- Gantt;
-- budgetaggregatie;
-- export.
-
-Concrete thresholds na eerste profiling.
-
-## Fase 9 releasehardening
-
-De eerste volledige profiling is op 2026-08-09 uitgevoerd. Diagnostische grenzen
-voor dezelfde referentieklasse zijn:
-
-- index- en afzonderlijke querypaden: minder dan 500 ms;
-- volledige Excel-export: minder dan 30 s;
-- volledige Excel-import: minder dan 180 s;
-- heap na import: minder dan 1,2 GB;
-- nul blocking issues en exacte collectieaantallen na herimport.
-
-`npm run audit:performance` bouwt de gedocumenteerde grote fixture, meet alle
-querypaden en voert een echte export/herimport uit. `npm run audit:release` zoekt
-naar onverwacht netwerkverkeer, spreadsheets buiten de synthetische fixturemap,
-environmentbestanden, mogelijke secrets, niet-synthetische runtime-e-mails en
-Excelbestanden in `dist`.
-
-Aanvullende regressies:
-
-- `phase9-hardening.test.tsx`: globale zoektypen/routes, foutgrens en
-  `meetingsByProject`;
-- `phase9-excel-hardening.test.ts`: alle collecties en kritieke semantiek in één
-  roundtrip;
-- `phase9-master-release.spec.ts`: samenhangende hoofdflow door fasen 0–8;
-- `phase9-visual-accessibility.spec.ts`: productiepreview op 1920/1440/1280/
-  1024/768 px, basissemantiek, overflow en toetsenbordsmoke.
-
-## Accessibility
-
-Automatisch waar mogelijk:
-
-- form labels;
-- focus;
-- dialogs;
-- table headers;
-- button names.
-
-Handmatig:
-
-- keyboard hoofdflow;
-- zoom;
-- contrast;
-- screenreader smoke test.
-
-## Regressionbeleid
-
-Iedere opgeloste regressie krijgt waar haalbaar een test.
-
-Extra belangrijk:
-
-- Excelverlies;
-- routing;
-- GUID-relaties;
-- budgetdubbeltelling;
+- ongeldige JSON-syntax;
+- verkeerde formaatsignatuur of schemaversie;
+- ontbrekende/extra properties;
+- dubbel GUID;
+- verbroken hoofdstuk-, cluster-, project- of actorrelatie;
+- topic uit ander budgetproject;
 - planningcyclus;
-- formuliercontext.
+- ongeldige financiële waarde;
+- config/envelope dataSetId-mismatch.
 
-## Deployment smoke test
+## Legacy-Excelregressie
 
-Na Pages deployment:
+De bestaande tests en synthetische bestanden onder `src/tests/fixtures/excel`
+blijven voorlopig draaien om de reeds gebouwde mappinglogica niet ongemerkt te
+breken. Ze bewijzen geen productieflow en de tijdelijke browserroute bestaat niet
+meer. Nieuwe functionele tests gebruiken JSON. Een toekomstige opschoning mag de
+legacyadapter pas verwijderen na een expliciete migratiebeslissing.
 
-- site opent;
-- hoofdbundle laadt;
-- hashroute werkt;
-- import lokaal;
-- geen workbookdata naar netwerk;
-- exportdownload werkt.
+## Project- en instellingenacceptatie
+
+Minimaal geautomatiseerd:
+
+- nieuwe gegevensset bevat actieve standaardhoofdstukken;
+- hoofdstuk selecteren in een nieuw project;
+- hoofdstuk inline toevoegen zonder formulierverlies;
+- cluster inline toevoegen en onmiddellijk selecteren;
+- project zonder cluster;
+- ongeldige cluster/hoofdstukcombinatie;
+- actor inline toevoegen;
+- instellingen: hoofdstuk, cluster, actor en keuzewaarde beheren;
+- gebruikte structuur/actor niet ongeldig kunnen deactiveren;
+- project opslaan, dirty state, JSON downloaden en opnieuw vinden.
+
+Playwrightspec `json-settings-project.spec.ts` is de gerichte regressie voor de
+oorspronkelijke hoofdstuk/cluster/settings-bug.
+
+## JSON-roundtripacceptatie
+
+De gatewaytests controleren:
+
+- exact 22 collecties;
+- GUID- en relatiebehoud;
+- integer cents zonder floating-pointconversie;
+- datum- en datetimebehoud;
+- booleans en afwezige optionele velden;
+- UTF-8-tekst met accenten;
+- cluster-, actie- en budgethistoriek;
+- verslag- en report-itemsnapshots;
+- leesbare pretty-printed uitvoer;
+- verkeerde extensie en blocking validation.
+
+## Playwright-hoofdflows
+
+- JSON openen en sessie herstellen;
+- dashboard, portfolio en projectdossier;
+- instellingen en nieuw project met inline structuur;
+- topics, updates en beslissingen;
+- inline actor toevoegen aan een update met behoud van ingevoerde tekst;
+- acties en actiehistoriek;
+- planning, globale cijferstrook, Gantt en afhankelijkheden;
+- budget, correcties en topicimpact;
+- overleg, agenda en definitief verslag;
+- master save/reopen met alle relaties;
+- responsive en toetsenbordtoegankelijke productiepreview;
+- GitHub Pages repositorybase.
+
+Screenshots komen alleen in `test-results` en bevatten uitsluitend synthetische
+data.
+
+## Performance
+
+`npm run audit:performance` bouwt een synthetische grote state en meet:
+
+- normalized indices;
+- portfolio- en dashboardqueries;
+- globaal zoeken en project openen;
+- acties, Gantt en budgetaggregaties;
+- volledige JSON-serialisatie en -validatie bij opnieuw openen;
+- bestandsgrootte en heapgebruik;
+- recordcount na roundtrip.
+
+Richtwaarden op de huidige synthetische set:
+
+- gewone geïndexeerde query: < 150 ms;
+- JSON opslaan: < 5 s;
+- JSON opnieuw openen en valideren: < 10 s;
+- blocking issues: 0;
+- recordcounts na roundtrip: gelijk.
+
+Een overschrijding is een profiling-signaal en geen reden voor stille
+validatieversoepeling.
+
+## Privacy- en release-audit
+
+`npm run audit:release` blokkeert:
+
+- onverwachte netwerk-API's in runtimecode;
+- operationele spreadsheets buiten de synthetische legacyfixtures;
+- operationele OLV-JSON-bestanden buiten de synthetische JSON-fixturemap;
+- datafiles in `dist`;
+- `.env`-bestanden, mogelijke secrets en niet-synthetische runtime-e-mails.
+
+De buildtest controleert aanvullend dat repositorybase-assets bestaan en dat
+geen Excel-worker of ExcelJS-chunk in de productie-assets verschijnt.
+
+## Handmatige acceptatie
+
+Voor release:
+
+1. start een nieuwe gegevensset;
+2. beheer hoofdstuk, cluster, actor en keuzelijsten;
+3. maak een project met en zonder cluster;
+4. doorloop dossier, topic, actie, planning, budget en overleg;
+5. bewaar als JSON en open de download opnieuw;
+6. controleer dirty/saved-status en refreshherstel;
+7. controleer 1920, 1440, 1280, 1024 en 768 px;
+8. controleer toetsenbord, focus, labels, lege states en Nederlandstalige fouten;
+9. controleer dat DevTools Network geen projectdata verzendt.

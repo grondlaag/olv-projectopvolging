@@ -19,17 +19,17 @@ export function AppHeader() {
   const [search, setSearch] = useState("")
   const [searchOpen, setSearchOpen] = useState(false)
   const [activeResult, setActiveResult] = useState(0)
-  const [exporting, setExporting] = useState(false)
-  const [exportFeedback, setExportFeedback] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [saveFeedback, setSaveFeedback] = useState("")
   const searchInput = useRef<HTMLInputElement>(null)
   const deferredSearch = useDeferredValue(search)
   const dirty = useAppStore((state) => state.dirty)
   const loadedFileName = useAppStore((state) => state.loadedFileName)
   const session = useAppStore((state) => state.session)
-  const lastExportAt = useAppStore((state) => state.lastExportAt)
+  const lastSavedAt = useAppStore((state) => state.lastSavedAt)
   const setImportPanelOpen = useAppStore((state) => state.setImportPanelOpen)
   const setPortfolioFilters = useAppStore((state) => state.setPortfolioFilters)
-  const markExported = useAppStore((state) => state.markExported)
+  const markSaved = useAppStore((state) => state.markSaved)
   const config = session?.state.records.config[0]
   const currentActor =
     session && config?.currentActorId
@@ -84,27 +84,26 @@ export function AppHeader() {
     navigate(`/portfolio${parameters.size ? `?${parameters}` : ""}`)
   }
 
-  async function exportWorkbook() {
+  async function saveDataFile() {
     if (!session) return
-    setExporting(true)
-    setExportFeedback("")
+    setSaving(true)
+    setSaveFeedback("")
     try {
-      const { excelWorkbookService } =
-        await import("../../app/providers/excel-services")
-      await excelWorkbookService.exportAndDownload(
-        session.state,
-        session.sourceBuffer,
+      const { jsonDataFileService } =
+        await import("../../app/providers/data-file-services")
+      const exported = jsonDataFileService.exportAndDownload(session.state)
+      markSaved(exported.fileName)
+      setSaveFeedback(
+        `JSON opgeslagen om ${new Intl.DateTimeFormat("nl-BE", { hour: "2-digit", minute: "2-digit" }).format(new Date())}`,
       )
-      markExported()
-      setExportFeedback(
-        `Excel geëxporteerd om ${new Intl.DateTimeFormat("nl-BE", { hour: "2-digit", minute: "2-digit" }).format(new Date())}`,
-      )
-    } catch {
-      setExportFeedback(
-        "Excel kon niet worden geëxporteerd. De lokale wijzigingen zijn behouden.",
+    } catch (cause) {
+      setSaveFeedback(
+        cause instanceof Error
+          ? cause.message
+          : "JSON kon niet worden opgeslagen. De lokale wijzigingen zijn behouden.",
       )
     } finally {
-      setExporting(false)
+      setSaving(false)
     }
   }
 
@@ -209,39 +208,43 @@ export function AppHeader() {
         ) : null}
       </form>
 
-      <div className="app-header__session" aria-label="Werkbooksessie">
+      <div className="app-header__session" aria-label="Gegevenssessie">
         <div className="app-header__session-copy">
           <span className="app-header__file">
-            {loadedFileName ?? "Geen bestand geladen"}
+            {loadedFileName ?? "Geen gegevensbestand geopend"}
           </span>
           <span className="app-header__export-time">
-            {lastExportAt
-              ? `Excel geëxporteerd om ${new Intl.DateTimeFormat("nl-BE", { hour: "2-digit", minute: "2-digit" }).format(new Date(lastExportAt))}`
-              : "Nog niet geëxporteerd"}
+            {lastSavedAt
+              ? `JSON opgeslagen om ${new Intl.DateTimeFormat("nl-BE", { hour: "2-digit", minute: "2-digit" }).format(new Date(lastSavedAt))}`
+              : "Nog niet opgeslagen"}
           </span>
         </div>
         {currentActor ? (
           <span className="app-header__actor">{currentActor.displayName}</span>
         ) : null}
         <Badge tone={dirty ? "warning" : "success"}>
-          {dirty ? "Wijzigingen nog niet geëxporteerd" : "Geen wijzigingen"}
+          {dirty ? "Wijzigingen nog niet opgeslagen" : "Geen wijzigingen"}
         </Badge>
         <Button variant="secondary" onClick={() => setImportPanelOpen(true)}>
-          Excel laden
+          JSON openen
         </Button>
         <Button
-          onClick={() => void exportWorkbook()}
-          disabled={!session || exporting || session.hasBlockingIssues}
+          onClick={() => void saveDataFile()}
+          disabled={!session || saving || session.hasBlockingIssues}
         >
-          {exporting ? "Exporteren…" : "Exporteren"}
+          {saving ? "Opslaan…" : "JSON opslaan"}
         </Button>
       </div>
-      {exportFeedback ? (
+      {saveFeedback ? (
         <p
           className="app-header__feedback"
-          role={exportFeedback.startsWith("Excel kon") ? "alert" : "status"}
+          role={
+            saveFeedback.startsWith("Opslaan is geblokkeerd")
+              ? "alert"
+              : "status"
+          }
         >
-          {exportFeedback}
+          {saveFeedback}
         </p>
       ) : null}
     </header>

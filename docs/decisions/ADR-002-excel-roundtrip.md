@@ -1,6 +1,9 @@
 # ADR-002 — Excel roundtrip als contract
 
-Status: Accepted
+Status: Superseded by ADR-011
+
+Deze beslissing beschrijft het contract tot en met appversie 1.0.0. De
+legacyroundtriptests blijven bestaan, maar zijn geen productieacceptatie meer.
 
 ## Context
 

@@ -16,7 +16,8 @@ De toepassing ondersteunt:
 - budgetopvolging;
 - overleg, agenda en verslag;
 - actoren en configureerbare keuzelijsten;
-- Excel-import, validatie en export.
+- JSON-import, validatie en export;
+- een geïsoleerde legacy-Exceladapter voor regressie- en migratietests.
 
 **Plan-pin, interactieve plannen en PDF/SVG-pinfunctionaliteit zijn niet in scope.**
 
@@ -36,9 +37,9 @@ Versie 1 is daarom strikt een **statische frontend**:
 - geen browsersecrets;
 - geen verplichte externe cloudservice.
 
-Alle Excel-data wordt lokaal in de browser verwerkt.
+Alle JSON-data wordt lokaal in de browser verwerkt.
 
-GitHub Pages host alleen applicatiecode en statische assets. Operationele Exceldata mag nooit in repository of Pages-build terechtkomen.
+GitHub Pages host alleen applicatiecode en statische assets. Operationele JSON-gegevensbestanden mogen nooit in repository of Pages-build terechtkomen.
 
 Gebruik **hash-based client routing** voor betrouwbare routing op GitHub Pages.
 
@@ -49,7 +50,7 @@ Lees vóór niet-triviale wijzigingen:
 1. `docs/product-brief.md`
 2. `docs/architecture.md`
 3. `docs/domain-model.md`
-4. `docs/excel-contract.md`
+4. `docs/json-contract.md`
 5. `docs/visual-design.md`
 6. `docs/planning-and-budget.md`
 7. `docs/testing.md`
@@ -95,7 +96,7 @@ Versie 1:
 
 ```text
 Infrastructure
-  ├─ Excel adapter
+  ├─ JSON data-file adapter
   └─ IndexedDB draft/session adapter
 ```
 
@@ -111,9 +112,10 @@ Infrastructure
 
 Regels:
 
-- React-componenten roepen SheetJS/xlsx niet rechtstreeks aan.
-- Domeinentiteiten kennen geen Excel-tabellen of kolomnamen.
-- Excelmapping leeft uitsluitend in `src/infrastructure/excel`.
+- React-componenten parsen of serialiseren het gegevensbestand niet rechtstreeks.
+- Domeinentiteiten kennen geen JSON-envelope of bestandsnamen.
+- JSON-mapping leeft uitsluitend in `src/infrastructure/json`.
+- De legacy-Excelmapping onder `src/infrastructure/excel` is niet bereikbaar vanuit de productierouter.
 - Browseropslag is geen domeinlogica.
 - UI-state is niet de persisted source of truth.
 - Externe data wordt aan de grens gevalideerd met Zod.
@@ -130,7 +132,7 @@ Toegestaan:
 - Web Workers;
 - browser downloads;
 - object URLs;
-- client-side Excel parsing.
+- client-side JSON parsing en downloads.
 
 Niet toegestaan als vereiste voor kernfunctionaliteit:
 
@@ -202,22 +204,22 @@ Netwerkverkeer is standaard niet nodig voor de MVP.
 - correcties zijn traceerbare mutaties;
 - financiële historie wordt niet overschreven.
 
-## Excelregels
+## Gegevensbestandsregels
 
-Excel is een opslagadapter, geen applicatielogica.
+JSON is een opslagadapter, geen applicatielogica.
 
-Canonical formaat voor versie 1: **`.xlsx` zonder VBA-afhankelijkheid**.
+Canonical formaat: **`.json`**, volgens `docs/json-contract.md`.
 
-`.xlsm` mag best-effort worden gelezen, maar volledig behoud van macro's, shapes of unsupported workbookfeatures behoort niet tot de MVP.
+Excel is geen operationeel invoer- of uitvoerformaat meer. De bestaande Exceladapter blijft uitsluitend behouden voor synthetische regressietests en eventuele expliciete migratietools.
 
 Elke substantiële import/exportwijziging vereist:
 
 ```text
-import
+open JSON
 → domain state
 → wijziging
-→ export
-→ herimport
+→ JSON opslaan
+→ opnieuw openen
 → semantisch vergelijken
 ```
 
@@ -261,7 +263,7 @@ Vermijd generieke SaaS-stijl, felle gradients, neon, overmatige kaarten, zware s
 - virtualiseer grote lijsten/tabellen;
 - debounce zoeken;
 - lazy-load Gantt;
-- Excelwerk zo nodig in Web Worker.
+- grote JSON-bestanden pas na profiling in een Web Worker verwerken.
 
 ## Testvereisten
 
@@ -285,7 +287,7 @@ Werk documentatie mee bij bij wijzigingen aan:
 
 - architectuur;
 - domeinregels;
-- Excelcontract;
+- JSON-contract;
 - schema/migratie;
 - planning;
 - budget;

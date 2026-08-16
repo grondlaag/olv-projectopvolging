@@ -1,191 +1,112 @@
 # GitHub Pages deployment
 
-## Doel
+## Contract
 
-OLV Projectopvolging wordt als statische Vite-app gehost via GitHub Pages.
+De productieapp is een statische Vite-build:
 
-## Consequenties
-
-GitHub Pages levert statische:
-
-- HTML;
-- CSS;
-- JavaScript;
-- assets.
-
-Daarom:
-
-- geen backend runtime;
-- geen server routes;
-- geen server secrets;
-- geen serverdatabase.
-
-## Routing
-
-Gebruik hash routing.
-
-Voorbeeld:
-
-```text
-https://ACCOUNT.github.io/REPOSITORY/#/portfolio
-```
-
-Voorkeur:
-
-```ts
-createHashRouter(...)
-```
-
-Dit vermijdt afhankelijkheid van server-side SPA rewrites.
+- output: `dist/`;
+- routing: hash-based;
+- Pages Source: GitHub Actions;
+- base: repositorypad;
+- geen backend, secrets, API-routes of serverrewrites.
 
 ## Vite base
 
-Voor:
+CI zet `VITE_BASE_PATH` op `/<repository>/`. Alle scripts, styles en lazy chunks
+worden via Vite-imports opgebouwd. Root-absolute asset-URLs zijn verboden.
 
-```text
-https://ACCOUNT.github.io/REPOSITORY/
-```
-
-gebruik:
-
-```text
-/REPOSITORY/
-```
-
-Maak configureerbaar:
-
-```ts
-import { defineConfig } from "vite"
-import react from "@vitejs/plugin-react"
-
-export default defineConfig({
-  plugins: [react()],
-  base: process.env.VITE_BASE_PATH ?? "/",
-})
-```
-
-Workflow:
-
-```yaml
-env:
-  VITE_BASE_PATH: /${{ github.event.repository.name }}/
-```
-
-Voor custom domain kan later `/` gebruikt worden.
-
-## GitHub instellingen
-
-```text
-Settings
-→ Pages
-→ Build and deployment
-→ Source
-→ GitHub Actions
-```
-
-## Workflow
-
-`.github/workflows/deploy.yml`:
-
-1. checkout;
-2. Node;
-3. npm ci;
-4. formatter check;
-5. lint;
-6. typecheck;
-7. tests;
-8. build;
-9. configure Pages;
-10. upload dist;
-11. deploy.
-
-## Assets
-
-Vermijd root-absolute paden:
-
-```html
-<img src="/assets/logo.svg" />
-```
-
-Gebruik Vite imports of:
-
-```ts
-import.meta.env.BASE_URL
-```
-
-## Privacy
-
-Operationele Exceldata:
-
-- nooit committen;
-- nooit in `public/`;
-- nooit als echte testfixture;
-- nooit door deployment uploaden.
-
-Workbookdata wordt lokaal in de browser verwerkt.
-
-## Build output
-
-Alleen:
-
-```text
-dist/
-```
-
-naar Pages.
-
-Niet deployen:
-
-- workbooks;
-- testoutput;
-- Playwright traces;
-- screenshots met echte data;
-- secrets.
-
-## Custom domain later
-
-Bij custom domain:
-
-- GitHub Pages domain configureren;
-- Vite base `/`;
-- HTTPS afdwingen;
-- routing kan hash-based blijven.
-
-## Lokale controle
+Lokale productiecontrole:
 
 ```bash
 npm run build
-npm run preview
+npm run preview -- --host 127.0.0.1
 ```
 
-Controleer:
+Controleer minstens:
 
-- root;
-- hashroutes;
-- assets;
-- Excel import;
-- Excel export;
-- IndexedDB herstel.
+```text
+/#/dashboard
+/#/portfolio
+/#/settings
+/#/projects/:id
+/#/planning
+/#/budget
+/#/meetings
+```
 
-De geautomatiseerde Pages-base-smoke in
-`src/tests/pages-base-assets.test.ts` maakt een echte Vite-build onder een
-repositorysubpad en controleert de fysieke script- en stylesheetassets.
+Een refresh op een hashroute vraagt alleen `index.html` aan en heeft dus geen
+rewrite nodig.
 
-Sinds fase 9 produceert Vite ook een Excel-moduleworker. De worker-URL wordt met
-`new URL(..., import.meta.url)` opgebouwd en volgt daardoor automatisch dezelfde
-repositorybase. De hoofdapp laadt ExcelJS niet tijdens normaal navigeren; import
-of export start de worker pas op aanvraag.
+## Workflow
 
-`vite preview` is lokale buildcontrole, geen productieserver.
+De GitHub Actions-workflow moet achtereenvolgens uitvoeren:
 
-## Definition of done
+```text
+npm ci
+format check
+lint
+typecheck
+unit/integration tests
+build met repositorybase
+Pages artifact upload
+deploy-pages
+```
 
-- build groen;
-- Pages workflow groen;
-- site opent;
-- hashroute opent;
-- refresh op hashroute werkt;
-- assets geen 404;
-- Excelimport lokaal werkt;
-- exportdownload werkt;
-- workbookdata wordt niet naar netwerk gestuurd.
+Playwright kan als afzonderlijke verplichte check draaien voordat deployment
+wordt toegestaan.
+
+## JSON-gegevensbestanden
+
+Operationele `.json`-bestanden worden nooit gedeployed. De app wordt zonder data
+gebouwd en vraagt de gebruiker lokaal:
+
+- een bestaand OLV-JSON-bestand te openen; of
+- een nieuwe gegevensset te starten.
+
+Openen gebruikt `File.text()`; opslaan gebruikt een Blob/object-URL-download.
+De JSON-adapter bevat geen fetch of upload. IndexedDB bewaart alleen een lokale
+herstelsnapshot op het apparaat van de gebruiker.
+
+De enige toegestane datafile in de repository is de volledig synthetische
+testfixture onder `src/tests/fixtures/json`. Ze wordt niet vanuit runtimecode
+geïmporteerd en komt niet in `dist`.
+
+## Legacy Excel
+
+De historische Exceladapter en synthetische fixtures blijven broncode/testdata,
+maar zijn niet bereikbaar vanuit de productierouter. Er is geen Excel-worker,
+ExcelJS-chunk of spreadsheet in `dist`. De Pages smoke-test controleert dit.
+
+## Privacycontrole
+
+Voor deployment:
+
+- `npm run audit:release` heeft nul findings;
+- `dist` bevat geen OLV-data-envelope of spreadsheet;
+- runtimecode bevat geen onverwachte netwerk-API;
+- geen `.env`, tokens, echte e-mailadressen of operationele screenshots;
+- de browser Network-tab toont geen transmissie bij JSON openen/opslaan.
+
+## Cache en updates
+
+Vite-assets krijgen content hashes. `index.html` verwijst naar de actuele hashes.
+Een nieuwe appversie wijzigt niet automatisch het JSON-schema; appversie en
+schemaversie zijn onafhankelijke velden. Onbekende schemas worden geblokkeerd tot
+een expliciete migratie beschikbaar is.
+
+## Rollback
+
+Een rollback van de statische app wijzigt geen gebruikersdata op de server, want
+die bestaat daar niet. Bewaar voor een releasewisseling wel een kopie van het
+laatst geldige JSON-bestand. Open een bestand alleen met een appversie die de
+opgegeven `schemaVersion` ondersteunt.
+
+## Handmatige productiecheck
+
+1. open de Pages-URL onder de repositorybase;
+2. start een nieuwe gegevensset en open Instellingen;
+3. voeg hoofdstuk/cluster toe en maak een project;
+4. sla JSON op en open die download opnieuw;
+5. controleer dirty/saved-status en refreshherstel;
+6. controleer dat routes en lazy chunks onder de base laden;
+7. controleer dat geen projectdata in netwerkrequests voorkomt.

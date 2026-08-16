@@ -7,6 +7,7 @@ import {
   buildPortfolioPlanningModel,
   defaultGlobalPlanningFilters,
   isPlanningEntryDelayed,
+  summarizePortfolioPlanning,
 } from "../application/queries"
 import {
   normalizeDomainState,
@@ -161,6 +162,26 @@ describe("planningitems en topictiming", () => {
     expect(
       isPlanningEntryDelayed({ ...entry, status: "Afgerond" }, "2026-08-09"),
     ).toBe(false)
+  })
+
+  it("vat de portfolio-planning samen zonder projectselectie", () => {
+    const state = createPortfolioTestSession().state
+    const model = buildPortfolioPlanningModel(
+      state,
+      defaultGlobalPlanningFilters,
+      "2026-08-09",
+    )
+
+    expect(summarizePortfolioPlanning(model, "2026-08-09")).toEqual({
+      totalProjects: 3,
+      projectsWithPlanning: 3,
+      projectsWithoutPlanning: 0,
+      planningItemCount: 1,
+      milestoneCount: 1,
+      attentionItemCount: 1,
+      earliestDate: "2025-05-01",
+      latestDate: "2027-03-01",
+    })
   })
 })
 

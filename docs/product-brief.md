@@ -1,327 +1,162 @@
-# Product brief — OLV Projectopvolging
+# Productbrief — OLV Projectopvolging
 
 ## Productdoel
 
-OLV Projectopvolging is een **client-side projectmanagementapplicatie** voor bouw-, infrastructuur- en beleidsprojecten binnen een zorginstelling.
-
-De toepassing vervangt een te complexe Excel/VBA-oplossing.
-
-De nieuwe scheiding is:
+OLV Projectopvolging vervangt een moeilijk beheerbare spreadsheet/VBA-oplossing
+door een rustige, relationele en volledig lokale webapp voor een zorg- en
+bouwcontext.
 
 ```text
-Frontend = gebruik, visualisatie, invoer en bewerking
-Excel    = draagbare database
+React-app = gebruikersinterface en werkruimte
+JSON      = draagbaar operationeel gegevensbestand
+IndexedDB = lokaal sessieherstel
 ```
 
-Versie 1 wordt als statische webapp gehost op **GitHub Pages**.
+De app draait statisch op GitHub Pages. Er is geen backend, loginserver,
+serverdatabase of verplichte cloudservice. Gegevens worden alleen gelezen uit en
+geschreven naar een bestand dat de gebruiker zelf kiest.
 
-Er is geen backend nodig voor de MVP.
+## Productprincipes
 
-## Kernprincipes
+1. De UI is de werkruimte; het bestand is geen UI.
+2. JSON openen en opslaan gebeurt volledig client-side.
+3. De centrale state is genormaliseerd en relationeel.
+4. Onbekende of corrupte relaties worden niet stilzwijgend hersteld.
+5. De domein- en applicatielagen zijn onafhankelijk van het bestandsformaat.
+6. Nieuwe persistente records krijgen UUID v4.
+7. Financiële waarden gebruiken integer cents.
+8. Niet-opgeslagen wijzigingen zijn altijd zichtbaar.
+9. Context blijft behouden bij inline beheer van hoofdstuk, cluster en actor.
+10. GitHub Pages bevat uitsluitend code en statische assets.
 
-1. De gebruiker werkt in de webinterface.
-2. Excel wordt geïmporteerd/geëxporteerd en is geen UI.
-3. De browser verwerkt data lokaal.
-4. De app werkt zonder backend.
-5. De domeinlaag blijft onafhankelijk van Excel.
-6. Opslag moet later vervangbaar zijn door O365-technologie.
-7. Historiek, beslissingen en financiële mutaties blijven traceerbaar.
-8. De UI is snel, rustig en professioneel.
-9. Plan-pin is niet in scope.
-10. GitHub Pages is het vaste hostingdoel voor versie 1.
+## Gebruikers en kerntaken
 
-## Hosting
+Projectcoördinatoren, projectmedewerkers en portfoliobeheerders moeten kunnen:
 
-- GitHub Pages;
-- Vite build;
-- deployment via GitHub Actions;
-- statische `dist/`;
-- hash-based routing;
-- geen productie-Node-server.
+- portfolio en dashboard raadplegen;
+- hoofdstukken, clusters, actoren en keuzelijsten beheren;
+- projecten aanmaken en bewerken, ook zonder cluster;
+- topics, actuele stand, updates en beslissingen opvolgen;
+- acties en wijzigingshistoriek beheren;
+- project- en portfolioplanning bekijken;
+- budgetfeiten en correcties opvolgen;
+- overleg, agenda en versievaste verslagen beheren;
+- de volledige gegevensset lokaal bewaren en opnieuw openen.
 
-GitHub Pages host **geen gebruikersdatabank**.
+## Start- en bestandsflow
 
-Operationele workbooks of vertrouwelijke data worden nooit gecommit.
+Zonder geopende gegevensset toont de app een duidelijke startactie:
 
-## Dashboard
+- **JSON openen** voor een bestaand bestand;
+- **Nieuwe gegevensset** voor een lege operationele set met
+  standaardhoofdstukken en basissuggesties.
 
-Toon minimaal:
+Een bestand wordt eerst syntactisch, structureel en relationeel gecontroleerd.
+Blokkerende fouten verhinderen openen. Na bevestiging wordt de genormaliseerde
+state de enige actieve source of truth.
 
-- actieve projecten;
-- open topics;
-- kritieke topics;
-- open acties;
-- achterstallige acties;
-- acties komende 14 dagen;
-- komende mijlpalen;
-- vertraagde planningitems;
-- projecten met planningsrisico;
-- budgetkerncijfers;
-- grootste budgetafwijkingen;
-- recente beslissingen;
-- recente wijzigingen;
-- geladen Excelbestand;
-- dirty state.
+**JSON opslaan** bouwt een nieuw, leesbaar UTF-8-bestand. Opslaan gebeurt alleen
+op expliciete gebruikersactie; formulierbewerkingen veroorzaken nooit automatisch
+een download.
 
-## Portfolio
+## Navigatie
 
-Hiërarchie:
+De hoofdnavigatie bevat:
 
-```text
-Hoofdstuk
-└─ Cluster
-   └─ Project
-```
+- Dashboard;
+- Portfolio;
+- Acties;
+- Planning;
+- Budget;
+- Overleg;
+- Instellingen.
 
-Project zonder cluster:
+Hashrouting ondersteunt GitHub Pages en rechtstreeks herstel van dossiercontext.
+Globaal zoeken vindt projecten, topics, acties en overleg.
 
-```text
-Hoofdstuk
-└─ Zonder cluster
-   └─ Project
-```
+## Instellingen
 
-Functies:
+De instellingenpagina beheert de echte domeinrecords:
 
-- zoeken;
-- filteren;
-- groeperen;
-- sorteren;
-- open/gesloten;
-- hoofdstuk;
-- cluster;
-- site;
-- locatie;
-- afdeling;
-- projectcoördinator;
-- fase;
-- status;
-- budgetstatus;
-- planningstatus;
-- kritieke topics;
-- achterstallige acties.
+- algemeen: standaardvaluta en huidige actor;
+- hoofdstukken en clusters: aanmaken, bewerken en veilig deactiveren;
+- actoren: contact- en rolgegevens, actief/inactief;
+- keuzelijsten: projectfase, site, locatie, afdeling, budgetcategorie en
+  overlegtype;
+- gegevensbestand: bestandsstatus, recordaantal, openen en opslaan.
 
-Eén klik opent een project.
+Deactiveren is geblokkeerd wanneer actieve relaties ongeldig zouden worden.
+Projectformulieren bieden daarnaast compacte inline acties voor een nieuw
+hoofdstuk, cluster en actor, met behoud van alle reeds ingevulde waarden.
 
-## Projectdossier
+## Projecten en clusters
 
-Bevat:
+- Een project hoort bij exact één hoofdstuk.
+- Een cluster is optioneel en hoort bij hetzelfde hoofdstuk.
+- Projecten zonder cluster staan onder **Zonder cluster**.
+- Clusterwijziging sluit de bestaande open historie en opent zo nodig een
+  nieuwe koppeling.
+- Projectdossiers tonen status, fase, coördinator, planning, topics, acties,
+  budgetstatus en clusterhistoriek zonder fake data.
 
-1. kerngegevens;
-2. actuele stand;
-3. beslissingen;
-4. topics;
-5. acties;
-6. planning;
-7. budget;
-8. journaal;
-9. documenten/bewijsmetadata;
-10. overleg;
-11. clusterhistoriek.
+## Topics, updates, beslissingen en acties
 
-Voorkeurslayout:
+- Een topic hoort bij exact één project of cluster.
+- Een topic-eigenaar is optioneel en wordt uit de actieve actors gekozen; een
+  nieuwe actor kan tijdens de topicinvoer inline worden toegevoegd.
+- De actuele stand verwijst naar een eigen current update.
+- Bij een update of beslissing kiest de gebruiker expliciet een actieve auteur.
+  De ingestelde huidige actor wordt als voorselectie gebruikt, maar is geen
+  blokkade wanneer een andere auteur wordt gekozen.
+- Historische updates en beslissingen worden append-only bewaard.
+- Acties kunnen bij project, cluster, topic of overleg horen.
+- Afgeronde acties vereisen een afronddatum; wijzigingen blijven traceerbaar.
 
-- links context/topicnavigatie;
-- midden dossierinhoud;
-- rechts acties/metadata/detail;
-- panelen inklapbaar.
+## Planning
 
-## Topics
+Projecten hebben kernplanning. Topics kunnen maximaal één primaire planningentry
+hebben; vrije mijlpalen zijn aparte records. Afhankelijkheden zijn initieel
+finish-to-start en cycli zijn verboden. Een topic zonder timing verschijnt niet
+als geplande Gantt-balk.
 
-Topic hoort bij exact:
-
-- één project; of
-- één cluster.
-
-Ondersteunt:
-
-- titel;
-- vaste context;
-- eigenaar;
-- status;
-- prioriteit;
-- actuele stand;
-- chronologisch journaal;
-- beslissingen;
-- acties;
-- bewijsmetadata;
-- optionele timing;
-- optionele budgetkoppeling.
-
-Status:
-
-- Open;
-- Afgesloten;
-- Geannuleerd.
-
-Prioriteit:
-
-- Laag;
-- Normaal;
-- Hoog;
-- Kritiek.
-
-## Updates en beslissingen
-
-Maak onderscheid tussen:
-
-- vaste context;
-- actuele stand;
-- chronologische bijdragen.
-
-Types minimaal:
-
-- Update;
-- Beslissing;
-- Projectstatus;
-- Clusterstatus;
-- Notitie;
-- Overlegbijdrage;
-- Planningwijziging;
-- Budgetwijziging.
-
-## Acties
-
-Acties horen bij:
-
-- project;
-- cluster;
-- topic;
-- overleg.
-
-Status:
-
-- Open;
-- Bezig;
-- Wacht op derde;
-- Wacht op beslissing;
-- Afgerond;
-- Geannuleerd.
-
-Globale overzichten:
-
-- per eigenaar;
-- per project;
-- achterstallig;
-- deze week;
-- komende 14 dagen;
-- zonder deadline;
-- wacht op beslissing.
-
-## Planning en Gantt
-
-Gantt ondersteunt:
-
-- projecten;
-- getimede topics;
-- vrije mijlpalen;
-- afhankelijkheden;
-- week/maand/kwartaal/jaar;
-- vandaag-lijn;
-- voortgang;
-- risico;
-- vertraging;
-- groepering;
-- filtering.
-
-Topic zonder timing verschijnt niet in de Gantt.
+De globale planning toont zonder projectselectie de planningdekking, het aantal
+planningitems en mijlpalen, aandachtspunten en de zichtbare periode. De cijfers
+volgen de actieve portfoliofilters.
 
 ## Budget
 
-Ondersteunt:
-
-- goedgekeurd budget;
-- raming;
-- contract;
-- bestelling;
-- factuur;
-- betaling;
-- meerwerk;
-- minwerk;
-- correctie;
-- contingentie;
-- prognose eindkost;
-- resterend budget;
-- afwijkingen.
-
-Ieder budgetrecord hoort bij één project.
-
-`topicId` is optioneel en is een analytische koppeling, geen duplicaat.
+Ieder BudgetRecord hoort bij één project en kan optioneel hetzelfde record aan
+een topic koppelen. Daardoor telt topicimpact nooit dubbel. Aggregaties zijn pure
+domeinfuncties; meer- en minwerk gebruiken hun type als tekenconventie.
+Substantiële correcties maken BudgetMutation-historiek.
 
 ## Overleg en verslag
 
-Overleg ondersteunt:
+Overleg ondersteunt scope, deelnemers, agenda, gekoppelde bronobjecten,
+beslissingen en acties. Verslagen bewaren snapshots en versies, zodat een
+definitief verslag niet verandert wanneer een bronrecord later wordt aangepast.
 
-- scope;
-- datum;
-- titel;
-- deelnemers;
-- agenda;
-- updates;
-- beslissingen;
-- acties;
-- verslag;
-- volgende vergadering.
+## Privacy en beveiliging
 
-Verslagitems kunnen snapshots bevatten.
+- Geen operationele gegevensbestanden in Git of `dist`.
+- Geen projectdata in netwerkverkeer.
+- Geen browsersecrets of private omgevingsvariabelen.
+- IndexedDB is uitsluitend lokaal herstel, geen gedeelde database.
+- Externe documenten blijven referenties; de app slaat geen bestanden zelf op.
 
-## Actoren
+## Buiten scope
 
-Types minimaal:
+- backend of serverdatabase;
+- realtime samenwerking;
+- authenticatie en autorisatie;
+- plan-pins, interactieve plannen en PDF/SVG-pinfunctionaliteit;
+- automatische synchronisatie met O365;
+- operationele Excel-import of -export.
 
-- Intern;
-- Architect;
-- Aannemer;
-- Studiebureau;
-- Leverancier;
-- Overheid;
-- Andere.
+## Acceptatie
 
-Actor kan tijdens invoer worden toegevoegd zonder contextverlies.
-
-## Niet in scope
-
-- plan-pin;
-- CAD/SVG-planweergave;
-- PDF-planannotatie;
-- backend;
-- serverdatabase;
-- realtime multi-user;
-- Entra ID-authenticatie;
-- SharePoint-integratie;
-- Dataverse;
-- Graph API;
-- native mobile app.
-
-## Excel als database
-
-Canonical formaat: `.xlsx`.
-
-Gebruiker kan:
-
-- leeg sjabloon downloaden;
-- workbook importeren;
-- validatierapport bekijken;
-- data bewerken;
-- database exporteren;
-- lokale sessie herstellen.
-
-## MVP
-
-MVP is gereed wanneer:
-
-- GitHub Pages deployment werkt;
-- Excel import/export + roundtrip werkt;
-- dashboardbasis werkt;
-- portfolio werkt;
-- projectbeheer werkt;
-- cluster/actor inline toevoegen werkt;
-- topics werken;
-- updates/beslissingen werken;
-- acties werken;
-- planning + Gantt werkt;
-- budget werkt;
-- overleg, agenda en historische verslagversies werken;
-- dirty state + sessieherstel werkt;
-- design system consistent is;
-- kernflows getest zijn.
+De release is aanvaard wanneer een gebruiker een nieuwe gegevensset kan starten,
+de structuur en instellingen kan beheren, alle bestaande hoofdflows kan uitvoeren,
+het resultaat als JSON kan opslaan, opnieuw kan openen en semantisch dezelfde
+records en relaties terugvindt. Formatter, lint, typecheck, unit/integratie,
+build, Playwright, performance- en release-audit moeten slagen.

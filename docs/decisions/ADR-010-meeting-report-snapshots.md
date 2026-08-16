@@ -34,7 +34,7 @@ elkaar laten lopen.
 
 Het overleg en de brondossiers tonen dezelfde records zonder synchronisatie of
 duplicaten. Historische verslagtekst blijft aantoonbaar gelijk wanneer een
-topic of actie later wijzigt. Snapshots nemen extra Excelrijen in, maar maken
+topic of actie later wijzigt. Snapshots nemen extra JSON-records in, maar maken
 audit, roundtrip en revisie expliciet. Latere geavanceerde goedkeuring,
 ondertekening of documentopslag kan bovenop de versiehistoriek worden gebouwd
 zonder het bronmodel te wijzigen.

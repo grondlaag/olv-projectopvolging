@@ -10,7 +10,7 @@ De applicatie moet zonder interne serverinfrastructuur hostbaar zijn.
 
 MVP is een statische React/Vite frontend op GitHub Pages.
 
-Alle Excelverwerking gebeurt lokaal in de browser.
+Alle JSON-bestandsverwerking gebeurt lokaal in de browser.
 
 ## Gevolgen
 
@@ -18,7 +18,7 @@ Voordelen:
 
 - eenvoudige deployment;
 - geen backendbeheer;
-- Exceldata hoeft niet naar een server.
+- Projectdata hoeft niet naar een server.
 
 Beperkingen:
 

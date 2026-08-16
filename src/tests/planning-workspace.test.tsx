@@ -52,7 +52,7 @@ describe("planningwerkruimte", () => {
     useAppStore.getState().reset()
     useAppStore.setState({
       session: sessionWithDependency(),
-      loadedFileName: "portfolio-test.xlsx",
+      loadedFileName: "portfolio-test.json",
     })
   })
 
@@ -125,6 +125,13 @@ describe("planningwerkruimte", () => {
       ),
     ).toBeInTheDocument()
     expect(screen.getByText("Zonder cluster")).toBeInTheDocument()
+    const summary = screen.getByRole("region", {
+      name: "Samenvatting portfolioplanning",
+    })
+    expect(summary).toHaveTextContent("3 van 3 projecten")
+    expect(
+      within(summary).getByText("Planningitems").parentElement,
+    ).toHaveTextContent("2")
     const projectToggle = screen.getByRole("button", {
       name: /PRJ-001 · Renovatie verpleegafdeling/,
     })

@@ -118,11 +118,11 @@ export function MeetingFormPage() {
   if (!session) {
     return (
       <EmptyState
-        title="Laad eerst een projectworkbook"
-        description="Overleg wordt binnen de actieve lokale workbooksessie beheerd."
+        title="Open eerst een projectgegevensbestand"
+        description="Overleg wordt binnen de actieve lokale gegevenssessie beheerd."
         action={
           <Button onClick={() => setImportPanelOpen(true)}>
-            Excelbestand laden
+            JSON openen of nieuw starten
           </Button>
         }
       />
@@ -132,7 +132,7 @@ export function MeetingFormPage() {
     return (
       <ErrorState
         title="Overleg niet gevonden"
-        description="Dit overleg-ID bestaat niet in het geladen workbook."
+        description="Dit overleg-ID bestaat niet in de geopende gegevensset."
       />
     )
   }
@@ -155,6 +155,14 @@ export function MeetingFormPage() {
       .toLocaleLowerCase("nl")
       .includes(participantSearch.trim().toLocaleLowerCase("nl")),
   )
+  const meetingTypes = session.state.records.choiceLists
+    .filter(
+      (choice) =>
+        choice.listKey === "meeting-type" &&
+        choice.active &&
+        choice.audit.active,
+    )
+    .sort((left, right) => left.order - right.order)
   const scopeOptions =
     scopeType === "Hoofdstuk"
       ? session.state.records.chapters.map((item) => ({
@@ -255,9 +263,15 @@ export function MeetingFormPage() {
             <label>
               <span>Type</span>
               <input
+                list="meeting-type-options"
                 {...register("type")}
                 aria-invalid={Boolean(errors.type)}
               />
+              <datalist id="meeting-type-options">
+                {meetingTypes.map((choice) => (
+                  <option value={choice.label} key={choice.id} />
+                ))}
+              </datalist>
               {errors.type ? (
                 <small role="alert">{errors.type.message}</small>
               ) : null}

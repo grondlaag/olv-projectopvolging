@@ -3,19 +3,19 @@ import { expect, test } from "@playwright/test"
 
 test.setTimeout(120_000)
 
-test("fase-6-hoofdflow beheert planning, Gantt en Excelroundtrip lokaal", async ({
+test("fase-6-hoofdflow beheert planning, Gantt en JSON-roundtrip lokaal", async ({
   page,
 }) => {
   await page.goto("/#/dashboard")
-  await page.getByRole("button", { name: "Excelbestand laden" }).click()
-  let importDialog = page.getByRole("dialog", { name: "Excelbestand laden" })
+  await page.getByRole("button", { name: "JSON openen", exact: true }).click()
+  let importDialog = page.getByRole("dialog", { name: "JSON-gegevensbestand" })
   await importDialog
     .locator('input[type="file"]')
     .setInputFiles(
-      resolve(process.cwd(), "src/tests/fixtures/excel/small-valid.xlsx"),
+      resolve(process.cwd(), "src/tests/fixtures/json/small-valid.json"),
     )
   await expect(importDialog.getByText("Blocking: 0")).toBeVisible()
-  await importDialog.getByRole("button", { name: "Import bevestigen" }).click()
+  await importDialog.getByRole("button", { name: "Bestand openen" }).click()
 
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })
@@ -92,7 +92,7 @@ test("fase-6-hoofdflow beheert planning, Gantt en Excelroundtrip lokaal", async 
   await panel.getByRole("button", { name: "Afhankelijkheid opslaan" }).click()
   await expect(
     page.getByText(
-      "Afhankelijkheid opgeslagen in de lokale sessie · nog exporteren",
+      "Afhankelijkheid opgeslagen in de lokale sessie · JSON nog opslaan",
     ),
   ).toBeVisible()
 
@@ -115,6 +115,12 @@ test("fase-6-hoofdflow beheert planning, Gantt en Excelroundtrip lokaal", async 
   await expect(
     page.getByRole("heading", { name: "Portfolio-Gantt" }),
   ).toBeVisible()
+  const planningSummary = page.getByRole("region", {
+    name: "Samenvatting portfolioplanning",
+  })
+  await expect(planningSummary).toContainText("Planningdekking")
+  await expect(planningSummary).toContainText("Planningitems")
+  await expect(planningSummary).toContainText("Aandacht")
   await expect(page.getByText("Zonder cluster", { exact: true })).toBeVisible()
   await page.screenshot({
     path: "test-results/phase6-portfolio-gantt.png",
@@ -122,21 +128,21 @@ test("fase-6-hoofdflow beheert planning, Gantt en Excelroundtrip lokaal", async 
   })
 
   const downloadPromise = page.waitForEvent("download")
-  await page.getByRole("button", { name: "Exporteren" }).click()
+  await page.getByRole("button", { name: "JSON opslaan" }).click()
   const download = await downloadPromise
   const exportedPath = resolve(
     process.cwd(),
-    "test-results/phase6-planning-roundtrip.xlsx",
+    "test-results/phase6-planning-roundtrip.json",
   )
   await download.saveAs(exportedPath)
 
-  await page.getByRole("button", { name: "Excel laden" }).click()
-  importDialog = page.getByRole("dialog", { name: "Excelbestand laden" })
+  await page.getByRole("button", { name: "JSON openen", exact: true }).click()
+  importDialog = page.getByRole("dialog", { name: "JSON-gegevensbestand" })
   await importDialog.locator('input[type="file"]').setInputFiles(exportedPath)
   await expect(importDialog.getByText("Blocking: 0")).toBeVisible({
     timeout: 20_000,
   })
-  await importDialog.getByRole("button", { name: "Import bevestigen" }).click()
+  await importDialog.getByRole("button", { name: "Bestand openen" }).click()
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })
     .getByRole("link", { name: "Portfolio" })

@@ -1,7 +1,8 @@
-// IndexedDB session adapters are intentionally deferred beyond Phase 0.
+// IndexedDB remains a local recovery adapter, never the portable source of truth.
 import type {
+  DataSessionSnapshot,
+  RecoverableSessionSnapshot,
   SessionSnapshotRepository,
-  WorkbookSessionSnapshot,
 } from "../../application/services"
 
 const databaseName = "olv-projectopvolging"
@@ -38,7 +39,7 @@ async function openDatabase(): Promise<IDBDatabase | undefined> {
 }
 
 export class IndexedDbSessionSnapshotRepository implements SessionSnapshotRepository {
-  async load(): Promise<WorkbookSessionSnapshot | undefined> {
+  async load(): Promise<RecoverableSessionSnapshot | undefined> {
     const database = await openDatabase()
     if (!database) return undefined
     try {
@@ -49,14 +50,16 @@ export class IndexedDbSessionSnapshotRepository implements SessionSnapshotReposi
       )
       await completed
       if (!value || typeof value !== "object") return undefined
-      const snapshot = value as WorkbookSessionSnapshot
-      return snapshot.version === 1 ? snapshot : undefined
+      const snapshot = value as RecoverableSessionSnapshot
+      return snapshot.version === 1 || snapshot.version === 2
+        ? snapshot
+        : undefined
     } finally {
       database.close()
     }
   }
 
-  async save(snapshot: WorkbookSessionSnapshot): Promise<void> {
+  async save(snapshot: DataSessionSnapshot): Promise<void> {
     const database = await openDatabase()
     if (!database) return
     try {

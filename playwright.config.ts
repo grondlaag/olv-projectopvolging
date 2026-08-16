@@ -1,10 +1,11 @@
 import { defineConfig } from "@playwright/test"
 
+const usesExternalServer = process.env.PLAYWRIGHT_EXTERNAL_SERVER === "true"
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
   // Keep the release suite deterministic on resource-constrained Windows runners.
-  // The application itself still exercises Web Workers for Excel import/export.
   workers: 1,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
@@ -13,10 +14,14 @@ export default defineConfig({
     baseURL: "http://127.0.0.1:4173",
     trace: "on-first-retry",
   },
-  webServer: {
-    command: "npm run build && npm run preview -- --host 127.0.0.1",
-    url: "http://127.0.0.1:4173",
-    timeout: 180_000,
-    reuseExistingServer: !process.env.CI,
-  },
+  ...(usesExternalServer
+    ? {}
+    : {
+        webServer: {
+          command: "npm run build && npm run preview -- --host 127.0.0.1",
+          url: "http://127.0.0.1:4173",
+          timeout: 180_000,
+          reuseExistingServer: !process.env.CI,
+        },
+      }),
 })

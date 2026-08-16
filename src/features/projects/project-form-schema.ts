@@ -85,6 +85,13 @@ export const clusterFormSchema = z.object({
 
 export type ClusterFormValues = z.input<typeof clusterFormSchema>
 
+export const chapterFormSchema = z.object({
+  code: z.string().trim().min(1, "Hoofdstukcode is verplicht."),
+  title: z.string().trim().min(1, "Hoofdstuktitel is verplicht."),
+})
+
+export type ChapterFormValues = z.input<typeof chapterFormSchema>
+
 export const actorFormSchema = z.object({
   displayName: z.string().trim().min(1, "Naam is verplicht."),
   type: z.enum(actorTypes),

@@ -168,11 +168,11 @@ export function ActionsPage() {
           description="Alle verantwoordelijkheden over projecten, clusters, topics en overleg."
         />
         <EmptyState
-          title="Laad eerst een projectworkbook"
+          title="Open eerst een projectgegevensbestand"
           description="Na import verschijnt hier de volledige actielijst."
           action={
             <Button onClick={() => setImportPanelOpen(true)}>
-              Excelbestand laden
+              JSON openen of nieuw starten
             </Button>
           }
         />
@@ -210,8 +210,8 @@ export function ActionsPage() {
       useAppStore.getState().replaceDomainState(result.state)
       setStatusMessage(
         status === "Afgerond"
-          ? "Actie afgerond · nog exporteren"
-          : "Actiestatus bijgewerkt · nog exporteren",
+          ? "Actie afgerond · JSON nog opslaan"
+          : "Actiestatus bijgewerkt · JSON nog opslaan",
       )
     } catch (error) {
       setStatusMessage(

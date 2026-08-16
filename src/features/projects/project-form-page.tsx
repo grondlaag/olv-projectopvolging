@@ -11,6 +11,8 @@ import { Link, useNavigate, useParams } from "react-router-dom"
 import {
   ProjectManagementError,
   ProjectManagementService,
+  SettingsManagementError,
+  SettingsManagementService,
 } from "../../application/services"
 import { useAppStore } from "../../app/state/app-store"
 import {
@@ -24,6 +26,7 @@ import {
   actorTypes,
   projectStatuses,
   type Actor,
+  type Chapter,
   type Cluster,
   type Project,
   type UUID,
@@ -31,17 +34,20 @@ import {
 import {
   actorFormSchema,
   actorValuesToInput,
+  chapterFormSchema,
   clusterFormSchema,
   clusterValuesToInput,
   projectFormSchema,
   projectValuesToInput,
   type ActorFormValues,
+  type ChapterFormValues,
   type ClusterFormValues,
   type ProjectFormValues,
 } from "./project-form-schema"
 import "./project-form-page.css"
 
 const projectManagementService = new ProjectManagementService()
+const settingsManagementService = new SettingsManagementService()
 
 function emptyProjectValues(): ProjectFormValues {
   return {
@@ -95,6 +101,97 @@ function applyZodErrors<T extends FieldValues>(
       setError(field as FieldPath<T>, { message: issue.message })
     }
   }
+}
+
+interface InlineChapterPanelProps {
+  onClose: () => void
+  onSaved: (chapter: Chapter) => void
+}
+
+function InlineChapterPanel({ onClose, onSaved }: InlineChapterPanelProps) {
+  useEscapeKey(onClose)
+  const replaceDomainState = useAppStore((state) => state.replaceDomainState)
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<ChapterFormValues>({ defaultValues: { code: "", title: "" } })
+
+  const submit = handleSubmit((values) => {
+    const parsed = chapterFormSchema.safeParse(values)
+    if (!parsed.success) {
+      applyZodErrors(parsed.error.issues, setError)
+      return
+    }
+    const state = useAppStore.getState().session?.state
+    if (!state) return
+    try {
+      const result = settingsManagementService.createChapter(state, {
+        ...parsed.data,
+        active: true,
+      })
+      flushSync(() => replaceDomainState(result.state))
+      onSaved(result.record)
+    } catch (error) {
+      if (error instanceof SettingsManagementError) {
+        setError(error.field as FieldPath<ChapterFormValues>, {
+          message: error.message,
+        })
+      }
+    }
+  })
+
+  return (
+    <aside
+      className="project-inline-panel"
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby="new-chapter-title"
+    >
+      <header>
+        <div>
+          <span>In projectcontext</span>
+          <h2 id="new-chapter-title">Nieuw hoofdstuk</h2>
+        </div>
+        <Button
+          variant="tertiary"
+          onClick={onClose}
+          aria-label="Hoofdstukpaneel sluiten"
+        >
+          Sluiten
+        </Button>
+      </header>
+      <p>
+        Het hoofdstuk wordt in de gegevensset bewaard en meteen voor dit project
+        geselecteerd.
+      </p>
+      <form onSubmit={(event) => void submit(event)} noValidate>
+        <label>
+          <span>Hoofdstukcode</span>
+          <input {...register("code")} aria-invalid={Boolean(errors.code)} />
+          {errors.code ? (
+            <small role="alert">{errors.code.message}</small>
+          ) : null}
+        </label>
+        <label>
+          <span>Hoofdstuktitel</span>
+          <input {...register("title")} aria-invalid={Boolean(errors.title)} />
+          {errors.title ? (
+            <small role="alert">{errors.title.message}</small>
+          ) : null}
+        </label>
+        <div className="project-inline-panel__actions">
+          <Button type="submit" disabled={isSubmitting}>
+            Hoofdstuk opslaan
+          </Button>
+          <Button variant="tertiary" onClick={onClose}>
+            Annuleren
+          </Button>
+        </div>
+      </form>
+    </aside>
+  )
 }
 
 interface InlineClusterPanelProps {
@@ -207,12 +304,14 @@ export interface InlineActorPanelProps {
   onClose: () => void
   onSaved: (actor: Actor) => void
   contextLabel?: string
+  selectionDescription?: string
 }
 
 export function InlineActorPanel({
   onClose,
   onSaved,
   contextLabel = "In projectcontext",
+  selectionDescription = "De nieuwe actor wordt meteen als projectcoördinator geselecteerd.",
 }: InlineActorPanelProps) {
   useEscapeKey(onClose)
   const replaceDomainState = useAppStore((state) => state.replaceDomainState)
@@ -278,7 +377,7 @@ export function InlineActorPanel({
           Sluiten
         </Button>
       </header>
-      <p>De nieuwe actor wordt meteen als projectcoördinator geselecteerd.</p>
+      <p>{selectionDescription}</p>
       <form onSubmit={(event) => void submit(event)} noValidate>
         <label>
           <span>Naam</span>
@@ -347,7 +446,9 @@ export function ProjectFormPage() {
   const session = useAppStore((state) => state.session)
   const replaceDomainState = useAppStore((state) => state.replaceDomainState)
   const setImportPanelOpen = useAppStore((state) => state.setImportPanelOpen)
-  const [inlinePanel, setInlinePanel] = useState<"cluster" | "actor">()
+  const [inlinePanel, setInlinePanel] = useState<
+    "chapter" | "cluster" | "actor"
+  >()
   const project = projectId
     ? session?.state.indices.projectById.get(projectId as UUID)
     : undefined
@@ -383,6 +484,16 @@ export function ProjectFormPage() {
         ) ?? [],
     [session],
   )
+  const choiceOptions = useMemo(() => {
+    const grouped = new Map<string, string[]>()
+    for (const choice of session?.state.records.choiceLists ?? []) {
+      if (!choice.active || !choice.audit.active) continue
+      const values = grouped.get(choice.listKey) ?? []
+      values.push(choice.label)
+      grouped.set(choice.listKey, values)
+    }
+    return grouped
+  }, [session])
 
   useEffect(() => {
     if (!clusterId) return
@@ -395,11 +506,11 @@ export function ProjectFormPage() {
   if (!session) {
     return (
       <EmptyState
-        title="Projectbeheer vereist een werkbooksessie"
-        description="Laad en bevestig eerst een geldig Excelworkbook."
+        title="Projectbeheer vereist een gegevensset"
+        description="Open een bestaand JSON-bestand of start een nieuwe gegevensset."
         action={
           <Button onClick={() => setImportPanelOpen(true)}>
-            Excelbestand laden
+            JSON openen of nieuw starten
           </Button>
         }
       />
@@ -410,7 +521,7 @@ export function ProjectFormPage() {
     return (
       <ErrorState
         title="Project niet gevonden"
-        description="Dit project-ID bestaat niet in het geladen workbook."
+        description="Dit project-ID bestaat niet in de geopende gegevensset."
       />
     )
   }
@@ -521,7 +632,12 @@ export function ProjectFormPage() {
               </label>
               <label>
                 <span>Fase</span>
-                <input {...register("phase")} />
+                <input list="project-phase-options" {...register("phase")} />
+                <datalist id="project-phase-options">
+                  {(choiceOptions.get("project-phase") ?? []).map((value) => (
+                    <option value={value} key={value} />
+                  ))}
+                </datalist>
               </label>
             </div>
           </section>
@@ -537,26 +653,35 @@ export function ProjectFormPage() {
               </div>
             </div>
             <div className="project-form__grid">
-              <label>
-                <span>Hoofdstuk</span>
-                <select
-                  {...register("chapterId")}
-                  aria-invalid={Boolean(errors.chapterId)}
-                >
-                  <option value="">Kies een hoofdstuk</option>
-                  {session.state.records.chapters
-                    .filter((chapter) => chapter.audit.active)
-                    .sort((left, right) => left.order - right.order)
-                    .map((chapter) => (
-                      <option key={chapter.id} value={chapter.id}>
-                        {chapter.code} · {chapter.title}
-                      </option>
-                    ))}
-                </select>
-                {errors.chapterId ? (
-                  <small role="alert">{errors.chapterId.message}</small>
-                ) : null}
-              </label>
+              <SearchableSelect
+                label="Hoofdstuk"
+                emptyLabel="Kies een hoofdstuk"
+                options={session.state.records.chapters
+                  .filter(
+                    (chapter) =>
+                      chapter.audit.active || chapter.id === project?.chapterId,
+                  )
+                  .sort((left, right) => left.order - right.order)
+                  .map((chapter) => ({
+                    value: chapter.id,
+                    label: `${chapter.code} · ${chapter.title}`,
+                  }))}
+                action={
+                  <Button
+                    variant="tertiary"
+                    onClick={() => setInlinePanel("chapter")}
+                  >
+                    + Nieuw hoofdstuk
+                  </Button>
+                }
+                aria-invalid={Boolean(errors.chapterId)}
+                error={
+                  errors.chapterId ? (
+                    <small role="alert">{errors.chapterId.message}</small>
+                  ) : null
+                }
+                {...register("chapterId")}
+              />
               <SearchableSelect
                 label="Cluster (optioneel)"
                 emptyLabel="Zonder cluster"
@@ -613,19 +738,40 @@ export function ProjectFormPage() {
                 <span>
                   Site <em>optioneel</em>
                 </span>
-                <input {...register("site")} />
+                <input list="project-site-options" {...register("site")} />
+                <datalist id="project-site-options">
+                  {(choiceOptions.get("site") ?? []).map((value) => (
+                    <option value={value} key={value} />
+                  ))}
+                </datalist>
               </label>
               <label>
                 <span>
                   Locatie <em>optioneel</em>
                 </span>
-                <input {...register("location")} />
+                <input
+                  list="project-location-options"
+                  {...register("location")}
+                />
+                <datalist id="project-location-options">
+                  {(choiceOptions.get("location") ?? []).map((value) => (
+                    <option value={value} key={value} />
+                  ))}
+                </datalist>
               </label>
               <label className="project-form__full">
                 <span>
                   Afdeling <em>optioneel</em>
                 </span>
-                <input {...register("department")} />
+                <input
+                  list="project-department-options"
+                  {...register("department")}
+                />
+                <datalist id="project-department-options">
+                  {(choiceOptions.get("department") ?? []).map((value) => (
+                    <option value={value} key={value} />
+                  ))}
+                </datalist>
               </label>
             </div>
           </section>
@@ -733,8 +879,8 @@ export function ProjectFormPage() {
             <div>
               <strong>Lokale sessie</strong>
               <span>
-                Opslaan downloadt niet automatisch. Exporteer wanneer het
-                dossier klaar is.
+                Project opslaan bewaart de wijziging lokaal. Download daarna het
+                JSON-bestand vanuit de header.
               </span>
             </div>
             <Button type="submit" disabled={isSubmitting}>
@@ -743,6 +889,19 @@ export function ProjectFormPage() {
           </footer>
         </form>
 
+        {inlinePanel === "chapter" ? (
+          <InlineChapterPanel
+            onClose={() => setInlinePanel(undefined)}
+            onSaved={(chapter) => {
+              setValue("chapterId", chapter.id, {
+                shouldDirty: true,
+                shouldValidate: true,
+              })
+              setValue("clusterId", "", { shouldDirty: true })
+              setInlinePanel(undefined)
+            }}
+          />
+        ) : null}
         {inlinePanel === "cluster" && chapterId ? (
           <InlineClusterPanel
             chapterId={chapterId as UUID}

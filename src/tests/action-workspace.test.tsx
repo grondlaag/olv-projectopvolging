@@ -17,7 +17,7 @@ describe("actie-invoer en globale opvolging", () => {
     useAppStore.getState().reset()
     useAppStore.setState({
       session: createPortfolioTestSession(),
-      loadedFileName: "portfolio-test.xlsx",
+      loadedFileName: "portfolio-test.json",
     })
   })
 
@@ -106,7 +106,7 @@ describe("actie-invoer en globale opvolging", () => {
       )
     })
     expect(
-      screen.getByText("Actiestatus bijgewerkt · nog exporteren"),
+      screen.getByText("Actiestatus bijgewerkt · JSON nog opslaan"),
     ).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Per eigenaar" }))
     expect(

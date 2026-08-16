@@ -20,10 +20,8 @@ import type {
   Topic,
   UUID,
 } from "../src/domain"
-import {
-  BrowserExcelWorkbookGateway,
-  ExcelReferentialValidator,
-} from "../src/infrastructure/excel"
+import { validateDomainIntegrity } from "../src/application/services"
+import { JsonDataFileGateway } from "../src/infrastructure/json"
 
 let sequence = 1
 const nextUuid = (): UUID =>
@@ -209,7 +207,7 @@ function buildFixture() {
   records.config.push({
     id: nextUuid(),
     schemaVersion: "1.0.0",
-    workbookId: nextUuid(),
+    dataSetId: nextUuid(),
     createdAt: dateTime("2026-08-09T09:00:00.000Z"),
     appVersion: "performance-audit",
     defaultCurrency: "EUR",
@@ -246,22 +244,20 @@ async function main() {
     measure("budgetaggregatie", () => buildBudgetPortfolioModel(state)),
   ]
 
-  const gateway = new BrowserExcelWorkbookGateway()
-  const validationIssues = new ExcelReferentialValidator().validate(
-    state.records,
-  )
-  if (validationIssues.some((issue) => issue.level === "Blocking")) {
+  const gateway = new JsonDataFileGateway()
+  const validationIssues = validateDomainIntegrity(state.records)
+  if (validationIssues.length) {
     console.error(JSON.stringify(validationIssues.slice(0, 20), null, 2))
     process.exitCode = 1
     return
   }
   const exportStarted = performance.now()
-  const exported = await gateway.export(state)
+  const exported = gateway.export(state)
   const exportMs = performance.now() - exportStarted
   const importStarted = performance.now()
-  const imported = await gateway.importBuffer(
-    exported.buffer,
-    "performance-fixture.xlsx",
+  const imported = await gateway.importText(
+    exported.text,
+    "performance-fixture.json",
   )
   const importMs = performance.now() - importStarted
 
@@ -281,11 +277,13 @@ async function main() {
         name,
         Number(durationMs.toFixed(1)),
       ]),
-      ["excel-export", Number(exportMs.toFixed(1))],
-      ["excel-import", Number(importMs.toFixed(1))],
+      ["json-export", Number(exportMs.toFixed(1))],
+      ["json-import", Number(importMs.toFixed(1))],
     ]),
-    workbookMegabytes: Number(
-      (exported.buffer.byteLength / 1_048_576).toFixed(2),
+    dataFileMegabytes: Number(
+      (new TextEncoder().encode(exported.text).byteLength / 1_048_576).toFixed(
+        2,
+      ),
     ),
     heapMegabytes: Number(
       (process.memoryUsage().heapUsed / 1_048_576).toFixed(1),

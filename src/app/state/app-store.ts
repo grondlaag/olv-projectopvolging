@@ -4,31 +4,31 @@ import {
   type PortfolioFilters,
 } from "../../application/queries"
 import type {
-  ImportedExcelSession,
+  DataFileSession,
   NormalizedDomainState,
-  WorkbookSessionSnapshot,
+  RecoverableSessionSnapshot,
 } from "../../application/services"
 
 interface AppState {
   loadedFileName: string | undefined
-  session: ImportedExcelSession | undefined
-  pendingImport: ImportedExcelSession | undefined
-  recoveryCandidate: WorkbookSessionSnapshot | undefined
+  session: DataFileSession | undefined
+  pendingSession: DataFileSession | undefined
+  recoveryCandidate: RecoverableSessionSnapshot | undefined
   dirty: boolean
-  lastExportAt: string | undefined
+  lastSavedAt: string | undefined
   importPanelOpen: boolean
   portfolioFilters: PortfolioFilters
   setLoadedFile: (fileName?: string) => void
-  setPendingImport: (session?: ImportedExcelSession) => void
-  confirmPendingImport: () => void
+  setPendingSession: (session?: DataFileSession) => void
+  confirmPendingSession: () => void
   restoreSnapshot: (
-    snapshot: WorkbookSessionSnapshot,
-    session: ImportedExcelSession,
+    snapshot: RecoverableSessionSnapshot,
+    session: DataFileSession,
   ) => void
   discardRecovery: () => void
   setDirty: (dirty: boolean) => void
   replaceDomainState: (domainState: NormalizedDomainState) => void
-  markExported: (exportedAt?: string) => void
+  markSaved: (fileName?: string, savedAt?: string) => void
   setImportPanelOpen: (open: boolean) => void
   setPortfolioFilters: (filters: PortfolioFilters) => void
   reset: () => void
@@ -37,20 +37,20 @@ interface AppState {
 const initialState = {
   loadedFileName: undefined,
   session: undefined,
-  pendingImport: undefined,
+  pendingSession: undefined,
   recoveryCandidate: undefined,
   dirty: false,
-  lastExportAt: undefined,
+  lastSavedAt: undefined,
   importPanelOpen: false,
   portfolioFilters: defaultPortfolioFilters,
 } satisfies Pick<
   AppState,
   | "loadedFileName"
   | "session"
-  | "pendingImport"
+  | "pendingSession"
   | "recoveryCandidate"
   | "dirty"
-  | "lastExportAt"
+  | "lastSavedAt"
   | "importPanelOpen"
   | "portfolioFilters"
 >
@@ -58,17 +58,17 @@ const initialState = {
 export const useAppStore = create<AppState>((set) => ({
   ...initialState,
   setLoadedFile: (loadedFileName) => set({ loadedFileName }),
-  setPendingImport: (pendingImport) => set({ pendingImport }),
-  confirmPendingImport: () =>
+  setPendingSession: (pendingSession) => set({ pendingSession }),
+  confirmPendingSession: () =>
     set((state) => {
-      if (!state.pendingImport) return state
+      if (!state.pendingSession) return state
       return {
-        session: state.pendingImport,
-        loadedFileName: state.pendingImport.fileName,
-        pendingImport: undefined,
+        session: state.pendingSession,
+        loadedFileName: state.pendingSession.fileName,
+        pendingSession: undefined,
         recoveryCandidate: undefined,
-        dirty: false,
-        lastExportAt: undefined,
+        dirty: state.pendingSession.origin === "new",
+        lastSavedAt: undefined,
         importPanelOpen: false,
       }
     }),
@@ -78,7 +78,8 @@ export const useAppStore = create<AppState>((set) => ({
       loadedFileName: session.fileName,
       recoveryCandidate: undefined,
       dirty: snapshot.dirty,
-      lastExportAt: snapshot.lastExportAt,
+      lastSavedAt:
+        snapshot.version === 1 ? snapshot.lastExportAt : snapshot.lastSavedAt,
     }),
   discardRecovery: () => set({ recoveryCandidate: undefined }),
   setDirty: (dirty) => set({ dirty }),
@@ -91,8 +92,15 @@ export const useAppStore = create<AppState>((set) => ({
           }
         : state,
     ),
-  markExported: (exportedAt = new Date().toISOString()) =>
-    set({ dirty: false, lastExportAt: exportedAt }),
+  markSaved: (fileName, savedAt = new Date().toISOString()) =>
+    set((state) => ({
+      dirty: false,
+      lastSavedAt: savedAt,
+      ...(fileName ? { loadedFileName: fileName } : {}),
+      ...(state.session && fileName
+        ? { session: { ...state.session, fileName, origin: "import" } }
+        : {}),
+    })),
   setImportPanelOpen: (importPanelOpen) => set({ importPanelOpen }),
   setPortfolioFilters: (portfolioFilters) => set({ portfolioFilters }),
   reset: () => set({ ...initialState }),

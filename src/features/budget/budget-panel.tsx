@@ -85,6 +85,14 @@ export function NewBudgetPanel({
   const suppliers = session.state.records.actors.filter(
     (actor) => actor.active && actor.audit.active,
   )
+  const categoryOptions = session.state.records.choiceLists
+    .filter(
+      (choice) =>
+        choice.listKey === "budget-category" &&
+        choice.active &&
+        choice.audit.active,
+    )
+    .sort((left, right) => left.order - right.order)
 
   const submit = handleSubmit((values) => {
     const parsed = budgetFormSchema.safeParse(values)
@@ -150,7 +158,12 @@ export function NewBudgetPanel({
             </label>
             <label>
               <span>Categorie</span>
-              <input {...register("category")} />
+              <input list="budget-category-options" {...register("category")} />
+              <datalist id="budget-category-options">
+                {categoryOptions.map((choice) => (
+                  <option value={choice.label} key={choice.id} />
+                ))}
+              </datalist>
               {errors.category ? (
                 <small role="alert">{errors.category.message}</small>
               ) : null}

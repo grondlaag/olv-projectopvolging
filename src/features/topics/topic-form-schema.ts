@@ -18,6 +18,13 @@ const optionalUuid = z
     "Kies een geldige actor.",
   )
 
+const requiredActorUuid = z
+  .string()
+  .refine(
+    (value) => uuidSchema.safeParse(value).success,
+    "Kies een actieve auteur.",
+  )
+
 export const topicFormSchema = z.object({
   code: z.string().trim().min(1, "Topiccode is verplicht."),
   title: z.string().trim().min(1, "Titel is verplicht."),
@@ -29,6 +36,7 @@ export const topicFormSchema = z.object({
 export type TopicFormValues = z.input<typeof topicFormSchema>
 
 export const topicJournalFormSchema = z.object({
+  authorActorId: requiredActorUuid,
   type: z.enum(["Update", "Notitie", "Overlegbijdrage", "Beslissing"]),
   date: z
     .string()
@@ -66,6 +74,7 @@ export function journalValuesToInput(
   values: TopicJournalFormValues,
 ): TopicJournalEntryInput {
   return {
+    authorActorId: values.authorActorId as UUID,
     type: values.type,
     date: values.date as LocalDate,
     text: values.text,

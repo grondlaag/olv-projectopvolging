@@ -36,17 +36,7 @@ describe("GitHub Pages base assets", () => {
 
     const assetDirectory = resolve(outputDirectory, "assets")
     const assets = await readdir(assetDirectory)
-    const workerAsset = assets.find((name) => name.startsWith("excel.worker-"))
-    expect(workerAsset).toBeDefined()
-    const javascript = await Promise.all(
-      assets
-        .filter((name) => name.endsWith(".js") && name !== workerAsset)
-        .map((name) => readFile(resolve(assetDirectory, name), "utf8")),
-    )
-    expect(
-      javascript.some((source) =>
-        source.includes(`${base}assets/${workerAsset}`),
-      ),
-    ).toBe(true)
+    expect(assets.some((name) => name.startsWith("excel.worker-"))).toBe(false)
+    expect(assets.some((name) => name.endsWith(".js"))).toBe(true)
   }, 30_000)
 })

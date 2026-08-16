@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import {
   buildPortfolioPlanningModel,
   defaultGlobalPlanningFilters,
+  summarizePortfolioPlanning,
   type GlobalPlanningFilters,
   type PlanningRow,
   type PlanningZoom,
@@ -10,7 +11,7 @@ import {
 import { useAppStore } from "../../app/state/app-store"
 import { Button, EmptyState, PageHeader } from "../../design-system/components"
 import { planningStatuses, type UUID } from "../../domain"
-import { todayAsLocalDate } from "../../utils"
+import { formatLocalDate, todayAsLocalDate } from "../../utils"
 import { PlanningGantt } from "./planning-gantt"
 import "./planning.css"
 
@@ -36,6 +37,10 @@ export function PlanningPage() {
     () =>
       session ? buildPortfolioPlanningModel(session.state, filters, today) : [],
     [filters, session, today],
+  )
+  const summary = useMemo(
+    () => summarizePortfolioPlanning(model, today),
+    [model, today],
   )
   const rows = useMemo(() => {
     const result: PlanningRow[] = []
@@ -69,10 +74,10 @@ export function PlanningPage() {
         />
         <EmptyState
           title="Nog geen planning geladen"
-          description="Laad eerst een geldig Excelworkbook."
+          description="Open een bestaand JSON-bestand of start een nieuwe gegevensset."
           action={
             <Button onClick={() => setImportPanelOpen(true)}>
-              Excelbestand laden
+              JSON openen of nieuw starten
             </Button>
           }
         />
@@ -127,21 +132,41 @@ export function PlanningPage() {
         description="Hoofdstuk → cluster → project. Projectdetails zijn standaard ingeklapt."
         actions={
           <span className="planning-result-count">
-            <strong>
-              {model.reduce(
-                (total, chapter) =>
-                  total +
-                  chapter.clusters.reduce(
-                    (subtotal, cluster) => subtotal + cluster.projects.length,
-                    0,
-                  ),
-                0,
-              )}
-            </strong>{" "}
-            projecten
+            <strong>{summary.totalProjects}</strong> projecten
           </span>
         }
       />
+      <section
+        className="planning-summary"
+        aria-label="Samenvatting portfolioplanning"
+      >
+        <div>
+          <span>Planningdekking</span>
+          <strong>
+            {summary.projectsWithPlanning} van {summary.totalProjects} projecten
+          </strong>
+          <small>{summary.projectsWithoutPlanning} zonder planning</small>
+        </div>
+        <div>
+          <span>Planningitems</span>
+          <strong>{summary.planningItemCount}</strong>
+          <small>{summary.milestoneCount} mijlpalen</small>
+        </div>
+        <div>
+          <span>Aandacht</span>
+          <strong>{summary.attentionItemCount}</strong>
+          <small>risico, vertraagd of over tijd</small>
+        </div>
+        <div>
+          <span>Zichtbare periode</span>
+          <strong>
+            {summary.earliestDate && summary.latestDate
+              ? `${formatLocalDate(summary.earliestDate)} – ${formatLocalDate(summary.latestDate)}`
+              : "Nog geen datums"}
+          </strong>
+          <small>volgens de huidige filters</small>
+        </div>
+      </section>
       <section className="planning-filters" aria-label="Planningfilters">
         <label>
           <span>Hoofdstuk</span>
@@ -333,7 +358,12 @@ export function PlanningPage() {
                                         {item.project.code} ·{" "}
                                         {item.project.title}
                                       </span>
-                                      <small>{item.entries.length} items</small>
+                                      <small>
+                                        {item.entries.length} items ·{" "}
+                                        {item.project.plannedEndDate
+                                          ? `einde ${formatLocalDate(item.project.plannedEndDate)}`
+                                          : "geen projecteinddatum"}
+                                      </small>
                                     </button>
                                   )
                                 })}

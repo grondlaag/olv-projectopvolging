@@ -1,0 +1,233 @@
+{
+  "format": "olv-projectopvolging",
+  "schemaVersion": "1.0.0",
+  "exportedAt": "2026-01-15T09:30:00.000Z",
+  "appVersion": "1.1.0",
+  "dataSetId": "10000000-0000-4000-8000-000000000002",
+  "records": {
+    "chapters": [
+      {
+        "id": "20000000-0000-4000-8000-000000000001",
+        "audit": {
+          "createdAt": "2026-01-15T09:30:00.000Z",
+          "createdByActorId": "40000000-0000-4000-8000-000000000001",
+          "updatedAt": "2026-01-15T09:30:00.000Z",
+          "updatedByActorId": "40000000-0000-4000-8000-000000000001",
+          "active": true
+        },
+        "code": "H1",
+        "title": "Gebouw en ruimte",
+        "order": 1,
+        "status": "Active"
+      }
+    ],
+    "clusters": [
+      {
+        "id": "30000000-0000-4000-8000-000000000001",
+        "audit": {
+          "createdAt": "2026-01-15T09:30:00.000Z",
+          "createdByActorId": "40000000-0000-4000-8000-000000000001",
+          "updatedAt": "2026-01-15T09:30:00.000Z",
+          "updatedByActorId": "40000000-0000-4000-8000-000000000001",
+          "active": true
+        },
+        "chapterId": "20000000-0000-4000-8000-000000000001",
+        "code": "CL-01",
+        "title": "Zorgcampus",
+        "description": "Synthetische cluster voor roundtriptests.",
+        "status": "Active",
+        "order": 1
+      }
+    ],
+    "projects": [
+      {
+        "id": "50000000-0000-4000-8000-000000000001",
+        "audit": {
+          "createdAt": "2026-01-15T09:30:00.000Z",
+          "createdByActorId": "40000000-0000-4000-8000-000000000001",
+          "updatedAt": "2026-01-15T09:30:00.000Z",
+          "updatedByActorId": "40000000-0000-4000-8000-000000000001",
+          "active": true
+        },
+        "chapterId": "20000000-0000-4000-8000-000000000001",
+        "clusterId": "30000000-0000-4000-8000-000000000001",
+        "code": "PRJ-001",
+        "title": "Synthetisch renovatieproject",
+        "description": "Uitsluitend synthetische testdata.",
+        "status": "Uitvoering",
+        "phase": "Uitvoering",
+        "site": "Testsite",
+        "coordinatorActorId": "40000000-0000-4000-8000-000000000001",
+        "startDate": "2026-01-15",
+        "plannedEndDate": "2026-12-31",
+        "progressPercent": 37.5
+      },
+      {
+        "id": "50000000-0000-4000-8000-000000000002",
+        "audit": {
+          "createdAt": "2026-01-15T09:30:00.000Z",
+          "createdByActorId": "40000000-0000-4000-8000-000000000001",
+          "updatedAt": "2026-01-15T09:30:00.000Z",
+          "updatedByActorId": "40000000-0000-4000-8000-000000000001",
+          "active": true
+        },
+        "chapterId": "20000000-0000-4000-8000-000000000001",
+        "code": "PRJ-002",
+        "title": "Synthetisch beleidsproject",
+        "description": "Tweede record voor duplicate-GUID-tests.",
+        "status": "Voorbereiding",
+        "phase": "Voorbereiding",
+        "startDate": "2026-02-01",
+        "plannedEndDate": "2027-03-15",
+        "progressPercent": 10
+      }
+    ],
+    "projectClusterHistory": [],
+    "actors": [
+      {
+        "id": "40000000-0000-4000-8000-000000000001",
+        "audit": {
+          "createdAt": "2026-01-15T09:30:00.000Z",
+          "createdByActorId": "40000000-0000-4000-8000-000000000001",
+          "updatedAt": "2026-01-15T09:30:00.000Z",
+          "updatedByActorId": "40000000-0000-4000-8000-000000000001",
+          "active": true
+        },
+        "type": "Intern",
+        "displayName": "Testcoördinator",
+        "email": "synthetisch@example.invalid",
+        "organization": "Voorbeeldzorg",
+        "role": "Projectcoördinator",
+        "active": true
+      }
+    ],
+    "topics": [
+      {
+        "id": "60000000-0000-4000-8000-000000000001",
+        "audit": {
+          "createdAt": "2026-01-15T09:30:00.000Z",
+          "createdByActorId": "40000000-0000-4000-8000-000000000001",
+          "updatedAt": "2026-01-15T09:30:00.000Z",
+          "updatedByActorId": "40000000-0000-4000-8000-000000000001",
+          "active": true
+        },
+        "parentType": "Project",
+        "projectId": "50000000-0000-4000-8000-000000000001",
+        "code": "TOP-001",
+        "title": "Tijdelijke toegang",
+        "context": "Synthetische context.",
+        "ownerActorId": "40000000-0000-4000-8000-000000000001",
+        "priority": "Hoog",
+        "status": "Open",
+        "order": 1
+      }
+    ],
+    "updates": [],
+    "actions": [],
+    "actionHistory": [],
+    "evidence": [],
+    "planning": [
+      {
+        "id": "70000000-0000-4000-8000-000000000001",
+        "audit": {
+          "createdAt": "2026-01-15T09:30:00.000Z",
+          "createdByActorId": "40000000-0000-4000-8000-000000000001",
+          "updatedAt": "2026-01-15T09:30:00.000Z",
+          "updatedByActorId": "40000000-0000-4000-8000-000000000001",
+          "active": true
+        },
+        "projectId": "50000000-0000-4000-8000-000000000001",
+        "topicId": "60000000-0000-4000-8000-000000000001",
+        "kind": "Topic",
+        "title": "Tijdelijke toegang realiseren",
+        "startDate": "2026-02-01",
+        "plannedEndDate": "2026-04-30",
+        "progressPercent": 25,
+        "status": "Op schema",
+        "isMilestone": false,
+        "order": 1
+      },
+      {
+        "id": "70000000-0000-4000-8000-000000000002",
+        "audit": {
+          "createdAt": "2026-01-15T09:30:00.000Z",
+          "createdByActorId": "40000000-0000-4000-8000-000000000001",
+          "updatedAt": "2026-01-15T09:30:00.000Z",
+          "updatedByActorId": "40000000-0000-4000-8000-000000000001",
+          "active": true
+        },
+        "projectId": "50000000-0000-4000-8000-000000000001",
+        "kind": "Milestone",
+        "title": "Voorlopige oplevering",
+        "plannedEndDate": "2026-12-31",
+        "progressPercent": 0,
+        "status": "Niet gestart",
+        "isMilestone": true,
+        "order": 2
+      }
+    ],
+    "planningDependencies": [
+      {
+        "id": "80000000-0000-4000-8000-000000000001",
+        "audit": {
+          "createdAt": "2026-01-15T09:30:00.000Z",
+          "createdByActorId": "40000000-0000-4000-8000-000000000001",
+          "updatedAt": "2026-01-15T09:30:00.000Z",
+          "updatedByActorId": "40000000-0000-4000-8000-000000000001",
+          "active": true
+        },
+        "predecessorPlanningId": "70000000-0000-4000-8000-000000000001",
+        "successorPlanningId": "70000000-0000-4000-8000-000000000002",
+        "type": "FinishToStart"
+      }
+    ],
+    "budgets": [
+      {
+        "id": "90000000-0000-4000-8000-000000000001",
+        "audit": {
+          "createdAt": "2026-01-15T09:30:00.000Z",
+          "createdByActorId": "40000000-0000-4000-8000-000000000001",
+          "updatedAt": "2026-01-15T09:30:00.000Z",
+          "updatedByActorId": "40000000-0000-4000-8000-000000000001",
+          "active": true
+        },
+        "projectId": "50000000-0000-4000-8000-000000000001",
+        "topicId": "60000000-0000-4000-8000-000000000001",
+        "category": "Werken",
+        "type": "Raming",
+        "description": "Synthetische raming",
+        "amountCents": 12345678,
+        "date": "2026-01-31",
+        "status": "Goedgekeurd",
+        "reference": "RAM-TEST-001",
+        "supplierActorId": "40000000-0000-4000-8000-000000000001"
+      }
+    ],
+    "budgetMutations": [],
+    "meetings": [],
+    "meetingParticipants": [],
+    "agendaItems": [],
+    "reports": [],
+    "reportItems": [],
+    "config": [
+      {
+        "id": "10000000-0000-4000-8000-000000000001",
+        "audit": {
+          "createdAt": "2026-01-15T09:30:00.000Z",
+          "createdByActorId": "40000000-0000-4000-8000-000000000001",
+          "updatedAt": "2026-01-15T09:30:00.000Z",
+          "updatedByActorId": "40000000-0000-4000-8000-000000000001",
+          "active": true
+        },
+        "schemaVersion": "1.0.0",
+        "dataSetId": "10000000-0000-4000-8000-000000000002",
+        "createdAt": "2026-01-15T09:30:00.000Z",
+        "appVersion": "1.0.0-test",
+        "defaultCurrency": "EUR",
+        "currentActorId": "40000000-0000-4000-8000-000000000001"
+      }
+    ],
+    "choiceLists": [],
+    "log": []
+  }
+}

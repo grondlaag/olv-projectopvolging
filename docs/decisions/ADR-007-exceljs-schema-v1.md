@@ -1,6 +1,10 @@
 # ADR-007 — ExcelJS en centraal schema 1.0.0
 
-Status: Accepted
+Status: Superseded by ADR-011
+
+Deze implementatie blijft alleen behouden voor synthetische legacy-regressie en
+een eventuele afzonderlijke conversietool. De tijdelijke route en
+productiekoppeling zijn verwijderd.
 
 ## Context
 

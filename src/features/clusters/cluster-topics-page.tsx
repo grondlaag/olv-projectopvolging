@@ -27,10 +27,10 @@ export function ClusterTopicsPage() {
     return (
       <EmptyState
         title="Cluster kan nog niet worden geopend"
-        description="Laad en bevestig eerst het bijbehorende Excelworkbook."
+        description="Open eerst het bijbehorende JSON-gegevensbestand."
         action={
           <Button onClick={() => setImportPanelOpen(true)}>
-            Excelbestand laden
+            JSON openen of nieuw starten
           </Button>
         }
       />
@@ -40,7 +40,7 @@ export function ClusterTopicsPage() {
     return (
       <ErrorState
         title="Cluster niet gevonden"
-        description="Dit cluster-ID bestaat niet in het geladen workbook."
+        description="Dit cluster-ID bestaat niet in de geopende gegevensset."
       />
     )
   }

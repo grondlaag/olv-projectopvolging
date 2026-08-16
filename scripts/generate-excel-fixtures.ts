@@ -66,7 +66,7 @@ function config(): Config {
   return {
     id: ids.config,
     schemaVersion: "1.0.0",
-    workbookId: ids.workbook,
+    dataSetId: ids.workbook,
     createdAt: fixedDateTime,
     appVersion: "1.0.0-test",
     defaultCurrency: "EUR",

@@ -7,7 +7,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react"
-import { useNavigate } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 import { buildGlobalSearchResults } from "../../application/queries"
 import { useAppStore } from "../../app/state/app-store"
 import { Badge } from "./badge"
@@ -16,11 +16,13 @@ import "./shell.css"
 
 export function AppHeader() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [search, setSearch] = useState("")
   const [searchOpen, setSearchOpen] = useState(false)
   const [activeResult, setActiveResult] = useState(0)
   const [saving, setSaving] = useState(false)
   const [saveFeedback, setSaveFeedback] = useState("")
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false)
   const searchInput = useRef<HTMLInputElement>(null)
   const deferredSearch = useDeferredValue(search)
   const dirty = useAppStore((state) => state.dirty)
@@ -43,10 +45,10 @@ export function AppHeader() {
 
   useEffect(() => {
     function focusSearch(event: globalThis.KeyboardEvent) {
-      const target = event.target as HTMLElement | null
+      const target = event.target
       const isTextInput =
-        target?.matches("input, textarea, select, [contenteditable='true']") ??
-        false
+        target instanceof HTMLElement &&
+        target.matches("input, textarea, select, [contenteditable='true']")
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
         event.preventDefault()
         searchInput.current?.focus()
@@ -55,6 +57,9 @@ export function AppHeader() {
         event.preventDefault()
         searchInput.current?.focus()
         setSearchOpen(true)
+      } else if (event.key === "Escape") {
+        setSearchOpen(false)
+        setQuickCreateOpen(false)
       }
     }
     window.addEventListener("keydown", focusSearch)
@@ -65,6 +70,11 @@ export function AppHeader() {
     setSearchOpen(false)
     setActiveResult(0)
     navigate(route)
+  }
+
+  function openCreateRoute(route: string) {
+    setQuickCreateOpen(false)
+    navigate(route, { state: { returnTo: location.pathname } })
   }
 
   function submitSearch(event: FormEvent) {
@@ -157,7 +167,7 @@ export function AppHeader() {
             value={search}
             placeholder="Zoek project, topic, actie of overleg…"
             role="combobox"
-            aria-expanded={searchOpen && search.trim().length >= 2}
+            aria-expanded={searchOpen}
             aria-controls="global-search-results"
             aria-activedescendant={
               searchOpen && searchResults[activeResult]
@@ -177,13 +187,40 @@ export function AppHeader() {
             Zoeken
           </Button>
         </div>
-        {searchOpen && search.trim().length >= 2 ? (
+        {searchOpen ? (
           <div
             className="global-search-results"
             id="global-search-results"
             role="listbox"
           >
-            {searchResults.length ? (
+            {search.trim().length < 2 ? (
+              <div className="global-search-commands">
+                <div>
+                  <span>Snel maken</span>
+                  <button
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => openCreateRoute("/projects/new")}
+                  >
+                    <strong>Nieuw project</strong>
+                    <small>Start een projectdossier</small>
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => openCreateRoute("/meetings/new")}
+                  >
+                    <strong>Nieuw overleg</strong>
+                    <small>Plan een overlegmoment</small>
+                  </button>
+                </div>
+                <p>
+                  Typ minstens twee tekens om projecten, topics, acties en
+                  overleg te vinden. Gebruik de pijltjestoetsen en Enter om te
+                  openen.
+                </p>
+              </div>
+            ) : searchResults.length ? (
               searchResults.map((result, index) => (
                 <button
                   type="button"
@@ -209,6 +246,36 @@ export function AppHeader() {
       </form>
 
       <div className="app-header__session" aria-label="Gegevenssessie">
+        <div className="app-header__quick-create">
+          <Button
+            variant="secondary"
+            aria-expanded={quickCreateOpen}
+            aria-haspopup="menu"
+            onClick={() => setQuickCreateOpen((open) => !open)}
+          >
+            + Nieuw
+          </Button>
+          {quickCreateOpen ? (
+            <div className="app-header__quick-menu" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => openCreateRoute("/projects/new")}
+              >
+                <strong>Project</strong>
+                <span>Nieuw projectdossier</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => openCreateRoute("/meetings/new")}
+              >
+                <strong>Overleg</strong>
+                <span>Nieuw overlegmoment</span>
+              </button>
+            </div>
+          ) : null}
+        </div>
         <div className="app-header__session-copy">
           <span className="app-header__file">
             {loadedFileName ?? "Geen gegevensbestand geopend"}
@@ -225,14 +292,19 @@ export function AppHeader() {
         <Badge tone={dirty ? "warning" : "success"}>
           {dirty ? "Wijzigingen nog niet opgeslagen" : "Geen wijzigingen"}
         </Badge>
-        <Button variant="secondary" onClick={() => setImportPanelOpen(true)}>
-          JSON openen
+        <Button
+          variant="tertiary"
+          aria-label="JSON openen"
+          onClick={() => setImportPanelOpen(true)}
+        >
+          Openen
         </Button>
         <Button
+          aria-label="JSON opslaan"
           onClick={() => void saveDataFile()}
           disabled={!session || saving || session.hasBlockingIssues}
         >
-          {saving ? "Opslaan…" : "JSON opslaan"}
+          {saving ? "Opslaan…" : "Back-up"}
         </Button>
       </div>
       {saveFeedback ? (

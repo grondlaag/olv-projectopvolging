@@ -456,7 +456,25 @@ Een gekoppeld agendapunt verwijst naar één bestaand `Project`, `Cluster`,
 applicatieservice. Bespreekstatus is `Te bespreken`, `Besproken` of
 `Doorgeschoven`.
 
+Een actief bronrecord kan per overleg maximaal één actief gekoppeld agendapunt
+hebben. Vanuit een project- of topicdossier worden alleen toekomstige actieve
+conceptoverleggen met een passende scope als nieuwe keuze aangeboden. Eerdere of
+definitieve koppelingen blijven zichtbaar als historiek, maar zijn niet opnieuw
+selecteerbaar. De contextuele invoer bewaart een optionele bespreekreden op het
+agendapunt en muteert pas bij `Op agenda plaatsen`.
+
 ## Report
+
+Nieuwe of bewerkte `AgendaItem`-records verwijzen in de applicatieservice naar
+precies één bestaand `Project` of `Topic` binnen de overlegscope. Historisch
+geïmporteerde vrije of anders gekoppelde punten blijven leesbaar omdat de
+bronvelden in het JSON-schema optioneel blijven, maar moeten vóór inhoudelijke
+bewerking opnieuw worden gekoppeld. Een aanleiding blijft tekst op het
+brongebonden agendapunt en wordt geen los domeinrecord.
+
+De universele invoerkaart schrijft afhankelijk van de gekozen knop exact één
+`Update`, één `Update` met type `Beslissing`, of één `Action`. Updates en
+beslissingen blijven append-only; een lege kaart schrijft niets.
 
 - id;
 - meetingId;

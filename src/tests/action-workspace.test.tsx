@@ -74,7 +74,9 @@ describe("actie-invoer en globale opvolging", () => {
       })
     })
     expect(useAppStore.getState().dirty).toBe(true)
-    expect(screen.getByText("Controleer medische toegang")).toBeInTheDocument()
+    expect(screen.getAllByText("Controleer medische toegang")).not.toHaveLength(
+      0,
+    )
 
     await act(async () => {
       await router.navigate("/actions")

@@ -121,46 +121,41 @@ describe("overlegwerkruimte", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^Verwerken/ }))
     fireEvent.click(screen.getByLabelText(/Anna/))
-    fireEvent.change(
-      screen.getByLabelText("Topicstatus TOP-001 · Toegang spoed"),
-      { target: { value: "Afgesloten" } },
-    )
+    fireEvent.change(screen.getByLabelText("Topicstatus"), {
+      target: { value: "Afgesloten" },
+    })
     expect(
       useAppStore
         .getState()
         .session?.state.indices.topicById.get(testIds.topicCritical)?.status,
     ).toBe("Afgesloten")
-    const agendaItem = screen
-      .getByText("TOP-001 · Toegang spoed")
-      .closest("li")!
-    fireEvent.click(
-      within(agendaItem).getByRole("button", { name: "+ Update" }),
-    )
-    let panel = screen.getByRole("dialog", { name: "Update toevoegen" })
-    fireEvent.change(within(panel).getByLabelText("Bijdrage"), {
-      target: { value: "Toegang is technisch gevalideerd." },
+    const composer = screen.getByRole("form", {
+      name: /Bijdrage toevoegen aan TOP-001/,
     })
+    fireEvent.change(
+      within(composer).getByPlaceholderText(/Wat is er gewijzigd/),
+      {
+        target: { value: "Toegang is technisch gevalideerd." },
+      },
+    )
     fireEvent.click(
-      within(panel).getByRole("button", { name: "Update opslaan" }),
+      within(composer).getByRole("button", { name: "Update opslaan" }),
     )
     expect(
       await screen.findByText("Toegang is technisch gevalideerd."),
     ).toBeInTheDocument()
 
-    const refreshedAgendaItem = screen
-      .getByText("TOP-001 · Toegang spoed")
-      .closest("li")!
     fireEvent.click(
-      within(refreshedAgendaItem).getByRole("button", {
-        name: "+ Beslissing",
-      }),
+      within(composer).getByRole("button", { name: "Beslissing" }),
     )
-    panel = screen.getByRole("dialog", { name: "Beslissing toevoegen" })
-    fireEvent.change(within(panel).getByLabelText("Beslissing"), {
-      target: { value: "De technische variant is goedgekeurd." },
-    })
+    fireEvent.change(
+      within(composer).getByPlaceholderText(/Welke beslissing/),
+      {
+        target: { value: "De technische variant is goedgekeurd." },
+      },
+    )
     fireEvent.click(
-      within(panel).getByRole("button", { name: "Beslissing opslaan" }),
+      within(composer).getByRole("button", { name: "Beslissing opslaan" }),
     )
     expect(
       await screen.findByText("De technische variant is goedgekeurd."),

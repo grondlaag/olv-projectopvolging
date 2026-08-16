@@ -99,28 +99,25 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
     page.getByRole("heading", { name: "Façade en medische toegang" }),
   ).toBeVisible()
 
-  await page.getByRole("button", { name: "Bijwerken" }).click()
-  let quickEntry = page.getByRole("form", { name: "Actuele stand bijwerken" })
+  const quickEntry = page.getByRole("form", { name: /Bijdrage toevoegen aan/ })
   await quickEntry
-    .getByLabel("Nieuwe actuele stand")
+    .getByPlaceholder(/Wat is er gewijzigd/)
     .fill("De uitvoeringsvariant is klaar voor validatie.")
-  await quickEntry.getByRole("button", { name: "Toevoegen" }).click()
+  await quickEntry.getByLabel("Maak actuele stand").check()
+  await quickEntry.getByRole("button", { name: "Update opslaan" }).click()
   await expect(page.locator(".topic-current")).toContainText(
     "De uitvoeringsvariant is klaar voor validatie.",
   )
 
-  await page.getByRole("button", { name: "+ Update" }).click()
-  quickEntry = page.getByRole("form", { name: "Update toevoegen" })
   await quickEntry
-    .getByLabel("Schrijf een update")
+    .getByPlaceholder(/Wat is er gewijzigd/)
     .fill("De brandweer heeft de route technisch nagekeken.")
-  await quickEntry.getByRole("button", { name: "Toevoegen" }).click()
-  await page.getByRole("button", { name: "+ Beslissing" }).click()
-  quickEntry = page.getByRole("form", { name: "Beslissing toevoegen" })
+  await quickEntry.getByRole("button", { name: "Update opslaan" }).click()
+  await quickEntry.getByRole("button", { name: "Beslissing" }).click()
   await quickEntry
-    .getByLabel("Schrijf een beslissing")
+    .getByPlaceholder(/Welke beslissing/)
     .fill("De voorgestelde toegangsroute is goedgekeurd.")
-  await quickEntry.getByRole("button", { name: "Beslissing toevoegen" }).click()
+  await quickEntry.getByRole("button", { name: "Beslissing opslaan" }).click()
 
   await page.getByRole("button", { name: "+ Actie" }).click()
   panel = page.getByRole("dialog", { name: "Actie toevoegen" })
@@ -194,7 +191,7 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
     page.getByRole("heading", { name: "Release werfoverleg" }),
   ).toBeVisible()
 
-  await page.getByRole("button", { name: "+ Agendapunt" }).click()
+  await page.getByRole("button", { name: "+ Project of topic" }).click()
   panel = page.getByRole("dialog", { name: "Agendapunt toevoegen" })
   await panel.getByLabel("Titel").fill("Toegangsroute definitief vastleggen")
   await panel.getByLabel("Aanleiding").fill("Open topic uit de projectscope")
@@ -204,23 +201,25 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
     .selectOption({ label: "TOP-REL-09 · Façade en medische toegang" })
   await panel.getByRole("button", { name: "Agendapunt opslaan" }).click()
   await page.getByRole("button", { name: /^Verwerken/ }).click()
-  const agenda = page
-    .getByText("Toegangsroute definitief vastleggen", { exact: true })
-    .locator("xpath=ancestor::li[1]")
-  await agenda.getByRole("button", { name: "+ Beslissing" }).click()
-  panel = page.getByRole("dialog", { name: "Beslissing toevoegen" })
-  await panel
-    .getByLabel("Beslissing")
+  const meetingComposer = page.getByRole("form", {
+    name: /Bijdrage toevoegen aan Toegangsroute definitief vastleggen/,
+  })
+  await meetingComposer.getByRole("button", { name: "Beslissing" }).click()
+  await meetingComposer
+    .getByPlaceholder(/Welke beslissing/)
     .fill("De route wordt opgenomen in het uitvoeringsdossier.")
-  await panel.getByRole("button", { name: "Beslissing opslaan" }).click()
-  await agenda.getByRole("button", { name: "+ Actie" }).click()
-  panel = page.getByRole("dialog", { name: "Actie toevoegen" })
-  await panel.getByLabel("Titel").fill("Uitvoeringsplan actualiseren")
-  await panel
+  await meetingComposer
+    .getByRole("button", { name: "Beslissing opslaan" })
+    .click()
+  await meetingComposer.getByRole("button", { name: "Actie" }).click()
+  await meetingComposer
+    .getByPlaceholder("Wat moet gebeuren?")
+    .fill("Uitvoeringsplan actualiseren")
+  await meetingComposer
     .getByLabel("Eigenaar")
     .selectOption({ label: "Releasecoördinator" })
-  await panel.getByLabel("Deadline").fill("2026-09-20")
-  await panel.getByRole("button", { name: "Actie opslaan" }).click()
+  await meetingComposer.getByLabel("Deadline").fill("2026-09-20")
+  await meetingComposer.getByRole("button", { name: "Actie opslaan" }).click()
   await page.getByRole("button", { name: "Conceptverslag opbouwen" }).click()
   await expect(
     page.getByRole("heading", { name: "Verslag versie 1" }),
@@ -268,7 +267,9 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
   await expect(page.locator(".topic-journal")).toContainText(
     "De voorgestelde toegangsroute is goedgekeurd.",
   )
-  await expect(page.getByText("Signalisatie werfroute plaatsen")).toBeVisible()
+  await expect(
+    page.getByText("Signalisatie werfroute plaatsen").first(),
+  ).toBeVisible()
   await expect(
     page.getByRole("heading", { name: "Budgetimpact" }),
   ).toBeVisible()

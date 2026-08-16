@@ -151,12 +151,11 @@ test("fase 9 productiepreview blijft rustig, responsive en toetsenbordbruikbaar"
 
   await page.setViewportSize({ width: 1024, height: 1000 })
   await page.goto(topicRoute)
-  await page.getByRole("button", { name: "+ Update" }).click()
+  const composer = page.getByRole("form", {
+    name: /Bijdrage toevoegen aan/,
+  })
+  await expect(composer).toBeVisible()
   await expect(
-    page.getByRole("form", { name: "Update toevoegen" }),
+    composer.getByRole("button", { name: "Beslissing" }),
   ).toBeVisible()
-  await page.keyboard.press("Escape")
-  await expect(
-    page.getByRole("form", { name: "Update toevoegen" }),
-  ).toHaveCount(0)
 })

@@ -5,6 +5,7 @@ import { resolve } from "node:path"
 import { beforeEach, describe, expect, it } from "vitest"
 import {
   buildProjectJournal,
+  buildProjectJournalGroups,
   buildTopicListItems,
   defaultTopicFilters,
   filterTopicListItems,
@@ -283,6 +284,22 @@ describe("topicselecties", () => {
       "Topic",
       "Project",
     ])
+    const groups = buildProjectJournalGroups(
+      contribution.state,
+      testIds.projectOne,
+    )
+    expect(groups[0]).toMatchObject({
+      kind: "project",
+      title: "Algemene projectopvolging",
+    })
+    expect(groups.find((group) => group.topic?.id === topic.id)).toMatchObject({
+      kind: "topic",
+      updates: [
+        expect.objectContaining({
+          text: "Topicbijdrage voor het projectjournaal.",
+        }),
+      ],
+    })
   })
 })
 

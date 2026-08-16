@@ -93,7 +93,7 @@ kolommapping.
 | `budgetMutations` | BudgetMutation | budgetrecord, auteur |
 | `meetings` | Meeting | scope, voorzitter, verslaggever |
 | `meetingParticipants` | MeetingParticipant | overleg, actor |
-| `agendaItems` | AgendaItem | overleg, optioneel bronobject |
+| `agendaItems` | AgendaItem | overleg, bronobject historisch optioneel |
 | `reports` | Report | overleg, auteur |
 | `reportItems` | ReportItem | verslag, optioneel snapshotbron |
 | `config` | Config | optioneel huidige actor |

@@ -74,11 +74,13 @@ describe("topicwerkruimte", () => {
     ).toBe(testIds.actorOne)
     expect(useAppStore.getState().dirty).toBe(true)
 
-    fireEvent.click(screen.getByRole("button", { name: "+ Update" }))
-    panel = screen.getByRole("form", { name: "Update toevoegen" })
-    fireEvent.change(within(panel).getByLabelText("Schrijf een update"), {
-      target: { value: "De uitvoering is klaar voor medische validatie." },
-    })
+    panel = screen.getByRole("form", { name: /Bijdrage toevoegen aan/ })
+    fireEvent.change(
+      within(panel).getByPlaceholderText(/Wat is er gewijzigd/),
+      {
+        target: { value: "De uitvoering is klaar voor medische validatie." },
+      },
+    )
     fireEvent.change(within(panel).getByLabelText("Auteur"), {
       target: { value: testIds.actorTwo },
     })
@@ -100,13 +102,12 @@ describe("topicwerkruimte", () => {
         )?.authorActorId,
     ).toBe(testIds.actorTwo)
 
-    fireEvent.click(screen.getByRole("button", { name: "+ Beslissing" }))
-    panel = screen.getByRole("form", { name: "Beslissing toevoegen" })
-    fireEvent.change(within(panel).getByLabelText("Schrijf een beslissing"), {
+    fireEvent.click(within(panel).getByRole("button", { name: "Beslissing" }))
+    fireEvent.change(within(panel).getByPlaceholderText(/Welke beslissing/), {
       target: { value: "De medische variant is formeel goedgekeurd." },
     })
     fireEvent.click(
-      within(panel).getByRole("button", { name: "Beslissing toevoegen" }),
+      within(panel).getByRole("button", { name: "Beslissing opslaan" }),
     )
 
     expect(
@@ -133,16 +134,20 @@ describe("topicwerkruimte", () => {
     expect(
       await screen.findByRole("heading", { name: "Toegang spoed" }),
     ).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "+ Update" }))
-    const panel = screen.getByRole("form", { name: "Update toevoegen" })
+    const panel = screen.getByRole("form", { name: /Bijdrage toevoegen aan/ })
     expect(within(panel).getByLabelText("Auteur")).toHaveValue("")
-    fireEvent.change(within(panel).getByLabelText("Schrijf een update"), {
-      target: { value: "Update zonder vooraf ingestelde huidige actor." },
-    })
+    fireEvent.change(
+      within(panel).getByPlaceholderText(/Wat is er gewijzigd/),
+      {
+        target: { value: "Update zonder vooraf ingestelde huidige actor." },
+      },
+    )
     fireEvent.change(within(panel).getByLabelText("Auteur"), {
       target: { value: testIds.actorTwo },
     })
-    fireEvent.click(within(panel).getByRole("button", { name: "Toevoegen" }))
+    fireEvent.click(
+      within(panel).getByRole("button", { name: "Update opslaan" }),
+    )
 
     expect(
       await screen.findByText("Update zonder vooraf ingestelde huidige actor."),

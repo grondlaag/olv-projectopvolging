@@ -61,38 +61,38 @@ test("fase-4-hoofdflow beheert topics, actuele stand en beslissingen volledig lo
     page.getByRole("heading", { name: "Medische validatie bouwfase" }),
   ).toBeVisible()
 
-  await page.getByRole("button", { name: "+ Update" }).click()
-  panel = page.getByRole("form", { name: "Update toevoegen" })
+  panel = page.getByRole("form", { name: /Bijdrage toevoegen aan/ })
   await panel
-    .getByRole("textbox", { name: "Schrijf een update", exact: true })
+    .getByPlaceholder(/Wat is er gewijzigd/)
     .fill("De verpleegkundige looplijnen zijn nagekeken en akkoord.")
   await panel.getByRole("button", { name: "+ Nieuwe actor" }).click()
   const actorPanel = page.getByRole("dialog", { name: "Nieuwe actor" })
   await actorPanel.getByLabel("Naam").fill("E2E Update-auteur")
   await actorPanel.getByRole("button", { name: "Actor opslaan" }).click()
-  panel = page.getByRole("form", { name: "Update toevoegen" })
-  await expect(
-    panel.getByRole("textbox", { name: "Schrijf een update", exact: true }),
-  ).toHaveValue("De verpleegkundige looplijnen zijn nagekeken en akkoord.")
+  panel = page.getByRole("form", { name: /Bijdrage toevoegen aan/ })
+  await expect(panel.getByPlaceholder(/Wat is er gewijzigd/)).toHaveValue(
+    "De verpleegkundige looplijnen zijn nagekeken en akkoord.",
+  )
   await expect(panel.getByLabel("Auteur").locator("option:checked")).toHaveText(
     "E2E Update-auteur",
   )
   await panel.getByLabel("Maak actuele stand").check()
-  await panel.getByRole("button", { name: "Toevoegen" }).click()
+  await panel.getByRole("button", { name: "Update opslaan" }).click()
   await expect(
     page
       .locator(".topic-current")
       .getByText("De verpleegkundige looplijnen zijn nagekeken en akkoord."),
   ).toBeVisible()
 
-  await page.getByRole("button", { name: "+ Beslissing" }).click()
-  panel = page.getByRole("form", { name: "Beslissing toevoegen" })
+  await panel.getByRole("button", { name: "Beslissing" }).click()
   await panel
-    .getByLabel("Schrijf een beslissing")
+    .getByPlaceholder(/Welke beslissing/)
     .fill("De huidige bouwvariant wordt zonder aanpassing behouden.")
-  await panel.getByRole("button", { name: "Beslissing toevoegen" }).click()
+  await panel.getByRole("button", { name: "Beslissing opslaan" }).click()
 
-  const journalEntries = page.locator(".topic-journal__entry")
+  const journalEntries = page.locator(
+    ".topic-journal .conversation-feed__entry",
+  )
   await expect(journalEntries).toHaveCount(2)
   await expect(journalEntries.first()).toContainText(
     "De huidige bouwvariant wordt zonder aanpassing behouden.",
@@ -110,6 +110,7 @@ test("fase-4-hoofdflow beheert topics, actuele stand en beslissingen volledig lo
   await expect(
     page.getByRole("heading", { name: "Projectjournaal" }),
   ).toBeVisible()
+  await page.getByText("Medische validatie bouwfase", { exact: true }).click()
   await expect(
     page.getByText("De huidige bouwvariant wordt zonder aanpassing behouden."),
   ).toBeVisible()
@@ -117,10 +118,7 @@ test("fase-4-hoofdflow beheert topics, actuele stand en beslissingen volledig lo
     path: "test-results/phase4-project-journal.png",
     fullPage: true,
   })
-  await page
-    .getByRole("link", { name: "Medische validatie bouwfase" })
-    .first()
-    .click()
+  await page.getByRole("link", { name: "Open topicdossier" }).first().click()
 
   await page.getByRole("button", { name: "Topic afsluiten" }).click()
   await expect(page.locator(".topic-detail__header")).toContainText(
@@ -172,7 +170,7 @@ test("fase-4-hoofdflow beheert topics, actuele stand en beslissingen volledig lo
   ).toBeVisible()
   await expect(
     page
-      .locator(".topic-journal__entry")
+      .locator(".conversation-feed__entry")
       .filter({ hasText: "De verpleegkundige looplijnen" }),
   ).toContainText("E2E Update-auteur")
   await expect(

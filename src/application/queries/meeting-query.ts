@@ -4,11 +4,14 @@ import {
   type Actor,
   type AgendaItem,
   type AgendaObjectType,
+  type Chapter,
+  type Cluster,
   type Meeting,
   type MeetingParticipant,
   type MeetingScopeReferences,
   type MeetingScopeType,
   type MeetingStatus,
+  type Project,
   type Report,
   type ReportItem,
   type Topic,
@@ -51,11 +54,21 @@ export interface MeetingListItem {
 }
 
 export interface AgendaSuggestion {
-  objectType: AgendaObjectType
+  objectType: Extract<AgendaObjectType, "Project" | "Topic">
   objectId: UUID
   title: string
   reason: string
   tone: "attention" | "neutral"
+}
+
+export interface AgendaMeetingLink {
+  meeting: Meeting
+  agendaItem: AgendaItem
+}
+
+export interface AgendaSchedulingModel {
+  availableMeetings: readonly Meeting[]
+  scheduledMeetings: readonly AgendaMeetingLink[]
 }
 
 export interface MeetingParticipantView {
@@ -78,6 +91,30 @@ export interface MeetingDetailModel {
   selectedReport?: Report
   selectedReportItems: readonly ReportItem[]
   suggestions: readonly AgendaSuggestion[]
+  agendaGroups: readonly MeetingAgendaGroup[]
+}
+
+export interface MeetingAgendaGroup {
+  id: string
+  chapter?: Chapter
+  cluster?: Cluster
+  project?: Project
+  label: string
+  items: readonly AgendaItem[]
+  legacy: boolean
+}
+
+export interface AgendaItemContextModel {
+  item: AgendaItem
+  chapter?: Chapter
+  cluster?: Cluster
+  project?: Project
+  topic?: Topic
+  currentUpdate?: Update
+  updates: readonly Update[]
+  decisions: readonly Update[]
+  actions: readonly Action[]
+  meetings: readonly Meeting[]
 }
 
 function references(state: NormalizedDomainState): MeetingScopeReferences {
@@ -177,11 +214,14 @@ function topicSuggestion(topic: Topic): AgendaSuggestion {
   }
 }
 
-function actionSuggestion(action: Action, today: string): AgendaSuggestion {
+function actionSuggestion(
+  action: Action & { objectType: "Project" | "Topic" },
+  today: string,
+): AgendaSuggestion {
   const overdue = isActionOverdue(action, today)
   return {
-    objectType: "Action",
-    objectId: action.id,
+    objectType: action.objectType,
+    objectId: action.objectId,
     title: `${action.code} · ${action.title}`,
     reason: overdue ? "Achterstallige actie" : "Wacht op beslissing",
     tone: overdue ? "attention" : "neutral",
@@ -220,22 +260,158 @@ export function buildAgendaSuggestions(
     .filter(
       (action) =>
         action.audit.active &&
+        (action.objectType === "Project" || action.objectType === "Topic") &&
         (action.status === "Wacht op beslissing" ||
           isActionOverdue(action, today)) &&
         isAgendaObjectInMeetingScope(
           meeting,
-          "Action",
-          action.id,
+          action.objectType,
+          action.objectId,
           scopeReferences,
         ) &&
-        !existing.has(`Action:${action.id}`),
+        !existing.has(`${action.objectType}:${action.objectId}`),
     )
-    .map((action) => actionSuggestion(action, today))
-  return [...topicSuggestions, ...actionSuggestions].sort(
+    .map((action) =>
+      actionSuggestion(
+        action as Action & { objectType: "Project" | "Topic" },
+        today,
+      ),
+    )
+  const uniqueSuggestions = new Map<string, AgendaSuggestion>()
+  for (const suggestion of [...topicSuggestions, ...actionSuggestions]) {
+    const key = `${suggestion.objectType}:${suggestion.objectId}`
+    const current = uniqueSuggestions.get(key)
+    if (
+      !current ||
+      (current.tone === "neutral" && suggestion.tone === "attention")
+    )
+      uniqueSuggestions.set(key, suggestion)
+  }
+  return [...uniqueSuggestions.values()].sort(
     (left, right) =>
       Number(right.tone === "attention") - Number(left.tone === "attention") ||
       left.title.localeCompare(right.title, "nl"),
   )
+}
+
+function agendaItemRelations(
+  state: NormalizedDomainState,
+  item: AgendaItem,
+): {
+  chapter?: Chapter
+  cluster?: Cluster
+  project?: Project
+  topic?: Topic
+} {
+  const topic =
+    item.objectType === "Topic" && item.objectId
+      ? state.indices.topicById.get(item.objectId)
+      : undefined
+  const project =
+    item.objectType === "Project" && item.objectId
+      ? state.indices.projectById.get(item.objectId)
+      : topic?.projectId
+        ? state.indices.projectById.get(topic.projectId)
+        : undefined
+  const cluster = project?.clusterId
+    ? state.indices.clusterById.get(project.clusterId)
+    : topic?.clusterId
+      ? state.indices.clusterById.get(topic.clusterId)
+      : undefined
+  const chapterId = project?.chapterId ?? cluster?.chapterId
+  const chapter = chapterId
+    ? state.indices.chapterById.get(chapterId)
+    : undefined
+  return {
+    ...(chapter ? { chapter } : {}),
+    ...(cluster ? { cluster } : {}),
+    ...(project ? { project } : {}),
+    ...(topic ? { topic } : {}),
+  }
+}
+
+export function buildMeetingAgendaGroups(
+  state: NormalizedDomainState,
+  agenda: readonly AgendaItem[],
+): readonly MeetingAgendaGroup[] {
+  const groups = new Map<
+    string,
+    Omit<MeetingAgendaGroup, "items"> & { items: AgendaItem[] }
+  >()
+  for (const item of agenda) {
+    const relations = agendaItemRelations(state, item)
+    const legacy = item.objectType !== "Project" && item.objectType !== "Topic"
+    const id = legacy
+      ? "legacy"
+      : `${relations.chapter?.id ?? "no-chapter"}:${relations.cluster?.id ?? "no-cluster"}:${relations.project?.id ?? "cluster-topics"}`
+    const current = groups.get(id)
+    if (current) {
+      current.items.push(item)
+      continue
+    }
+    groups.set(id, {
+      id,
+      ...relations,
+      label: legacy
+        ? "Historische agendapunten zonder geldige bron"
+        : (relations.project?.title ?? "Clustertopics"),
+      items: [item],
+      legacy,
+    })
+  }
+  return [...groups.values()].sort(
+    (left, right) =>
+      Number(left.legacy) - Number(right.legacy) ||
+      (left.chapter?.order ?? 999) - (right.chapter?.order ?? 999) ||
+      (left.cluster?.order ?? 999) - (right.cluster?.order ?? 999) ||
+      (left.project?.title ?? left.label).localeCompare(
+        right.project?.title ?? right.label,
+        "nl",
+      ),
+  )
+}
+
+export function buildAgendaItemContext(
+  state: NormalizedDomainState,
+  item: AgendaItem,
+): AgendaItemContextModel {
+  const relations = agendaItemRelations(state, item)
+  const key =
+    item.objectType && item.objectId
+      ? `${item.objectType}:${item.objectId}`
+      : `Meeting:${item.meetingId}`
+  const contributions = [
+    ...(state.indices.updatesByObject.get(key) ?? []),
+  ].filter((entry) => entry.audit.active)
+  const actions = [...(state.indices.actionsByObject.get(key) ?? [])].filter(
+    (entry) => entry.audit.active,
+  )
+  const seenMeetings = new Set<UUID>()
+  const meetings = (
+    item.objectType && item.objectId
+      ? (state.indices.agendaItemsByObject.get(key) ?? [])
+      : []
+  )
+    .flatMap((agendaItem) => {
+      const meeting = state.indices.meetingById.get(agendaItem.meetingId)
+      if (!meeting?.audit.active || seenMeetings.has(meeting.id)) return []
+      seenMeetings.add(meeting.id)
+      return [meeting]
+    })
+    .sort((left, right) => right.date.localeCompare(left.date))
+  const source = relations.topic ?? relations.project
+  const currentUpdate = source?.currentUpdateId
+    ? state.indices.updateById.get(source.currentUpdateId)
+    : undefined
+  return {
+    item,
+    ...relations,
+    ...(currentUpdate?.audit.active ? { currentUpdate } : {}),
+    updates: contributions.filter((entry) => entry.type !== "Beslissing"),
+    decisions: contributions.filter((entry) => entry.type === "Beslissing"),
+    actions,
+    meetings,
+  }
 }
 
 export function buildMeetingDetailModel(
@@ -280,15 +456,16 @@ export function buildMeetingDetailModel(
   const reporter = meeting.reporterActorId
     ? state.indices.actorById.get(meeting.reporterActorId)
     : undefined
+  const agenda = [
+    ...(state.indices.agendaItemsByMeeting.get(meeting.id) ?? []),
+  ].sort((left, right) => left.order - right.order)
   return {
     meeting,
     scopeLabel: meetingScopeLabel(state, meeting),
     ...(chair ? { chair } : {}),
     ...(reporter ? { reporter } : {}),
     participants,
-    agenda: [
-      ...(state.indices.agendaItemsByMeeting.get(meeting.id) ?? []),
-    ].sort((left, right) => left.order - right.order),
+    agenda,
     updates: contributions.filter((update) => update.type !== "Beslissing"),
     decisions: contributions.filter((update) => update.type === "Beslissing"),
     actions,
@@ -301,6 +478,7 @@ export function buildMeetingDetailModel(
         ].sort((left, right) => left.order - right.order)
       : [],
     suggestions: buildAgendaSuggestions(state, meeting, today),
+    agendaGroups: buildMeetingAgendaGroups(state, agenda),
   }
 }
 
@@ -326,4 +504,46 @@ export function meetingsForProject(
   return [...(state.indices.meetingsByProject.get(projectId) ?? [])]
     .filter((meeting) => meeting.audit.active)
     .sort((left, right) => right.date.localeCompare(left.date))
+}
+
+export function buildAgendaSchedulingModel(
+  state: NormalizedDomainState,
+  objectType: AgendaObjectType,
+  objectId: UUID,
+  fromDate: string,
+): AgendaSchedulingModel {
+  const scheduledMeetings = [
+    ...(state.indices.agendaItemsByObject.get(`${objectType}:${objectId}`) ??
+      []),
+  ]
+    .filter((agendaItem) => agendaItem.audit.active)
+    .flatMap((agendaItem) => {
+      const meeting = state.indices.meetingById.get(agendaItem.meetingId)
+      return meeting?.audit.active ? [{ meeting, agendaItem }] : []
+    })
+    .sort((left, right) => left.meeting.date.localeCompare(right.meeting.date))
+  const scheduledIds = new Set(
+    scheduledMeetings.map(({ meeting }) => meeting.id),
+  )
+  const availableMeetings = state.records.meetings
+    .filter(
+      (meeting) =>
+        meeting.audit.active &&
+        meeting.status === "Concept" &&
+        meeting.date >= fromDate &&
+        !scheduledIds.has(meeting.id) &&
+        isAgendaObjectInMeetingScope(
+          meeting,
+          objectType,
+          objectId,
+          references(state),
+        ),
+    )
+    .sort(
+      (left, right) =>
+        left.date.localeCompare(right.date) ||
+        left.title.localeCompare(right.title, "nl"),
+    )
+
+  return { availableMeetings, scheduledMeetings }
 }

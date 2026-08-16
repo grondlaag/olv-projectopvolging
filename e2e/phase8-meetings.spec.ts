@@ -66,19 +66,17 @@ test("fase-8-hoofdflow verwerkt overleg en bewaart een historisch verslag via JS
   const addAgendaItem = async (input: {
     title: string
     reason: string
-    sourceType?: "Topic" | "Action"
+    sourceType: "Project" | "Topic"
   }) => {
-    await page.getByRole("button", { name: "+ Agendapunt" }).click()
+    await page.getByRole("button", { name: "+ Project of topic" }).click()
     const panel = page.getByRole("dialog", { name: "Agendapunt toevoegen" })
+    await panel.getByLabel("Brontype").selectOption(input.sourceType)
+    await panel.getByLabel("Bronrecord").selectOption({ index: 1 })
     await panel.getByLabel("Titel").fill(input.title)
     await panel.getByLabel("Aanleiding").fill(input.reason)
     await panel
       .getByLabel("Notities")
       .fill(`Voorbereidingsnotitie voor ${input.title}.`)
-    if (input.sourceType) {
-      await panel.getByLabel("Brontype").selectOption(input.sourceType)
-      await panel.getByLabel("Bronrecord").selectOption({ index: 1 })
-    }
     await panel.getByRole("button", { name: "Agendapunt opslaan" }).click()
   }
 
@@ -90,51 +88,48 @@ test("fase-8-hoofdflow verwerkt overleg en bewaart een historisch verslag via JS
   await addAgendaItem({
     title: "Bestaande actie opvolgen",
     reason: "Open projectactie",
-    sourceType: "Action",
+    sourceType: "Project",
   })
-  await addAgendaItem({
-    title: "Rondvraag",
-    reason: "Vrij agendapunt",
-  })
-  await page.getByRole("button", { name: "Rondvraag omhoog" }).click()
-  await expect(page.locator(".meeting-agenda > ol > li")).toHaveCount(3)
+  await expect(page.locator(".meeting-agenda-groups li")).toHaveCount(2)
 
   await page.getByRole("button", { name: /^Verwerken/ }).click()
   await page.getByRole("checkbox").first().check()
-  const topicAgendaItem = page
-    .getByText("Tijdelijke toegang bespreken", { exact: true })
-    .locator("xpath=ancestor::li[1]")
-
-  await topicAgendaItem.getByRole("button", { name: "+ Update" }).click()
-  panel = page.getByRole("dialog", { name: "Update toevoegen" })
-  await panel
-    .getByRole("textbox", { name: "Bijdrage", exact: true })
+  const composer = page.getByRole("form", {
+    name: /Bijdrage toevoegen aan Tijdelijke toegang bespreken/,
+  })
+  await composer
+    .getByPlaceholder(/Wat is er gewijzigd/)
     .fill("De tijdelijke toegang is technisch gevalideerd.")
-  await panel.getByLabel("Instellen als actuele stand van de bron").check()
-  await panel.getByRole("button", { name: "Update opslaan" }).click()
+  await composer.getByLabel("Maak actuele stand").check()
+  await composer.getByRole("button", { name: "Update opslaan" }).click()
   await expect(
-    page.getByText("De tijdelijke toegang is technisch gevalideerd."),
+    page.getByText("De tijdelijke toegang is technisch gevalideerd.").first(),
   ).toBeVisible()
 
-  await topicAgendaItem.getByRole("button", { name: "+ Beslissing" }).click()
-  panel = page.getByRole("dialog", { name: "Beslissing toevoegen" })
-  await panel
-    .getByLabel("Beslissing")
+  await composer.getByRole("button", { name: "Beslissing" }).click()
+  await composer
+    .getByPlaceholder(/Welke beslissing/)
     .fill("De technische toegangsvariant is definitief goedgekeurd.")
-  await panel.getByRole("button", { name: "Beslissing opslaan" }).click()
+  await composer.getByRole("button", { name: "Beslissing opslaan" }).click()
   await expect(
-    page.getByText("De technische toegangsvariant is definitief goedgekeurd."),
+    page
+      .getByText("De technische toegangsvariant is definitief goedgekeurd.")
+      .first(),
   ).toBeVisible()
-  await topicAgendaItem.getByRole("button", { name: "+ Actie" }).click()
-  panel = page.getByRole("dialog", { name: "Actie toevoegen" })
-  await panel.getByLabel("Titel").fill("Werfzone toegang afbakenen")
-  await panel.getByLabel("Eigenaar").selectOption({ index: 1 })
-  await panel.getByLabel("Deadline").fill("2026-08-20")
-  await panel.getByRole("button", { name: "Actie opslaan" }).click()
-  await expect(page.getByText("Werfzone toegang afbakenen")).toBeVisible()
+  await composer.getByRole("button", { name: "Actie" }).click()
+  await composer
+    .getByPlaceholder("Wat moet gebeuren?")
+    .fill("Werfzone toegang afbakenen")
+  await composer.getByLabel("Eigenaar").selectOption({ index: 1 })
+  await composer.getByLabel("Deadline").fill("2026-08-20")
+  await composer.getByRole("button", { name: "Actie opslaan" }).click()
   await expect(
-    page.getByRole("heading", { name: "Acties per persoon" }),
+    page.getByText("Werfzone toegang afbakenen").first(),
   ).toBeVisible()
+  await page.screenshot({
+    path: "test-results/phase8-meeting-processing.png",
+    fullPage: true,
+  })
 
   await page.getByRole("button", { name: "Conceptverslag opbouwen" }).click()
   await expect(
@@ -146,16 +141,10 @@ test("fase-8-hoofdflow verwerkt overleg en bewaart een historisch verslag via JS
   await expect(page.locator(".meeting-report-owner-groups")).toContainText(
     "Testcoördinator",
   )
-  await page.evaluate(() => {
-    window.print = () => {
-      document.body.dataset.printInvoked = "true"
-    }
-  })
-  await page.getByRole("button", { name: "Afdrukken" }).click()
-  await expect(page.locator("body")).toHaveAttribute(
-    "data-print-invoked",
-    "true",
-  )
+  const reportPdfPromise = page.waitForEvent("download")
+  await page.getByRole("button", { name: "Verslag PDF" }).click()
+  const reportPdf = await reportPdfPromise
+  expect(reportPdf.suggestedFilename()).toMatch(/verslag-.+\.pdf$/)
   await page.getByRole("button", { name: "Definitief maken" }).click()
   await page.getByRole("button", { name: "Ja, definitief maken" }).click()
   await expect(page.getByText("Historisch vastgelegd")).toBeVisible()
@@ -188,12 +177,11 @@ test("fase-8-hoofdflow verwerkt overleg en bewaart een historisch verslag via JS
   await page
     .getByRole("button", { name: /TOP-001 Tijdelijke toegang openen/ })
     .click()
-  await page.getByRole("button", { name: "+ Update" }).click()
-  panel = page.getByRole("form", { name: "Update toevoegen" })
+  panel = page.getByRole("form", { name: /Bijdrage toevoegen aan/ })
   await panel
-    .getByRole("textbox", { name: "Schrijf een update", exact: true })
+    .getByPlaceholder(/Wat is er gewijzigd/)
     .fill("Latere bronwijziging die niet in verslagversie 1 mag verschijnen.")
-  await panel.getByRole("button", { name: "Toevoegen" }).click()
+  await panel.getByRole("button", { name: "Update opslaan" }).click()
 
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })

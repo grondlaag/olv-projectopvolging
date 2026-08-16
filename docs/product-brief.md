@@ -132,9 +132,24 @@ Substantiële correcties maken BudgetMutation-historiek.
 
 ## Overleg en verslag
 
+Nieuwe agendapunten zijn altijd gekoppeld aan een bestaand project of topic, of
+ontstaan samen met een nieuw topic. Losse agendatekst is geen afzonderlijk
+domeinrecord meer. Voorbereiding groepeert de agenda volgens hoofdstuk, cluster
+en project. Tijdens verwerking blijft één punt actief: agenda links, een vaste
+invoerkaart voor update/beslissing/actie in het midden en het bronjournaal
+rechts. Agenda en verslag kunnen client-side als PDF worden gedownload of met
+basisopmaak worden gekopieerd voor Outlook.
+
 Overleg ondersteunt scope, deelnemers, agenda, gekoppelde bronobjecten,
 beslissingen en acties. Verslagen bewaren snapshots en versies, zodat een
 definitief verslag niet verandert wanneer een bronrecord later wordt aangepast.
+
+Vanuit een project of topic kan de gebruiker in hetzelfde dossier kiezen op welk
+toekomstig conceptoverleg het besproken moet worden. De app toont alleen
+overleggen waarvan de portfolio-, hoofdstuk-, cluster- of projectscope bij het
+bronrecord past. De koppeling is meteen een bestaand `AgendaItem`; er ontstaat
+geen tweede overlegrelatie en hetzelfde bronrecord wordt niet dubbel op dezelfde
+agenda geplaatst.
 
 ## Privacy en beveiliging
 
@@ -160,3 +175,12 @@ de structuur en instellingen kan beheren, alle bestaande hoofdflows kan uitvoere
 het resultaat als JSON kan opslaan, opnieuw kan openen en semantisch dezelfde
 records en relaties terugvindt. Formatter, lint, typecheck, unit/integratie,
 build, Playwright, performance- en release-audit moeten slagen.
+
+## Dagelijkse UX
+
+De primaire workflow begint bij “Mijn werk” en blijft vanuit elke route
+toegankelijk via globaal zoeken en “+ Nieuw”. Portfolio ondersteunt compacte
+snelle selecties, inklapbare detailfilters en zichtbare filterchips.
+Projectdossiers laten status, fase, coördinator en voortgang contextvast
+bijwerken met expliciete save. Deze versnellingen gebruiken dezelfde
+domeinrecords en services; er ontstaat geen tweede UI-opslagmodel.

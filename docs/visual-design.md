@@ -332,10 +332,32 @@ Grafieken alleen als ze een echte vergelijking ondersteunen.
 
 ## Overleg en verslag
 
+De voorbereiding groepeert brongebonden agendapunten als hoofdstuk → cluster →
+project → topic. De verwerkingsmodus gebruikt op ruime schermen drie kolommen:
+de agenda en selectie links, bespreking met één vaste invoerkaart centraal en
+actuele stand plus bronjournaal rechts. Op smallere schermen stapelen deze
+kolommen. Na save blijft de invoerkaart staan en wordt alleen de invoer
+leeggemaakt.
+
+Agenda en verslag hebben een echte client-side PDF-download met paginanummers.
+`Kopieer voor Outlook` schrijft zowel `text/html` als `text/plain` naar het
+klembord; browserprint blijft aanvullend beschikbaar.
+
+Het projectjournaal is geen ononderbroken tijdlijn. Het groepeert eerst de
+algemene projectopvolging en daarna ieder echt topic. Elke uitklapbare groep
+toont actuele stand, aantallen, de universele invoerkaart, de drie recentste
+bijdragen en pas op verzoek de volledige historiek. Er wordt geen fictief
+"algemeen topic" opgeslagen.
+
 De overlegwerkruimte is tekstgericht en puntsgewijs. Voorbereiding en verwerking
 zijn herkenbare modi binnen hetzelfde dossier; ze openen geen keten van modals.
 Deelnemers, agenda en afgeleide suggesties hebben een rustige hiërarchie en de
 agenda gebruikt toegankelijke omhoog/omlaagbediening naast contextacties.
+
+Projecten en topics bieden `Bespreken op overleg` als compacte contextactie. Een
+smalle drawer toont het vaste bronrecord, reeds geplande overlegmomenten en
+geldige toekomstige keuzes als rustig opgebouwde radiolijst. De gebruiker kan
+een korte bespreekreden meegeven; het dossier blijft achter de drawer zichtbaar.
 
 Het verslag oogt als een professioneel projectverslag, niet als een spreadsheet:
 
@@ -362,6 +384,28 @@ Daarna:
 - budget/planning uitzonderingen.
 
 Geen 20 losse tegels.
+
+De eerste werkinhoud is “Mijn werk”: maximaal acht open acties van de ingestelde
+huidige actor, geordend op achterstalligheid en deadline. Een veilige
+statuswijziging kan daar direct, met zichtbare sessiestatus.
+
+## Bedieningslaag en contextvaste invoer
+
+De applicatiekop combineert zoeken en handelen:
+
+- Ctrl/Cmd+K of / opent de zoek- en commandolaag;
+- een lege zoeklaag biedt de belangrijkste creatieacties;
+- “+ Nieuw” houdt project en overleg vanuit elke route bereikbaar;
+- bestandsacties gebruiken menselijke labels “Openen” en “Back-up”, terwijl
+  toegankelijke namen het JSON-karakter expliciet houden.
+
+Portfolio toont zoeken en scopes altijd. Detailfilters staan achter “Filters”,
+actieve keuzes blijven zichtbaar als verwijderbare chips en frequente selecties
+zijn beschikbaar als rustige presets.
+
+In een projectdossier biedt “Snel bijwerken” een contextvast formulier voor
+status, fase, coördinator en voortgang. De wijziging gebeurt uitsluitend na
+expliciete save; structurele gegevens blijven in het volledige projectformulier.
 
 ## Responsive
 

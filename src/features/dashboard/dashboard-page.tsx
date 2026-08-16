@@ -1,5 +1,7 @@
+import { useState } from "react"
 import { Link } from "react-router-dom"
 import { buildDashboardModel } from "../../application/queries"
+import { ActionManagementService } from "../../application/services"
 import { useAppStore } from "../../app/state/app-store"
 import {
   Badge,
@@ -8,13 +10,35 @@ import {
   PageHeader,
 } from "../../design-system/components"
 import { formatLocalDate, todayAsLocalDate } from "../../utils"
-import type { UUID } from "../../domain"
-import { BUDGET_AGGREGATION_RULE_REQUIRED } from "../../domain"
+import {
+  actionStatuses,
+  BUDGET_AGGREGATION_RULE_REQUIRED,
+  type Action,
+  type ActionStatus,
+  type UUID,
+} from "../../domain"
 import "./dashboard-page.css"
+
+const actionService = new ActionManagementService()
+
+type DashboardActionItem = ReturnType<
+  typeof buildDashboardModel
+>["myActions"][number]
+
+function actionRoute(item: DashboardActionItem) {
+  if (item.topic && item.project)
+    return "/projects/" + item.project.id + "/topics/" + item.topic.id
+  if (item.topic && item.cluster)
+    return "/clusters/" + item.cluster.id + "/topics/" + item.topic.id
+  if (item.project) return "/projects/" + item.project.id
+  if (item.cluster) return "/clusters/" + item.cluster.id
+  return "/actions"
+}
 
 export function DashboardPage() {
   const session = useAppStore((state) => state.session)
   const setImportPanelOpen = useAppStore((state) => state.setImportPanelOpen)
+  const [statusMessage, setStatusMessage] = useState("")
 
   if (!session) {
     return (
@@ -27,7 +51,7 @@ export function DashboardPage() {
         <div className="dashboard-page__empty">
           <EmptyState
             title="Open een projectgegevensbestand"
-            description="Kies een canonical OLV .xlsx-bestand, controleer het validatierapport en bevestig de import."
+            description="Kies een OLV JSON-gegevensbestand, controleer het validatierapport en bevestig het openen."
             action={
               <Button onClick={() => setImportPanelOpen(true)}>
                 JSON openen of nieuw starten
@@ -39,7 +63,15 @@ export function DashboardPage() {
     )
   }
 
-  const model = buildDashboardModel(session.state, todayAsLocalDate())
+  const currentActorId = session.state.records.config[0]?.currentActorId
+  const currentActor = currentActorId
+    ? session.state.indices.actorById.get(currentActorId)
+    : undefined
+  const model = buildDashboardModel(
+    session.state,
+    todayAsLocalDate(),
+    currentActorId,
+  )
   const actorName = (actorId: UUID) =>
     session.state.indices.actorById.get(actorId)?.displayName ??
     "Onbekende actor"
@@ -54,6 +86,29 @@ export function DashboardPage() {
     [model.kpis.upcomingActions, "Acties komende 14 dagen"],
     [model.kpis.upcomingMilestones, "Mijlpalen komende 30 dagen"],
   ] as const
+
+  function updateStatus(action: Action, status: ActionStatus) {
+    const latest = useAppStore.getState().session?.state
+    if (!latest || action.status === status) return
+    try {
+      const result = actionService.updateAction(latest, action.id, {
+        title: action.title,
+        ...(action.description ? { description: action.description } : {}),
+        ownerActorId: action.ownerActorId,
+        ...(action.deadline ? { deadline: action.deadline } : {}),
+        status,
+        priority: action.priority,
+      })
+      useAppStore.getState().replaceDomainState(result.state)
+      setStatusMessage("Actiestatus bijgewerkt · JSON nog opslaan")
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error
+          ? error.message
+          : "De actiestatus kon niet worden gewijzigd.",
+      )
+    }
+  }
 
   return (
     <div className="dashboard-page">
@@ -73,7 +128,67 @@ export function DashboardPage() {
         ))}
       </section>
 
+      {statusMessage ? (
+        <p className="dashboard-status" role="status">
+          {statusMessage}
+        </p>
+      ) : null}
+
       <div className="dashboard-sections">
+        <section className="dashboard-section dashboard-my-work">
+          <div className="dashboard-section__heading">
+            <div>
+              <span>Persoonlijke werkvoorraad</span>
+              <h2>Mijn werk</h2>
+            </div>
+            <Link to="/actions">Alle acties</Link>
+          </div>
+          {!currentActor ? (
+            <p className="dashboard-section__empty">
+              Kies in Instellingen wie je bent om hier je open acties te zien.{" "}
+              <Link to="/settings">Actor instellen</Link>
+            </p>
+          ) : model.myActions.length ? (
+            <>
+              <p className="dashboard-my-work__intro">
+                {model.myActions.length} eerstvolgende open acties voor{" "}
+                <strong>{currentActor.displayName}</strong>.
+              </p>
+              <ul className="dashboard-action-list dashboard-my-work__list">
+                {model.myActions.map((item) => (
+                  <li key={item.action.id}>
+                    <Link to={actionRoute(item)}>
+                      <strong>{item.action.title}</strong>
+                      <span>{item.contextLabel}</span>
+                    </Link>
+                    <div>
+                      <time>{formatLocalDate(item.action.deadline)}</time>
+                      <select
+                        value={item.action.status}
+                        aria-label={"Status van " + item.action.title}
+                        onChange={(event) =>
+                          updateStatus(
+                            item.action,
+                            event.target.value as ActionStatus,
+                          )
+                        }
+                      >
+                        {actionStatuses.map((status) => (
+                          <option key={status}>{status}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="dashboard-section__empty">
+              Geen open acties voor {currentActor.displayName}.
+            </p>
+          )}
+        </section>
+
         <section className="dashboard-section dashboard-meetings">
           <div className="dashboard-section__heading">
             <h2>Komende overlegmomenten</h2>

@@ -8,6 +8,7 @@ import {
 import { useForm, type FieldPath, type UseFormSetError } from "react-hook-form"
 import { Link, useNavigate } from "react-router-dom"
 import {
+  buildAgendaSchedulingModel,
   buildTopicJournal,
   buildTopicListItems,
   defaultTopicFilters,
@@ -40,6 +41,11 @@ import { formatLocalDate, todayAsLocalDate } from "../../utils"
 import { ActionContextSection } from "../actions/action-sections"
 import { TopicTimingPanel } from "../planning/topic-timing-panel"
 import { InlineActorPanel } from "../projects/project-form-page"
+import { AgendaSchedulePanel } from "../meetings/agenda-schedule-panel"
+import {
+  ConversationComposer,
+  ConversationFeed,
+} from "../journal/conversation-composer"
 import {
   journalValuesToInput,
   topicFormSchema,
@@ -698,7 +704,7 @@ export function TopicWorkspace({
   const replaceDomainState = useAppStore((state) => state.replaceDomainState)
   const [filters, setFilters] = useState<TopicFilters>(defaultTopicFilters)
   const [panel, setPanel] = useState<
-    "new" | "current" | "update" | "decision" | "timing"
+    "new" | "current" | "update" | "decision" | "timing" | "meeting"
   >()
   const [statusMessage, setStatusMessage] = useState("")
   const deferredSearch = useDeferredValue(filters.search)
@@ -731,6 +737,18 @@ export function TopicWorkspace({
   const budgetSummary = useMemo(
     () => buildBudgetLedgerSummary(budgetRecords),
     [budgetRecords],
+  )
+  const agendaScheduling = useMemo(
+    () =>
+      session && selected
+        ? buildAgendaSchedulingModel(
+            session.state,
+            "Topic",
+            selected.topic.id,
+            todayAsLocalDate(),
+          )
+        : undefined,
+    [selected, session],
   )
   const ownerOptions = useMemo(
     () =>
@@ -932,6 +950,9 @@ export function TopicWorkspace({
                 </div>
               </div>
               <div className="topic-detail__actions">
+                <Button variant="secondary" onClick={() => setPanel("meeting")}>
+                  Bespreken op overleg
+                </Button>
                 {selected.topic.projectId ? (
                   <Button variant="tertiary" onClick={() => setPanel("timing")}>
                     {selected.planning ? "Timing bewerken" : "+ Timing"}
@@ -956,12 +977,6 @@ export function TopicWorkspace({
                   {selected.currentUpdate ? (
                     <time>{formatLocalDate(selected.currentUpdate.date)}</time>
                   ) : null}
-                  <Button
-                    variant="tertiary"
-                    onClick={() => setPanel("current")}
-                  >
-                    Bijwerken
-                  </Button>
                 </div>
               </header>
               {selected.currentUpdate ? (
@@ -1009,74 +1024,43 @@ export function TopicWorkspace({
               contextLabel={`${selected.topic.code} · ${selected.topic.title}`}
             />
 
+            <ConversationComposer
+              contextType="Topic"
+              contextId={selected.topic.id}
+              contextLabel={`${selected.topic.code} · ${selected.topic.title}`}
+              onSaved={(message) =>
+                setStatusMessage(`${message} · JSON nog opslaan`)
+              }
+            />
+
             <section
               className="topic-journal"
               aria-labelledby="topic-journal-title"
             >
               <header>
                 <div>
-                  <span>Chronologisch dossier</span>
+                  <span>Contextueel dossier</span>
                   <h3 id="topic-journal-title">Journaal</h3>
                 </div>
                 <div className="topic-journal__actions">
                   <strong>{journal.length}</strong>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setPanel("update")}
-                  >
-                    + Update
-                  </Button>
-                  <Button onClick={() => setPanel("decision")}>
-                    + Beslissing
-                  </Button>
                 </div>
               </header>
-              {journal.length ? (
-                <ol>
-                  {journal.map((entry) => {
-                    const author = session.state.indices.actorById.get(
-                      entry.authorActorId,
-                    )
-                    return (
-                      <li
-                        key={entry.id}
-                        className={
-                          entry.type === "Beslissing"
-                            ? "topic-journal__entry topic-journal__entry--decision"
-                            : "topic-journal__entry"
-                        }
-                      >
-                        <span
-                          className="topic-journal__marker"
-                          aria-hidden="true"
-                        />
-                        <article>
-                          <header>
-                            <Badge
-                              tone={
-                                entry.type === "Beslissing"
-                                  ? "warning"
-                                  : "neutral"
-                              }
-                            >
-                              {entry.type}
-                            </Badge>
-                            <time>{formatLocalDate(entry.date)}</time>
-                          </header>
-                          <p>{entry.text}</p>
-                          <small>
-                            {author?.displayName ?? "Onbekende auteur"}
-                          </small>
-                        </article>
-                      </li>
-                    )
-                  })}
-                </ol>
+              {journal.length || selected.actionCount ? (
+                <ConversationFeed
+                  updates={journal}
+                  actions={
+                    session.state.indices.actionsByObject.get(
+                      `Topic:${selected.topic.id}`,
+                    ) ?? []
+                  }
+                />
               ) : (
                 <div className="topic-journal__empty">
                   <strong>Nog geen journaalbijdragen</strong>
                   <span>
-                    Updates en beslissingen verschijnen hier append-only.
+                    Gebruik de invoerkaart hierboven voor een update, beslissing
+                    of actie.
                   </span>
                 </div>
               )}
@@ -1141,6 +1125,34 @@ export function TopicWorkspace({
                   </Button>
                 )}
               </div>
+            </section>
+
+            <section>
+              <h3>Overleg</h3>
+              <strong>
+                {agendaScheduling?.scheduledMeetings.length ?? 0} keer ingepland
+              </strong>
+              {agendaScheduling?.scheduledMeetings.length ? (
+                <ul className="topic-metadata__meetings">
+                  {agendaScheduling.scheduledMeetings
+                    .slice(0, 3)
+                    .map(({ meeting, agendaItem }) => (
+                      <li key={agendaItem.id}>
+                        <Link to={`/meetings/${meeting.id}`}>
+                          {meeting.title}
+                        </Link>
+                        <small>{formatLocalDate(meeting.date)}</small>
+                      </li>
+                    ))}
+                </ul>
+              ) : (
+                <p>Nog niet aan een overlegagenda gekoppeld.</p>
+              )}
+              <Button variant="tertiary" onClick={() => setPanel("meeting")}>
+                {agendaScheduling?.scheduledMeetings.length
+                  ? "Nog een overleg kiezen"
+                  : "Overleg kiezen"}
+              </Button>
             </section>
 
             <section>
@@ -1212,6 +1224,18 @@ export function TopicWorkspace({
             setStatusMessage(
               "Timing opgeslagen in de lokale sessie · JSON nog opslaan",
             )
+            setPanel(undefined)
+          }}
+        />
+      ) : null}
+      {selected && panel === "meeting" ? (
+        <AgendaSchedulePanel
+          objectType="Topic"
+          objectId={selected.topic.id}
+          sourceLabel={`${selected.topic.code} · ${selected.topic.title}`}
+          onClose={() => setPanel(undefined)}
+          onSaved={(message) => {
+            setStatusMessage(`${message} · JSON nog opslaan`)
             setPanel(undefined)
           }}
         />

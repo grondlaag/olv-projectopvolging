@@ -1,4 +1,10 @@
-import type { Meeting, PlanningEntry, Project, Update } from "../../domain"
+import type {
+  Meeting,
+  PlanningEntry,
+  Project,
+  Update,
+  UUID,
+} from "../../domain"
 import type { NormalizedDomainState } from "../services"
 import {
   addLocalDateDays,
@@ -30,6 +36,7 @@ export interface DashboardKpis {
 
 export interface DashboardModel {
   kpis: DashboardKpis
+  myActions: readonly ActionListItem[]
   recentDecisions: readonly Update[]
   recentlyChangedProjects: readonly Project[]
   attentionProjects: readonly PortfolioProjectRow[]
@@ -51,6 +58,7 @@ function addDays(localDate: string, days: number): string {
 export function buildDashboardModel(
   state: NormalizedDomainState,
   today: string,
+  currentActorId?: UUID,
 ): DashboardModel {
   const portfolioRows = buildPortfolioRows(state, today)
   const openTopics = state.records.topics.filter(
@@ -101,6 +109,26 @@ export function buildDashboardModel(
       ).length,
       upcomingMilestones: upcomingMilestones.length,
     },
+    myActions: currentActorId
+      ? [
+          ...buildActionListItems(
+            state,
+            (state.indices.actionsByOwner.get(currentActorId) ?? []).filter(
+              isActionOpen,
+            ),
+          ),
+        ]
+          .sort(
+            (left, right) =>
+              Number(isActionOverdue(right.action, today)) -
+                Number(isActionOverdue(left.action, today)) ||
+              (left.action.deadline ?? "9999-12-31").localeCompare(
+                right.action.deadline ?? "9999-12-31",
+              ) ||
+              left.action.title.localeCompare(right.action.title, "nl"),
+          )
+          .slice(0, 8)
+      : [],
     recentDecisions: state.records.updates
       .filter((update) => update.type === "Beslissing")
       .sort((left, right) => right.date.localeCompare(left.date))

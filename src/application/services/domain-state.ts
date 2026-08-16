@@ -96,6 +96,7 @@ export interface DomainIndices {
   budgetMutationsByBudgetRecord: ReadonlyMap<UUID, readonly BudgetMutation[]>
   meetingParticipantsByMeeting: ReadonlyMap<UUID, readonly MeetingParticipant[]>
   agendaItemsByMeeting: ReadonlyMap<UUID, readonly AgendaItem[]>
+  agendaItemsByObject: ReadonlyMap<string, readonly AgendaItem[]>
   reportsByMeeting: ReadonlyMap<UUID, readonly Report[]>
   reportItemsByReport: ReadonlyMap<UUID, readonly ReportItem[]>
   meetingsByProject: ReadonlyMap<UUID, readonly Meeting[]>
@@ -187,6 +188,14 @@ export function buildDomainIndices(records: DomainCollections): DomainIndices {
     actionsByProject.set(projectId, projectActions)
   }
 
+  function addMeetingToProject(projectId: UUID, meeting: Meeting): void {
+    const projectMeetings = meetingsByProject.get(projectId) ?? []
+    if (!projectMeetings.some((item) => item.id === meeting.id)) {
+      projectMeetings.push(meeting)
+      meetingsByProject.set(projectId, projectMeetings)
+    }
+  }
+
   for (const meeting of records.meetings) {
     const projects =
       meeting.scopeType === "Project" && meeting.scopeId
@@ -199,10 +208,20 @@ export function buildDomainIndices(records: DomainCollections): DomainIndices {
             ? (projectsByChapter.get(meeting.scopeId) ?? [])
             : []
     for (const project of projects) {
-      const projectMeetings = meetingsByProject.get(project.id) ?? []
-      projectMeetings.push(meeting)
-      meetingsByProject.set(project.id, projectMeetings)
+      addMeetingToProject(project.id, meeting)
     }
+  }
+
+  for (const agendaItem of records.agendaItems) {
+    if (!agendaItem.audit.active || !agendaItem.objectId) continue
+    const projectId =
+      agendaItem.objectType === "Project"
+        ? agendaItem.objectId
+        : agendaItem.objectType === "Topic"
+          ? topicById.get(agendaItem.objectId)?.projectId
+          : undefined
+    const meeting = meetingById.get(agendaItem.meetingId)
+    if (projectId && meeting) addMeetingToProject(projectId, meeting)
   }
 
   return {
@@ -282,6 +301,11 @@ export function buildDomainIndices(records: DomainCollections): DomainIndices {
     agendaItemsByMeeting: groupBy(
       records.agendaItems,
       (record) => record.meetingId,
+    ),
+    agendaItemsByObject: groupBy(records.agendaItems, (record) =>
+      record.objectType && record.objectId
+        ? `${record.objectType}:${record.objectId}`
+        : undefined,
     ),
     reportsByMeeting: groupBy(records.reports, (record) => record.meetingId),
     reportItemsByReport: groupBy(

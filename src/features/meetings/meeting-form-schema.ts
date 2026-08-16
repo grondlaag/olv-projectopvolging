@@ -2,9 +2,7 @@ import { z } from "zod"
 import type { AgendaItemInput, MeetingInput } from "../../application/services"
 import {
   agendaDiscussionStatuses,
-  agendaObjectTypes,
   meetingScopeTypes,
-  type AgendaObjectType,
   type LocalDate,
   type UUID,
 } from "../../domain"
@@ -86,24 +84,14 @@ export function meetingValuesToInput(values: MeetingFormValues): MeetingInput {
   }
 }
 
-export const agendaItemFormSchema = z
-  .object({
-    title: z.string().trim().min(1, "Titel is verplicht."),
-    reason: z.string(),
-    notes: z.string(),
-    discussionStatus: z.enum(agendaDiscussionStatuses),
-    objectType: z.union([z.literal(""), z.enum(agendaObjectTypes)]),
-    objectId: optionalUuid,
-  })
-  .superRefine((values, context) => {
-    if (Boolean(values.objectType) !== Boolean(values.objectId)) {
-      context.addIssue({
-        code: "custom",
-        path: ["objectId"],
-        message: "Kies een bronrecord of maak het agendapunt vrij.",
-      })
-    }
-  })
+export const agendaItemFormSchema = z.object({
+  title: z.string().trim().min(1, "Titel is verplicht."),
+  reason: z.string(),
+  notes: z.string(),
+  discussionStatus: z.enum(agendaDiscussionStatuses),
+  objectType: z.enum(["Project", "Topic"]),
+  objectId: uuidSchema,
+})
 
 export type AgendaItemFormValues = z.input<typeof agendaItemFormSchema>
 
@@ -115,10 +103,8 @@ export function agendaValuesToInput(
     ...(values.reason ? { reason: values.reason } : {}),
     ...(values.notes ? { notes: values.notes } : {}),
     discussionStatus: values.discussionStatus,
-    ...(values.objectType
-      ? { objectType: values.objectType as AgendaObjectType }
-      : {}),
-    ...(values.objectId ? { objectId: values.objectId as UUID } : {}),
+    objectType: values.objectType,
+    objectId: values.objectId as UUID,
   }
 }
 

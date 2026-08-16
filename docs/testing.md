@@ -36,6 +36,11 @@ Pure domein- en applicationlogica:
 - globale planningssamenvatting en filtergebonden tellingen;
 - centsconversie, budgetaggregaties, topicdubbeltelling en mutaties;
 - overlegscope, deelnemers, agenda en verslagsnapshots;
+- contextueel project/topic op een geldige overlegagenda plaatsen en duplicaten
+  blokkeren;
+- verplichte project/topicbron, gegroepeerde agenda en leesbare legacy-punten;
+- universele invoerkaart voor update, beslissing en actie;
+- Outlook-HTML en geldige PDF-bytes voor agenda en verslag;
 - instellingen, duplicaten en veilige deactivatie;
 - normalized indices en selectors.
 
@@ -132,9 +137,14 @@ De gatewaytests controleren:
 - planning, globale cijferstrook, Gantt en afhankelijkheden;
 - budget, correcties en topicimpact;
 - overleg, agenda en definitief verslag;
+- project en topic vanuit het brondossier voor overleg inplannen;
 - master save/reopen met alle relaties;
 - responsive en toetsenbordtoegankelijke productiepreview;
 - GitHub Pages repositorybase.
+- commandolaag en globale “+ Nieuw”-acties;
+- “Mijn werk” met directe statusupdate;
+- compacte portfoliofilters, snelle selectie en filterchips;
+- contextvaste snelle projectupdate met dirty state.
 
 Screenshots komen alleen in `test-results` en bevatten uitsluitend synthetische
 data.

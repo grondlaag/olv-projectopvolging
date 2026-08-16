@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises"
 import { resolve } from "node:path"
 import { beforeEach, describe, expect, it } from "vitest"
 import {
+  buildAgendaSchedulingModel,
   buildAgendaSuggestions,
   buildMeetingDetailModel,
   meetingsForProject,
@@ -15,6 +16,7 @@ import {
   MeetingManagementService,
   normalizeDomainState,
   UpdateManagementService,
+  type AgendaItemInput,
   type MeetingInput,
 } from "../application/services"
 import type { LocalDate, UUID } from "../domain"
@@ -120,25 +122,41 @@ describe("overlegscope en deelnemers", () => {
 })
 
 describe("agenda, suggesties en volgorde", () => {
-  it("ondersteunt vrije en relevante gekoppelde agendapunten", () => {
+  it("weigert een nieuw los agendapunt zonder project- of topicbron", () => {
     const meeting = service.createMeeting(
       createPortfolioTestSession().state,
       meetingInput(),
       { now, createUuid },
     )
-    const free = service.saveAgendaItem(
+    expect(() =>
+      service.saveAgendaItem(meeting.state, meeting.record.id, {
+        title: "Losse rondvraag",
+        discussionStatus: "Te bespreken",
+      } as AgendaItemInput),
+    ).toThrow("Koppel een agendapunt aan een project of topic.")
+  })
+
+  it("ondersteunt alleen relevante project- en topicagendapunten", () => {
+    const meeting = service.createMeeting(
+      createPortfolioTestSession().state,
+      meetingInput(),
+      { now, createUuid },
+    )
+    const projectPoint = service.saveAgendaItem(
       meeting.state,
       meeting.record.id,
       {
-        title: "Vrij openingspunt",
+        title: "Projectopening",
         reason: "Vaste start van het overleg",
         discussionStatus: "Te bespreken",
+        objectType: "Project",
+        objectId: testIds.projectOne,
       },
       undefined,
       { now, createUuid },
     )
     const linked = service.saveAgendaItem(
-      free.state,
+      projectPoint.state,
       meeting.record.id,
       {
         title: "Tijdelijke toegang",
@@ -174,6 +192,54 @@ describe("agenda, suggesties en volgorde", () => {
     ).toThrow("Het gekozen record valt buiten de scope van dit overleg.")
   })
 
+  it("toont geldige overlegkeuzes en voorkomt een dubbele bron op dezelfde agenda", () => {
+    const meeting = service.createMeeting(
+      createPortfolioTestSession().state,
+      meetingInput(),
+      { now, createUuid },
+    )
+    const before = buildAgendaSchedulingModel(
+      meeting.state,
+      "Topic",
+      testIds.topicCritical,
+      "2026-08-09" as LocalDate,
+    )
+    expect(before.availableMeetings).toContainEqual(meeting.record)
+
+    const linked = service.saveAgendaItem(
+      meeting.state,
+      meeting.record.id,
+      {
+        title: "Tijdelijke toegang",
+        discussionStatus: "Te bespreken",
+        objectType: "Topic",
+        objectId: testIds.topicCritical,
+      },
+      undefined,
+      { now, createUuid },
+    )
+    const after = buildAgendaSchedulingModel(
+      linked.state,
+      "Topic",
+      testIds.topicCritical,
+      "2026-08-09" as LocalDate,
+    )
+
+    expect(after.availableMeetings).not.toContainEqual(meeting.record)
+    expect(after.scheduledMeetings[0]).toMatchObject({
+      meeting: { id: meeting.record.id },
+      agendaItem: { objectId: testIds.topicCritical },
+    })
+    expect(() =>
+      service.saveAgendaItem(linked.state, meeting.record.id, {
+        title: "Duplicaat",
+        discussionStatus: "Te bespreken",
+        objectType: "Topic",
+        objectId: testIds.topicCritical,
+      }),
+    ).toThrow("Dit record staat al op de agenda van dit overleg.")
+  })
+
   it("verplaatst agendapunten met expliciete omhoog/omlaag-volgorde", () => {
     const meeting = service.createMeeting(
       createPortfolioTestSession().state,
@@ -183,14 +249,24 @@ describe("agenda, suggesties en volgorde", () => {
     const first = service.saveAgendaItem(
       meeting.state,
       meeting.record.id,
-      { title: "Eerste", discussionStatus: "Te bespreken" },
+      {
+        title: "Eerste",
+        discussionStatus: "Te bespreken",
+        objectType: "Project",
+        objectId: testIds.projectOne,
+      },
       undefined,
       { now, createUuid },
     )
     const second = service.saveAgendaItem(
       first.state,
       meeting.record.id,
-      { title: "Tweede", discussionStatus: "Te bespreken" },
+      {
+        title: "Tweede",
+        discussionStatus: "Te bespreken",
+        objectType: "Topic",
+        objectId: testIds.topicCritical,
+      },
       undefined,
       { now, createUuid },
     )
@@ -206,7 +282,7 @@ describe("agenda, suggesties en volgorde", () => {
     ).toEqual(["Tweede", "Eerste"])
   })
 
-  it("stelt kritieke topics, besliswacht en achterstallige acties voor zonder nieuwe velden", () => {
+  it("stelt kritieke topics en broncontexten met acties voor", () => {
     const meeting = service.createMeeting(
       createPortfolioTestSession().state,
       meetingInput(),
@@ -224,7 +300,10 @@ describe("agenda, suggesties en volgorde", () => {
     expect(suggestions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ objectId: testIds.topicCritical }),
-        expect.objectContaining({ objectId: records.actions[0]!.id }),
+        expect.objectContaining({
+          objectType: "Project",
+          objectId: records.actions[0]!.objectId,
+        }),
       ]),
     )
   })
@@ -341,6 +420,8 @@ describe("verwerking, bronrecords en rapporthistoriek", () => {
       service.saveAgendaItem(finalized.state, meeting.record.id, {
         title: "Te late wijziging",
         discussionStatus: "Te bespreken",
+        objectType: "Project",
+        objectId: testIds.projectOne,
       }),
     ).toThrow("Dit overleg is definitief")
 

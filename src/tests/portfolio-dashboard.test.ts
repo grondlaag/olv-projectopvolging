@@ -63,6 +63,16 @@ describe("portfolioqueries", () => {
     expect(result.map((row) => row.project.code)).toEqual(["PRJ-003"])
   })
 
+  it("biedt zonder cluster als expliciete snelle selectie", () => {
+    const result = filterPortfolioRows(rows, {
+      ...defaultPortfolioFilters,
+      clusterId: "without-cluster",
+    })
+
+    expect(result.every((row) => !row.project.clusterId)).toBe(true)
+    expect(result.map((row) => row.project.code)).toContain("PRJ-003")
+  })
+
   it("berekent topic- en actieaantallen zonder scans per project", () => {
     const project = rows.find((row) => row.project.id === testIds.projectOne)
 
@@ -90,5 +100,20 @@ describe("dashboardaggregatie", () => {
     })
     expect(model.recentDecisions).toHaveLength(1)
     expect(model.attentionProjects[0]?.project.id).toBe(testIds.projectOne)
+  })
+
+  it("bouwt mijn werk uit open acties van de ingestelde actor", () => {
+    const session = createPortfolioTestSession()
+    const model = buildDashboardModel(session.state, today, testIds.actorOne)
+
+    expect(model.myActions.length).toBeGreaterThan(0)
+    expect(
+      model.myActions.every(
+        (item) => item.action.ownerActorId === testIds.actorOne,
+      ),
+    ).toBe(true)
+    expect(
+      model.myActions.every((item) => item.action.status !== "Afgerond"),
+    ).toBe(true)
   })
 })

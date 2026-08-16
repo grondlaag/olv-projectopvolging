@@ -27,7 +27,6 @@ import {
 import { useEscapeKey } from "../../design-system/patterns"
 import {
   agendaDiscussionStatuses,
-  agendaObjectTypes,
   type AgendaItem,
   type AgendaObjectType,
   type LocalDate,
@@ -36,9 +35,14 @@ import {
   type UUID,
 } from "../../domain"
 import { formatLocalDate, todayAsLocalDate } from "../../utils"
+import type { MeetingDocumentKind } from "../../infrastructure/files/meeting-document-service"
 import { ActionRows } from "../actions/action-sections"
 import { ActionPanel } from "../actions/action-panel"
 import { NewTopicPanel } from "../topics/topic-workspace"
+import {
+  MeetingAgendaPreparation,
+  MeetingProcessingWorkspace,
+} from "./meeting-processing-workspace"
 import {
   agendaItemFormSchema,
   agendaValuesToInput,
@@ -67,7 +71,10 @@ function agendaDefaults(item?: AgendaItem): AgendaItemFormValues {
     reason: item?.reason ?? "",
     notes: item?.notes ?? "",
     discussionStatus: item?.discussionStatus ?? "Te bespreken",
-    objectType: item?.objectType ?? "",
+    objectType:
+      item?.objectType === "Project" || item?.objectType === "Topic"
+        ? item.objectType
+        : "Project",
     objectId: item?.objectId ?? "",
   }
 }
@@ -135,20 +142,16 @@ function AgendaPanel({ meetingId, item, onClose, onSaved }: AgendaPanelProps) {
     handleSubmit,
     setError,
     setValue,
+    getValues,
     control,
     formState: { errors, isSubmitting },
   } = useForm<AgendaItemFormValues>({ defaultValues: agendaDefaults(item) })
   const objectType = useWatch({ control, name: "objectType" })
   const candidates = useMemo(() => {
-    if (!objectType) return []
     const records =
       objectType === "Project"
         ? session.state.records.projects
-        : objectType === "Cluster"
-          ? session.state.records.clusters
-          : objectType === "Topic"
-            ? session.state.records.topics
-            : session.state.records.actions
+        : session.state.records.topics
     return records
       .filter(
         (record) =>
@@ -166,6 +169,7 @@ function AgendaPanel({ meetingId, item, onClose, onSaved }: AgendaPanelProps) {
       }))
       .sort((left, right) => left.label.localeCompare(right.label, "nl"))
   }, [meetingId, objectType, session])
+  const objectIdField = register("objectId")
 
   const submit = handleSubmit((values) => {
     const parsed = agendaItemFormSchema.safeParse(values)
@@ -245,9 +249,7 @@ function AgendaPanel({ meetingId, item, onClose, onSaved }: AgendaPanelProps) {
           </select>
         </label>
         <fieldset className="meeting-panel__source">
-          <legend>
-            Bronkoppeling <em>optioneel</em>
-          </legend>
+          <legend>Bronkoppeling</legend>
           <label>
             <span>Brontype</span>
             <select
@@ -257,28 +259,40 @@ function AgendaPanel({ meetingId, item, onClose, onSaved }: AgendaPanelProps) {
                 setValue("objectId", "")
               }}
             >
-              <option value="">Vrij agendapunt</option>
-              {agendaObjectTypes.map((type) => (
+              {(["Project", "Topic"] as const).map((type) => (
                 <option key={type}>{type}</option>
               ))}
             </select>
           </label>
-          {objectType ? (
-            <label>
-              <span>Bronrecord</span>
-              <select {...register("objectId")}>
-                <option value="">Kies een record</option>
-                {candidates.map((candidate) => (
-                  <option key={candidate.id} value={candidate.id}>
-                    {candidate.label}
-                  </option>
-                ))}
-              </select>
-              {errors.objectId ? (
-                <small role="alert">{errors.objectId.message}</small>
-              ) : null}
-            </label>
-          ) : null}
+          <label>
+            <span>Bronrecord</span>
+            <select
+              {...objectIdField}
+              onChange={(event) => {
+                objectIdField.onChange(event)
+                if (!item && !getValues("title").trim()) {
+                  const candidate = candidates.find(
+                    (entry) => entry.id === event.target.value,
+                  )
+                  if (candidate)
+                    setValue("title", candidate.label, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                }
+              }}
+            >
+              <option value="">Kies een record</option>
+              {candidates.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.label}
+                </option>
+              ))}
+            </select>
+            {errors.objectId ? (
+              <small role="alert">{errors.objectId.message}</small>
+            ) : null}
+          </label>
         </fieldset>
         <label>
           <span>
@@ -573,7 +587,7 @@ export function MeetingDetailPage() {
   }
 
   function addSuggestion(
-    objectType: AgendaObjectType,
+    objectType: Extract<AgendaObjectType, "Project" | "Topic">,
     objectId: UUID,
     title: string,
     reason: string,
@@ -675,6 +689,34 @@ export function MeetingDetailPage() {
     }
   }
 
+  async function exportDocument(
+    kind: MeetingDocumentKind,
+    operation: "pdf" | "copy",
+  ) {
+    try {
+      const { buildMeetingDocument, copyMeetingRichText, downloadMeetingPdf } =
+        await import("../../infrastructure/files/meeting-document-service")
+      const document = buildMeetingDocument(model!, kind)
+      if (operation === "pdf") {
+        await downloadMeetingPdf(document)
+        setStatusMessage(
+          `${kind === "agenda" ? "Agenda" : "Verslag"}-PDF gedownload`,
+        )
+      } else {
+        await copyMeetingRichText(document)
+        setStatusMessage(
+          `${kind === "agenda" ? "Agenda" : "Verslag"} met opmaak gekopieerd voor Outlook`,
+        )
+      }
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error
+          ? error.message
+          : "Het document kon niet worden gemaakt.",
+      )
+    }
+  }
+
   const canCreateTopic =
     meeting.scopeType === "Project" || meeting.scopeType === "Cluster"
 
@@ -756,6 +798,34 @@ export function MeetingDetailPage() {
         </button>
       </nav>
 
+      {mode === "prepare" || (mode === "report" && model.selectedReport) ? (
+        <div className="meeting-document-actions" aria-label="Documentuitvoer">
+          <span>{mode === "prepare" ? "Agenda delen" : "Verslag delen"}</span>
+          <Button
+            variant="tertiary"
+            onClick={() =>
+              void exportDocument(
+                mode === "prepare" ? "agenda" : "report",
+                "copy",
+              )
+            }
+          >
+            Kopieer voor Outlook
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() =>
+              void exportDocument(
+                mode === "prepare" ? "agenda" : "report",
+                "pdf",
+              )
+            }
+          >
+            {mode === "prepare" ? "Agenda PDF" : "Verslag PDF"}
+          </Button>
+        </div>
+      ) : null}
+
       {frozen && mode !== "report" ? (
         <div className="meeting-frozen-warning">
           <strong>Definitieve historische toestand</strong>
@@ -808,7 +878,16 @@ export function MeetingDetailPage() {
                 />
               )}
             </section>
-            <section className="meeting-section meeting-agenda">
+            <MeetingAgendaPreparation
+              model={model}
+              frozen={frozen}
+              canCreateTopic={canCreateTopic}
+              onAdd={() => setPanel({ type: "agenda" })}
+              onNewTopic={() => setPanel({ type: "topic" })}
+              onEdit={(item) => setPanel({ type: "agenda", item })}
+              onMove={move}
+            />
+            <section className="meeting-section meeting-agenda" hidden>
               <header>
                 <div>
                   <span>Geordende voorbereiding</span>
@@ -949,6 +1028,17 @@ export function MeetingDetailPage() {
           </aside>
         </div>
       ) : mode === "process" ? (
+        <MeetingProcessingWorkspace
+          model={model}
+          frozen={frozen}
+          onMessage={setStatusMessage}
+          onBuildReport={saveDraft}
+          onEditAgenda={(item) => setPanel({ type: "agenda", item })}
+          onEditAction={(actionId) =>
+            setPanel({ type: "edit-action", actionId })
+          }
+        />
+      ) : meeting.id === ("legacy-processing" as UUID) ? (
         <div className="meeting-processing">
           <section className="meeting-section">
             <header>
@@ -1178,11 +1268,6 @@ export function MeetingDetailPage() {
               </h2>
             </div>
             <div>
-              {model.selectedReport ? (
-                <Button variant="tertiary" onClick={() => window.print()}>
-                  Afdrukken
-                </Button>
-              ) : null}
               {!frozen ? (
                 <>
                   <Button variant="secondary" onClick={saveDraft}>

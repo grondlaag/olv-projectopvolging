@@ -143,7 +143,20 @@ GUID, projects/topics/actions/planning/budgetten per parent en overleg per scope
 Queries gebruiken deze indices en memoiseerbare viewmodellen; ze voeren geen
 geneste GUID-scans bij elke render uit.
 
+Agenda-items zijn daarnaast geïndexeerd per bronobject. De contextuele
+overlegplanner voor project en topic leest daardoor bestaande koppelingen via
+`agendaItemsByObject` en maakt met de bestaande overlegservice pas bij expliciete
+save een nieuw `AgendaItem`. Een expliciet gekoppeld portfolio-overleg wordt via
+`meetingsByProject` ook in het bijbehorende projectdossier zichtbaar.
+
 ## Sessies en herstel
+
+De applicatieservice accepteert voor nieuwe of bewerkte agendapunten uitsluitend
+een project- of topicbron. Het persistente schema houdt bronvelden optioneel om
+historische vrije punten verliesloos te openen; de UI markeert die als legacy en
+vraagt om herkoppeling. Queryfuncties bouwen gegroepeerde agenda- en
+contextjournaalmodellen uit bestaande indices. PDF-opbouw en rich-textkopie
+leven in de client-side bestandsinfrastructuur en muteren geen domeinstate.
 
 IndexedDB-snapshot versie 2 bewaart:
 
@@ -182,6 +195,12 @@ overige, nog niet opgeslagen formulierwaarden blijven lokale form state.
 - Actie-, budget- en verslaghistoriek wordt niet stilzwijgend overschreven.
 - Dirty state wordt gezet na elke domeinmutatie en pas gewist na een geslaagde
   JSON-download.
+
+De dashboardactie-status en de snelle projectupdate roepen bestaande
+applicatieservices aan. Invoer blijft lokale componentstate tot expliciete save.
+De commandolaag navigeert alleen en houdt returnTo bij; zij maakt zelf geen
+records. Portfolio-presets en chips zijn projecties op PortfolioFilters en
+worden in hash-queryparameters gespiegeld.
 
 ## Financiële architectuur
 

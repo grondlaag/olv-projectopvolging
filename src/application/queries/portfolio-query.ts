@@ -186,7 +186,13 @@ export function filterPortfolioRows(
       return false
     if (filters.chapterId && project.chapterId !== filters.chapterId)
       return false
-    if (filters.clusterId && project.clusterId !== filters.clusterId)
+    if (filters.clusterId === "without-cluster" && project.clusterId)
+      return false
+    if (
+      filters.clusterId &&
+      filters.clusterId !== "without-cluster" &&
+      project.clusterId !== filters.clusterId
+    )
       return false
     if (filters.status && project.status !== filters.status) return false
     if (filters.phase && project.phase !== filters.phase) return false

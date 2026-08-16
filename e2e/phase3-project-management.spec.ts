@@ -66,6 +66,12 @@ test("fase-3-hoofdflow beheert en roundtript een project volledig lokaal", async
     page.getByText("E2E cluster", { exact: true }).first(),
   ).toBeVisible()
 
+  await page.getByRole("button", { name: "Snel bijwerken" }).click()
+  await page.getByLabel("Voortgang (%)").fill("35")
+  await page.getByRole("button", { name: "Bijwerken in sessie" }).click()
+  await expect(page.getByText("35%", { exact: true }).first()).toBeVisible()
+  await expect(page.getByText(/Kerngegevens bijgewerkt/)).toBeVisible()
+
   await page.getByRole("button", { name: "Project bewerken" }).click()
   await page.getByLabel("Titel").fill("Fase 3 hoofdflow gewijzigd")
   await page.getByRole("button", { name: "Wijzigingen opslaan" }).click()

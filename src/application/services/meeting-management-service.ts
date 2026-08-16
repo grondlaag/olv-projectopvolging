@@ -49,8 +49,8 @@ export interface AgendaItemInput {
   reason?: string
   notes?: string
   discussionStatus: AgendaDiscussionStatus
-  objectType?: AgendaObjectType
-  objectId?: UUID
+  objectType: Extract<AgendaObjectType, "Project" | "Topic">
+  objectId: UUID
 }
 
 export interface MeetingMutationOptions {
@@ -498,6 +498,12 @@ export class MeetingManagementService {
     if (!input.title.trim()) {
       issues.push({ field: "title", message: "Titel is verplicht." })
     }
+    if (input.objectType !== "Project" && input.objectType !== "Topic") {
+      issues.push({
+        field: "objectType",
+        message: "Koppel een agendapunt aan een project of topic.",
+      })
+    }
     issues.push(
       ...validateAgendaObjectScope(
         meeting,
@@ -515,6 +521,23 @@ export class MeetingManagementService {
         message: "Agendapunt niet gevonden.",
       })
     }
+    const siblings = state.indices.agendaItemsByMeeting.get(meetingId) ?? []
+    if (
+      input.objectType &&
+      input.objectId &&
+      siblings.some(
+        (item) =>
+          item.audit.active &&
+          item.id !== existing?.id &&
+          item.objectType === input.objectType &&
+          item.objectId === input.objectId,
+      )
+    ) {
+      issues.push({
+        field: "objectId",
+        message: "Dit record staat al op de agenda van dit overleg.",
+      })
+    }
     if (issues.length) throw new MeetingManagementError(issues)
 
     const now = options.now ?? new Date()
@@ -522,7 +545,6 @@ export class MeetingManagementService {
     const actorId = state.records.config[0]?.currentActorId
     const reason = optionalText(input.reason)
     const notes = optionalText(input.notes)
-    const siblings = state.indices.agendaItemsByMeeting.get(meetingId) ?? []
     const record: AgendaItem = {
       id: existing?.id ?? createUuid(),
       meetingId,

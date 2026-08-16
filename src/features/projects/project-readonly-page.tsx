@@ -9,6 +9,7 @@ import {
 import {
   buildProjectBudgetModel,
   buildProjectJournal,
+  buildProjectJournalGroups,
   buildProjectOverview,
   buildTopicListItems,
   filterProjectJournal,
@@ -32,6 +33,12 @@ import type {
 import { formatEuroCents } from "../../domain"
 import { TopicWorkspace } from "../topics/topic-workspace"
 import { ProjectActionSection } from "../actions/action-sections"
+import { AgendaSchedulePanel } from "../meetings/agenda-schedule-panel"
+import {
+  ConversationComposer,
+  ConversationFeed,
+} from "../journal/conversation-composer"
+import { ProjectQuickEdit } from "./project-quick-edit"
 import { formatLocalDate, todayAsLocalDate } from "../../utils"
 import "./project-readonly-page.css"
 
@@ -557,7 +564,7 @@ interface ProjectJournalProps {
   project: Project
 }
 
-function ProjectJournal({ project }: ProjectJournalProps) {
+export function LegacyProjectJournal({ project }: ProjectJournalProps) {
   const session = useAppStore((state) => state.session)!
   const [filter, setFilter] = useState<ProjectJournalFilter>("all")
   const entries = useMemo(
@@ -666,6 +673,191 @@ function ProjectJournal({ project }: ProjectJournalProps) {
   )
 }
 
+interface GroupedProjectJournalProps {
+  project: Project
+  onSaved: (message: string) => void
+}
+
+function GroupedProjectJournal({
+  project,
+  onSaved,
+}: GroupedProjectJournalProps) {
+  const session = useAppStore((state) => state.session)!
+  const [filter, setFilter] = useState<"active" | "all" | "attention">("active")
+  const groups = useMemo(
+    () => buildProjectJournalGroups(session.state, project.id),
+    [project.id, session],
+  )
+  const visibleGroups = useMemo(
+    () =>
+      groups.filter((group) => {
+        if (group.kind === "project" || filter === "all") return true
+        if (filter === "attention")
+          return (
+            group.topic?.priority === "Kritiek" ||
+            group.actions.some(
+              (action) =>
+                action.status !== "Afgerond" &&
+                action.status !== "Geannuleerd" &&
+                Boolean(
+                  action.deadline && action.deadline < todayAsLocalDate(),
+                ),
+            )
+          )
+        return group.topic?.status === "Open"
+      }),
+    [filter, groups],
+  )
+  const total = groups.reduce(
+    (count, group) =>
+      count +
+      group.updates.length +
+      group.decisions.length +
+      group.actions.length,
+    0,
+  )
+
+  return (
+    <section
+      className="project-journal"
+      aria-labelledby="project-journal-title"
+    >
+      <header>
+        <div>
+          <span>Werkcontext boven chronologie</span>
+          <h2 id="project-journal-title">Projectjournaal</h2>
+          <p>
+            Elke topic houdt zijn actuele stand, updates, beslissingen, acties
+            en overlegmomenten bij elkaar.
+          </p>
+        </div>
+        <strong>{total}</strong>
+      </header>
+      <fieldset className="project-journal__filters">
+        <legend>Toon</legend>
+        {(
+          [
+            ["active", "Open topics"],
+            ["attention", "Aandacht nodig"],
+            ["all", "Alle topics"],
+          ] as const
+        ).map(([value, label]) => (
+          <label key={value}>
+            <input
+              type="radio"
+              name="journal-group-filter"
+              checked={filter === value}
+              onChange={() => setFilter(value)}
+            />
+            <span>{label}</span>
+          </label>
+        ))}
+      </fieldset>
+      {visibleGroups.length ? (
+        <div className="project-journal__groups">
+          {visibleGroups.map((group, index) => {
+            const updates = [...group.updates, ...group.decisions]
+            const activityCount = updates.length + group.actions.length
+            const openActions = group.actions.filter(
+              (action) =>
+                action.status !== "Afgerond" && action.status !== "Geannuleerd",
+            ).length
+            return (
+              <details
+                key={group.id}
+                className="project-journal__group"
+                open={index === 0 || group.topic?.priority === "Kritiek"}
+              >
+                <summary>
+                  <div>
+                    <small>
+                      {group.kind === "project" ? "Projectbreed" : group.code}
+                    </small>
+                    <strong>{group.title}</strong>
+                    {group.currentUpdate ? (
+                      <span>{group.currentUpdate.text}</span>
+                    ) : null}
+                  </div>
+                  <dl>
+                    <div>
+                      <dt>Bijdragen</dt>
+                      <dd>{activityCount}</dd>
+                    </div>
+                    <div>
+                      <dt>Open acties</dt>
+                      <dd>{openActions}</dd>
+                    </div>
+                    <div>
+                      <dt>Overleggen</dt>
+                      <dd>{group.meetings.length}</dd>
+                    </div>
+                  </dl>
+                </summary>
+                <div className="project-journal__group-body">
+                  <div className="project-journal__group-heading">
+                    <div>
+                      <span>Actuele stand</span>
+                      <p>
+                        {group.currentUpdate?.text ??
+                          "Nog geen actuele stand vastgelegd."}
+                      </p>
+                    </div>
+                    {group.topic ? (
+                      <Link
+                        to={`/projects/${project.id}/topics/${group.topic.id}`}
+                      >
+                        Open topicdossier
+                      </Link>
+                    ) : null}
+                  </div>
+                  <ConversationComposer
+                    contextType={group.kind === "project" ? "Project" : "Topic"}
+                    contextId={group.topic?.id ?? project.id}
+                    contextLabel={`${group.code} · ${group.title}`}
+                    compact
+                    onSaved={(message) =>
+                      onSaved(`${message} · JSON nog opslaan`)
+                    }
+                  />
+                  <ConversationFeed
+                    updates={updates}
+                    actions={group.actions}
+                    limit={3}
+                  />
+                  {activityCount > 3 ? (
+                    <details className="project-journal__more">
+                      <summary>Alle {activityCount} bijdragen tonen</summary>
+                      <ConversationFeed
+                        updates={updates}
+                        actions={group.actions}
+                      />
+                    </details>
+                  ) : null}
+                  {group.meetings.length ? (
+                    <div className="project-journal__meetings">
+                      <span>Besproken op</span>
+                      {group.meetings.slice(0, 4).map((meeting) => (
+                        <Link key={meeting.id} to={`/meetings/${meeting.id}`}>
+                          {formatLocalDate(meeting.date)} · {meeting.title}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </details>
+            )
+          })}
+        </div>
+      ) : (
+        <EmptyState
+          title="Geen topics binnen deze selectie"
+          description="Kies alle topics of leg een nieuwe topic vast."
+        />
+      )}
+    </section>
+  )
+}
+
 export function ProjectReadonlyPage() {
   const { projectId, topicId } = useParams<{
     projectId: string
@@ -677,6 +869,9 @@ export function ProjectReadonlyPage() {
   const session = useAppStore((state) => state.session)
   const dirty = useAppStore((state) => state.dirty)
   const setImportPanelOpen = useAppStore((state) => state.setImportPanelOpen)
+  const [agendaPanelOpen, setAgendaPanelOpen] = useState(false)
+  const [quickEditOpen, setQuickEditOpen] = useState(false)
+  const [sessionStatus, setSessionStatus] = useState("")
   const project = projectId
     ? session?.state.indices.projectById.get(projectId as UUID)
     : undefined
@@ -748,9 +943,17 @@ export function ProjectReadonlyPage() {
         title={project.title}
         description={`${chapter?.title ?? "Onbekend hoofdstuk"} · ${cluster?.title ?? "Zonder cluster"}`}
         actions={
-          <Button onClick={() => navigate(`/projects/${project.id}/edit`)}>
-            Project bewerken
-          </Button>
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setAgendaPanelOpen(true)}
+            >
+              Project bespreken op overleg
+            </Button>
+            <Button onClick={() => navigate(`/projects/${project.id}/edit`)}>
+              Project bewerken
+            </Button>
+          </>
         }
       />
 
@@ -758,13 +961,42 @@ export function ProjectReadonlyPage() {
         <div className="project-readonly__session-status" role="status">
           <span aria-hidden="true">✓</span>
           <div>
-            <strong>Opgeslagen in sessie · JSON nog opslaan</strong>
+            <strong>
+              {sessionStatus
+                ? `${sessionStatus} · JSON nog opslaan`
+                : "Opgeslagen in sessie · JSON nog opslaan"}
+            </strong>
             <small>
               De wijziging staat lokaal klaar en zit nog niet in een gedownload
               JSON-bestand.
             </small>
           </div>
         </div>
+      ) : null}
+
+      <div className="project-readonly__quickbar">
+        <div>
+          <strong>Dagelijkse opvolging</strong>
+          <span>Status, fase, coördinator en voortgang direct bijwerken.</span>
+        </div>
+        <Button
+          variant="secondary"
+          aria-expanded={quickEditOpen}
+          onClick={() => setQuickEditOpen((open) => !open)}
+        >
+          {quickEditOpen ? "Snel bijwerken sluiten" : "Snel bijwerken"}
+        </Button>
+      </div>
+
+      {quickEditOpen ? (
+        <ProjectQuickEdit
+          key={project.audit.updatedAt}
+          project={project}
+          onSaved={(message) => {
+            setSessionStatus(message)
+            setQuickEditOpen(false)
+          }}
+        />
       ) : null}
 
       <div className="project-readonly__summary" aria-label="Projectstatus">
@@ -858,7 +1090,7 @@ export function ProjectReadonlyPage() {
           {...(topicId ? { selectedTopicId: topicId as UUID } : {})}
         />
       ) : view === "journaal" ? (
-        <ProjectJournal project={project} />
+        <GroupedProjectJournal project={project} onSaved={setSessionStatus} />
       ) : (
         <ProjectOverview
           project={project}
@@ -866,6 +1098,19 @@ export function ProjectReadonlyPage() {
           {...(cluster ? { cluster } : {})}
         />
       )}
+
+      {agendaPanelOpen ? (
+        <AgendaSchedulePanel
+          objectType="Project"
+          objectId={project.id}
+          sourceLabel={`${project.code} · ${project.title}`}
+          onClose={() => setAgendaPanelOpen(false)}
+          onSaved={(message) => {
+            setSessionStatus(message)
+            setAgendaPanelOpen(false)
+          }}
+        />
+      ) : null}
     </article>
   )
 }

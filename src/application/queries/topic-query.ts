@@ -1,5 +1,7 @@
 import type {
+  Action,
   Actor,
+  Meeting,
   PlanningEntry,
   Priority,
   Topic,
@@ -283,4 +285,125 @@ export function filterProjectJournal(
   if (filter === "topics")
     return entries.filter((entry) => entry.sourceType === "Topic")
   return entries.filter((entry) => entry.update.type !== "Beslissing")
+}
+
+export interface ProjectJournalGroup {
+  id: string
+  kind: "project" | "topic"
+  title: string
+  code: string
+  topic?: Topic
+  currentUpdate?: Update
+  updates: readonly Update[]
+  decisions: readonly Update[]
+  actions: readonly Action[]
+  meetings: readonly Meeting[]
+  lastActivityDate: string
+}
+
+function meetingsForJournalObject(
+  state: NormalizedDomainState,
+  objectType: "Project" | "Topic",
+  objectId: UUID,
+): readonly Meeting[] {
+  const seen = new Set<UUID>()
+  return (
+    state.indices.agendaItemsByObject.get(`${objectType}:${objectId}`) ?? []
+  )
+    .flatMap((agendaItem) => {
+      const meeting = state.indices.meetingById.get(agendaItem.meetingId)
+      if (!meeting?.audit.active || seen.has(meeting.id)) return []
+      seen.add(meeting.id)
+      return [meeting]
+    })
+    .sort((left, right) => right.date.localeCompare(left.date))
+}
+
+function journalGroup(
+  state: NormalizedDomainState,
+  objectType: "Project" | "Topic",
+  objectId: UUID,
+  title: string,
+  code: string,
+  topic?: Topic,
+): ProjectJournalGroup {
+  const journal = [
+    ...(state.indices.updatesByObject.get(`${objectType}:${objectId}`) ?? []),
+  ]
+    .filter((entry) => entry.audit.active)
+    .sort(
+      (left, right) =>
+        right.date.localeCompare(left.date) ||
+        right.audit.createdAt.localeCompare(left.audit.createdAt),
+    )
+  const actions = [
+    ...(state.indices.actionsByObject.get(`${objectType}:${objectId}`) ?? []),
+  ]
+    .filter((action) => action.audit.active)
+    .sort((left, right) =>
+      right.audit.updatedAt.localeCompare(left.audit.updatedAt),
+    )
+  const meetings = meetingsForJournalObject(state, objectType, objectId)
+  const currentUpdate = topic?.currentUpdateId
+    ? state.indices.updateById.get(topic.currentUpdateId)
+    : objectType === "Project"
+      ? state.indices.projectById.get(objectId)?.currentUpdateId
+        ? state.indices.updateById.get(
+            state.indices.projectById.get(objectId)!.currentUpdateId!,
+          )
+        : undefined
+      : undefined
+  const lastActivityDate = [
+    journal[0]?.date,
+    actions[0]?.audit.updatedAt.slice(0, 10),
+    meetings[0]?.date,
+    topic?.audit.updatedAt.slice(0, 10),
+  ]
+    .filter((value): value is string => Boolean(value))
+    .sort((left, right) => right.localeCompare(left))[0]
+
+  return {
+    id: `${objectType}:${objectId}`,
+    kind: objectType === "Project" ? "project" : "topic",
+    title,
+    code,
+    ...(topic ? { topic } : {}),
+    ...(currentUpdate?.audit.active ? { currentUpdate } : {}),
+    updates: journal.filter((entry) => entry.type !== "Beslissing"),
+    decisions: journal.filter((entry) => entry.type === "Beslissing"),
+    actions,
+    meetings,
+    lastActivityDate: lastActivityDate ?? "",
+  }
+}
+
+/**
+ * Bouwt het projectjournaal per werkcontext. Een projectbrede groep blijft
+ * apart van de echte topics; er wordt dus geen kunstmatig "algemeen topic"
+ * opgeslagen.
+ */
+export function buildProjectJournalGroups(
+  state: NormalizedDomainState,
+  projectId: UUID,
+): readonly ProjectJournalGroup[] {
+  const project = state.indices.projectById.get(projectId)
+  if (!project) return []
+  const projectGroup = journalGroup(
+    state,
+    "Project",
+    project.id,
+    "Algemene projectopvolging",
+    project.code,
+  )
+  const topicGroups = (state.indices.topicsByProject.get(project.id) ?? [])
+    .filter((topic) => topic.audit.active)
+    .map((topic) =>
+      journalGroup(state, "Topic", topic.id, topic.title, topic.code, topic),
+    )
+    .sort(
+      (left, right) =>
+        right.lastActivityDate.localeCompare(left.lastActivityDate) ||
+        left.title.localeCompare(right.title, "nl"),
+    )
+  return [projectGroup, ...topicGroups]
 }

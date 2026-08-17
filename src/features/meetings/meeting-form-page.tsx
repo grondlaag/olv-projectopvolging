@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react"
 import { useForm, useWatch, type FieldPath } from "react-hook-form"
-import { Link, useNavigate, useParams } from "react-router-dom"
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import {
   MeetingManagementError,
   MeetingManagementService,
   type MeetingInput,
 } from "../../application/services"
 import { useAppStore } from "../../app/state/app-store"
+import { safeReturnTo } from "../../app/routing"
 import {
   Button,
   EmptyState,
@@ -15,9 +16,14 @@ import {
   SearchableSelect,
 } from "../../design-system/components"
 import {
+  UnsavedFormDialog,
+  useUnsavedFormGuard,
+} from "../../design-system/patterns"
+import {
   meetingScopeTypes,
   type Actor,
   type Meeting,
+  type MeetingScopeType,
   type UUID,
 } from "../../domain"
 import { todayAsLocalDate } from "../../utils"
@@ -78,14 +84,45 @@ function applyServiceErrors(
 export function MeetingFormPage() {
   const { meetingId } = useParams<{ meetingId?: string }>()
   const navigate = useNavigate()
+  const [searchParameters] = useSearchParams()
   const session = useAppStore((state) => state.session)
   const replaceDomainState = useAppStore((state) => state.replaceDomainState)
   const setImportPanelOpen = useAppStore((state) => state.setImportPanelOpen)
   const [actorPanel, setActorPanel] = useState(false)
   const [participantSearch, setParticipantSearch] = useState("")
+  const followUpSourceId = !meetingId
+    ? (searchParameters.get("vervolgVan") as UUID | null)
+    : null
   const meeting = meetingId
     ? session?.state.indices.meetingById.get(meetingId as UUID)
     : undefined
+  const followUpSource = followUpSourceId
+    ? session?.state.indices.meetingById.get(followUpSourceId)
+    : undefined
+  const requestedScopeType = searchParameters.get("scopeType")
+  const initialScopeType = meetingScopeTypes.includes(
+    requestedScopeType as MeetingScopeType,
+  )
+    ? (requestedScopeType as MeetingScopeType)
+    : undefined
+  const initialScopeId = searchParameters.get("scopeId") as UUID | null
+  const initialScopeExists =
+    initialScopeType === "Project"
+      ? Boolean(
+          initialScopeId &&
+          session?.state.indices.projectById.has(initialScopeId),
+        )
+      : initialScopeType === "Cluster"
+        ? Boolean(
+            initialScopeId &&
+            session?.state.indices.clusterById.has(initialScopeId),
+          )
+        : initialScopeType === "Hoofdstuk"
+          ? Boolean(
+              initialScopeId &&
+              session?.state.indices.chapterById.has(initialScopeId),
+            )
+          : initialScopeType === "Portfolio"
   const existingParticipants = useMemo(
     () =>
       meeting && session
@@ -94,21 +131,49 @@ export function MeetingFormPage() {
         : [],
     [meeting, session],
   )
+  const sourceParticipants = useMemo(
+    () =>
+      followUpSource && session
+        ? (session.state.indices.meetingParticipantsByMeeting.get(
+            followUpSource.id,
+          ) ?? [])
+        : [],
+    [followUpSource, session],
+  )
   const {
     register,
     handleSubmit,
     setError,
     setValue,
     control,
-    formState: { errors, isSubmitting },
+    formState: { errors, isDirty, isSubmitting },
   } = useForm<MeetingFormValues>({
     defaultValues: meeting
       ? meetingValues(
           meeting,
           existingParticipants.map((item) => item.actorId),
         )
-      : emptyValues(),
+      : followUpSource
+        ? {
+            ...meetingValues(
+              followUpSource,
+              sourceParticipants.map((item) => item.actorId),
+            ),
+            number: "",
+            title: followUpSource.title,
+            date: followUpSource.nextMeetingDate ?? todayAsLocalDate(),
+            nextMeetingDate: "",
+          }
+        : initialScopeType && initialScopeExists
+          ? {
+              ...emptyValues(),
+              scopeType: initialScopeType,
+              scopeId:
+                initialScopeType === "Portfolio" ? "" : (initialScopeId ?? ""),
+            }
+          : emptyValues(),
   })
+  const { blocker, allowNextNavigation } = useUnsavedFormGuard(isDirty)
   const scopeType = useWatch({ control, name: "scopeType" })
   const participantIds = useWatch({
     control,
@@ -133,6 +198,14 @@ export function MeetingFormPage() {
       <ErrorState
         title="Overleg niet gevonden"
         description="Dit overleg-ID bestaat niet in de geopende gegevensset."
+      />
+    )
+  }
+  if (followUpSourceId && !followUpSource) {
+    return (
+      <ErrorState
+        title="Bronoverleg niet gevonden"
+        description="Maak het vervolgoverleg opnieuw vanuit een bestaand overlegdossier."
       />
     )
   }
@@ -202,6 +275,9 @@ export function MeetingFormPage() {
     )
     const preservedInput: MeetingInput = {
       ...input,
+      ...((meeting?.sourceMeetingId ?? followUpSource?.id)
+        ? { sourceMeetingId: meeting?.sourceMeetingId ?? followUpSource!.id }
+        : {}),
       participants: input.participants.map((participant) => ({
         ...participant,
         attended: attendedByActor.get(participant.actorId) ?? false,
@@ -212,9 +288,16 @@ export function MeetingFormPage() {
         ? meetingService.updateMeeting(latest, meeting.id, preservedInput)
         : meetingService.createMeeting(latest, preservedInput)
       replaceDomainState(result.state)
-      navigate(`/meetings/${result.record.id}`, {
-        state: { saved: true },
-      })
+      allowNextNavigation()
+      navigate(
+        meeting
+          ? safeReturnTo(
+              searchParameters.get("returnTo"),
+              `/meetings/${result.record.id}`,
+            )
+          : `/meetings/${result.record.id}`,
+        { state: { saved: true } },
+      )
     } catch (error) {
       if (error instanceof MeetingManagementError) {
         applyServiceErrors(error, setError)
@@ -237,14 +320,50 @@ export function MeetingFormPage() {
         <Link to="/meetings">Overleg</Link>
         <span aria-hidden="true">/</span>
         <span aria-current="page">
-          {meeting ? "Overleg bewerken" : "Nieuw overleg"}
+          {meeting
+            ? "Overleg bewerken"
+            : followUpSource
+              ? "Vervolgoverleg"
+              : "Nieuw overleg"}
         </span>
       </nav>
       <PageHeader
         eyebrow="Voorbereiding"
-        title={meeting ? "Overleg bewerken" : "Nieuw overleg"}
-        description="Leg context en deelnemers rustig vast. De agenda wordt daarna in het overlegdossier opgebouwd."
+        title={
+          meeting
+            ? "Overleg bewerken"
+            : followUpSource
+              ? "Vervolgoverleg maken"
+              : "Nieuw overleg"
+        }
+        description={
+          followUpSource
+            ? "Scope, deelnemers en niet-afgeronde agendapunten worden meegenomen; het bronoverleg blijft ongewijzigd."
+            : "Leg context en deelnemers rustig vast. De agenda wordt daarna in het overlegdossier opgebouwd."
+        }
       />
+
+      {followUpSource ? (
+        <aside className="meeting-follow-up-context">
+          <span>Vervolg op</span>
+          <Link to={`/meetings/${followUpSource.id}`}>
+            {followUpSource.title}
+          </Link>
+          <small>
+            {
+              (
+                session.state.indices.agendaItemsByMeeting.get(
+                  followUpSource.id,
+                ) ?? []
+              ).filter(
+                (item) =>
+                  item.audit.active && item.discussionStatus !== "Besproken",
+              ).length
+            }{" "}
+            open agendapunten worden na opslaan opnieuw klaargezet.
+          </small>
+        </aside>
+      ) : null}
 
       <form
         className="meeting-form"
@@ -437,7 +556,14 @@ export function MeetingFormPage() {
           <Button
             variant="tertiary"
             onClick={() =>
-              navigate(meeting ? `/meetings/${meeting.id}` : "/meetings")
+              navigate(
+                meeting
+                  ? safeReturnTo(
+                      searchParameters.get("returnTo"),
+                      `/meetings/${meeting.id}`,
+                    )
+                  : "/meetings",
+              )
             }
           >
             Annuleren
@@ -453,6 +579,7 @@ export function MeetingFormPage() {
           onSaved={selectNewActor}
         />
       ) : null}
+      <UnsavedFormDialog blocker={blocker} />
     </article>
   )
 }

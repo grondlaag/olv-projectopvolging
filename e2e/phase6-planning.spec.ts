@@ -58,8 +58,13 @@ test("fase-6-hoofdflow beheert planning, Gantt en JSON-roundtrip lokaal", async 
     .getByRole("link", { name: "Planning" })
     .click()
   await expect(
-    page.getByRole("heading", { name: "Projectplanning" }),
+    page.getByRole("heading", { name: "Synthetisch renovatieproject" }),
   ).toBeVisible()
+  await expect(
+    page
+      .getByRole("navigation", { name: "Projectdossierweergave" })
+      .getByRole("link", { name: "Planning" }),
+  ).toHaveAttribute("aria-current", "page")
   await expect(
     page.getByRole("heading", { name: "Project-Gantt" }),
   ).toBeVisible()
@@ -92,7 +97,7 @@ test("fase-6-hoofdflow beheert planning, Gantt en JSON-roundtrip lokaal", async 
   await panel.getByRole("button", { name: "Afhankelijkheid opslaan" }).click()
   await expect(
     page.getByText(
-      "Afhankelijkheid opgeslagen in de lokale sessie · JSON nog opslaan",
+      "Afhankelijkheid opgeslagen in de lokale sessie · back-up nodig",
     ),
   ).toBeVisible()
 

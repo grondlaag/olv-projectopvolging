@@ -11,17 +11,15 @@ import { buildMeetingDetailModel } from "../../application/queries"
 import {
   MeetingManagementError,
   MeetingManagementService,
-  TopicManagementError,
-  TopicManagementService,
-  UpdateManagementError,
-  UpdateManagementService,
 } from "../../application/services"
 import { useAppStore } from "../../app/state/app-store"
+import { currentAppRoute, withReturnTo } from "../../app/routing"
 import {
   Badge,
   Button,
   EmptyState,
   ErrorState,
+  FavoriteButton,
   PageHeader,
 } from "../../design-system/components"
 import { useEscapeKey } from "../../design-system/patterns"
@@ -29,14 +27,11 @@ import {
   agendaDiscussionStatuses,
   type AgendaItem,
   type AgendaObjectType,
-  type LocalDate,
   type ReportItem,
-  type TopicStatus,
   type UUID,
 } from "../../domain"
 import { formatLocalDate, todayAsLocalDate } from "../../utils"
 import type { MeetingDocumentKind } from "../../infrastructure/files/meeting-document-service"
-import { ActionRows } from "../actions/action-sections"
 import { ActionPanel } from "../actions/action-panel"
 import { NewTopicPanel } from "../topics/topic-workspace"
 import {
@@ -46,21 +41,15 @@ import {
 import {
   agendaItemFormSchema,
   agendaValuesToInput,
-  meetingContributionSchema,
   type AgendaItemFormValues,
-  type MeetingContributionValues,
 } from "./meeting-form-schema"
 import "./meetings.css"
 
 const meetingService = new MeetingManagementService()
-const topicService = new TopicManagementService()
-const updateService = new UpdateManagementService()
 
 type MeetingMode = "prepare" | "process" | "report"
 type DetailPanel =
   | { type: "agenda"; item?: AgendaItem }
-  | { type: "update" | "decision"; item: AgendaItem }
-  | { type: "action"; item: AgendaItem }
   | { type: "topic" }
   | { type: "revision" }
   | { type: "edit-action"; actionId: UUID }
@@ -195,7 +184,7 @@ function AgendaPanel({ meetingId, item, onClose, onSaved }: AgendaPanelProps) {
       )
       replaceDomainState(result.state)
       onSaved(
-        `${item ? "Agendapunt bijgewerkt" : "Agendapunt toegevoegd"} in de lokale sessie · JSON nog opslaan`,
+        `${item ? "Agendapunt bijgewerkt" : "Agendapunt toegevoegd"} in de lokale sessie · back-up nodig`,
       )
     } catch (error) {
       if (error instanceof MeetingManagementError) {
@@ -313,137 +302,6 @@ function AgendaPanel({ meetingId, item, onClose, onSaved }: AgendaPanelProps) {
   )
 }
 
-interface ContributionPanelProps {
-  meetingId: UUID
-  item: AgendaItem
-  mode: "update" | "decision"
-  onClose: () => void
-  onSaved: (message: string) => void
-}
-
-function ContributionPanel({
-  meetingId,
-  item,
-  mode,
-  onClose,
-  onSaved,
-}: ContributionPanelProps) {
-  useEscapeKey(onClose)
-  const session = useAppStore((state) => state.session)!
-  const replaceDomainState = useAppStore((state) => state.replaceDomainState)
-  const currentActorId = session.state.records.config[0]?.currentActorId
-  const currentActor = currentActorId
-    ? session.state.indices.actorById.get(currentActorId)
-    : undefined
-  const {
-    register,
-    handleSubmit,
-    setError,
-    formState: { errors, isSubmitting },
-  } = useForm<MeetingContributionValues>({
-    defaultValues: {
-      type: mode === "decision" ? "Beslissing" : "Update",
-      date: todayAsLocalDate(),
-      text: "",
-      makeCurrent: false,
-    },
-  })
-  const canBeCurrent =
-    item.objectType === "Project" ||
-    item.objectType === "Cluster" ||
-    item.objectType === "Topic"
-
-  const submit = handleSubmit((values) => {
-    const parsed = meetingContributionSchema.safeParse(values)
-    if (!parsed.success) {
-      for (const issue of parsed.error.issues) {
-        const field = issue.path[0]
-        if (typeof field === "string")
-          setError(field as FieldPath<MeetingContributionValues>, {
-            message: issue.message,
-          })
-      }
-      return
-    }
-    const latest = useAppStore.getState().session?.state
-    if (!latest) return
-    try {
-      const result = updateService.addUpdate(latest, {
-        objectType: item.objectType ?? "Meeting",
-        objectId: item.objectId ?? meetingId,
-        meetingId,
-        type: mode === "decision" ? "Beslissing" : parsed.data.type,
-        date: parsed.data.date as LocalDate,
-        text: parsed.data.text,
-        ...(mode === "update" && canBeCurrent && parsed.data.makeCurrent
-          ? { makeCurrent: true }
-          : {}),
-      })
-      replaceDomainState(result.state)
-      onSaved(
-        `${mode === "decision" ? "Beslissing" : "Update"} opgeslagen in overleg én brondossier · JSON nog opslaan`,
-      )
-    } catch (error) {
-      if (error instanceof UpdateManagementError)
-        setError("text", { message: error.message })
-    }
-  })
-
-  return (
-    <aside
-      className="meeting-panel"
-      role="dialog"
-      aria-modal="false"
-      aria-labelledby="meeting-panel-title"
-    >
-      <header>
-        <div>
-          <span>{item.title}</span>
-          <h2 id="meeting-panel-title">
-            {mode === "decision" ? "Beslissing toevoegen" : "Update toevoegen"}
-          </h2>
-        </div>
-        <Button variant="tertiary" onClick={onClose}>
-          Sluiten
-        </Button>
-      </header>
-      <form onSubmit={(event) => void submit(event)} noValidate>
-        <div className="meeting-panel__fixed">
-          <span>Auteur</span>
-          <strong>
-            {currentActor?.displayName ?? "Geen actieve actor gekozen"}
-          </strong>
-        </div>
-        <label>
-          <span>Datum</span>
-          <input type="date" {...register("date")} />
-        </label>
-        <label>
-          <span>{mode === "decision" ? "Beslissing" : "Bijdrage"}</span>
-          <textarea rows={8} {...register("text")} />
-          {errors.text ? (
-            <small role="alert">{errors.text.message}</small>
-          ) : null}
-        </label>
-        {mode === "update" && canBeCurrent ? (
-          <label className="meeting-panel__checkbox">
-            <input type="checkbox" {...register("makeCurrent")} />
-            <span>Instellen als actuele stand van de bron</span>
-          </label>
-        ) : null}
-        <footer>
-          <Button type="submit" disabled={isSubmitting || !currentActor}>
-            {mode === "decision" ? "Beslissing opslaan" : "Update opslaan"}
-          </Button>
-          <Button variant="tertiary" onClick={onClose}>
-            Annuleren
-          </Button>
-        </footer>
-      </form>
-    </aside>
-  )
-}
-
 interface RevisionPanelProps {
   meetingId: UUID
   onClose: () => void
@@ -466,7 +324,7 @@ function RevisionPanel({ meetingId, onClose, onSaved }: RevisionPanelProps) {
       const result = meetingService.createRevision(latest, meetingId, reason)
       replaceDomainState(result.state)
       onSaved(
-        `Verslagrevisie ${result.record.version} definitief opgeslagen · JSON nog opslaan`,
+        `Verslagrevisie ${result.record.version} definitief opgeslagen · back-up nodig`,
       )
     } catch (error) {
       if (error instanceof MeetingManagementError)
@@ -520,7 +378,11 @@ export function MeetingDetailPage() {
   const replaceDomainState = useAppStore((state) => state.replaceDomainState)
   const setImportPanelOpen = useAppStore((state) => state.setImportPanelOpen)
   const dirty = useAppStore((state) => state.dirty)
-  const [mode, setMode] = useState<MeetingMode>("prepare")
+  const requestedMode = searchParameters.get("modus")
+  const mode: MeetingMode =
+    requestedMode === "process" || requestedMode === "report"
+      ? requestedMode
+      : "prepare"
   const [panel, setPanel] = useState<DetailPanel>()
   const [statusMessage, setStatusMessage] = useState("")
   const [confirmFinalize, setConfirmFinalize] = useState(false)
@@ -559,6 +421,9 @@ export function MeetingDetailPage() {
     )
 
   const { meeting } = model
+  const sourceMeeting = meeting.sourceMeetingId
+    ? session.state.indices.meetingById.get(meeting.sourceMeetingId)
+    : undefined
   const frozen = meeting.status === "Definitief"
   const savedInNavigation = Boolean(
     (location.state as { saved?: boolean } | null)?.saved,
@@ -569,13 +434,27 @@ export function MeetingDetailPage() {
     setPanel(nextPanel)
   }
 
+  function selectMode(nextMode: MeetingMode) {
+    const parameters = new URLSearchParams(searchParameters)
+    if (nextMode === "prepare") parameters.delete("modus")
+    else parameters.set("modus", nextMode)
+    setSearchParameters(parameters, { replace: true })
+  }
+
+  function selectReportVersion(version: number) {
+    const parameters = new URLSearchParams(searchParameters)
+    parameters.set("modus", "report")
+    parameters.set("versie", String(version))
+    setSearchParameters(parameters, { replace: true })
+  }
+
   function move(item: AgendaItem, direction: "up" | "down") {
     try {
       const latest = useAppStore.getState().session!.state
       const result = meetingService.moveAgendaItem(latest, item.id, direction)
       replaceDomainState(result.state)
       setStatusMessage(
-        "Agendavolgorde opgeslagen in de lokale sessie · JSON nog opslaan",
+        "Agendavolgorde opgeslagen in de lokale sessie · back-up nodig",
       )
     } catch (error) {
       setStatusMessage(
@@ -602,7 +481,7 @@ export function MeetingDetailPage() {
         objectId,
       })
       replaceDomainState(result.state)
-      setStatusMessage("Suggestie aan de agenda toegevoegd · JSON nog opslaan")
+      setStatusMessage("Suggestie aan de agenda toegevoegd · back-up nodig")
     } catch (error) {
       setStatusMessage(
         error instanceof Error
@@ -612,53 +491,14 @@ export function MeetingDetailPage() {
     }
   }
 
-  function attendance(participantId: UUID, attended: boolean) {
-    try {
-      const latest = useAppStore.getState().session!.state
-      const result = meetingService.setParticipantAttendance(
-        latest,
-        participantId,
-        attended,
-      )
-      replaceDomainState(result.state)
-      setStatusMessage(
-        "Aanwezigheid opgeslagen in de lokale sessie · JSON nog opslaan",
-      )
-    } catch (error) {
-      setStatusMessage(
-        error instanceof Error
-          ? error.message
-          : "Aanwezigheid opslaan is mislukt.",
-      )
-    }
-  }
-
-  function changeTopicStatus(topicId: UUID, status: TopicStatus) {
-    try {
-      const latest = useAppStore.getState().session!.state
-      const result = topicService.setTopicStatus(latest, topicId, status)
-      replaceDomainState(result.state)
-      setStatusMessage(
-        `Topicstatus gewijzigd naar ${status.toLocaleLowerCase("nl")} · JSON nog opslaan`,
-      )
-    } catch (error) {
-      setStatusMessage(
-        error instanceof TopicManagementError || error instanceof Error
-          ? error.message
-          : "Topicstatus wijzigen is mislukt.",
-      )
-    }
-  }
-
   function saveDraft() {
     try {
       const latest = useAppStore.getState().session!.state
       const result = meetingService.saveDraftReport(latest, meeting.id)
       replaceDomainState(result.state)
-      setMode("report")
-      setSearchParameters({ versie: String(result.record.version) })
+      selectReportVersion(result.record.version)
       setStatusMessage(
-        `Conceptverslag versie ${result.record.version} opgebouwd · JSON nog opslaan`,
+        `Conceptverslag versie ${result.record.version} opgebouwd · back-up nodig`,
       )
     } catch (error) {
       setStatusMessage(
@@ -674,10 +514,9 @@ export function MeetingDetailPage() {
       const latest = useAppStore.getState().session!.state
       const result = meetingService.finalizeReport(latest, meeting.id)
       replaceDomainState(result.state)
-      setMode("report")
-      setSearchParameters({ versie: String(result.record.version) })
+      selectReportVersion(result.record.version)
       setStatusMessage(
-        `Verslag versie ${result.record.version} is definitief en historisch bevroren · JSON nog opslaan`,
+        `Verslag versie ${result.record.version} is definitief en historisch bevroren · back-up nodig`,
       )
       setConfirmFinalize(false)
     } catch (error) {
@@ -732,20 +571,51 @@ export function MeetingDetailPage() {
         title={meeting.title}
         description={`${formatLocalDate(meeting.date)} · ${model.scopeLabel}`}
         actions={
-          !frozen ? (
-            <Button onClick={() => navigate(`/meetings/${meeting.id}/edit`)}>
-              Overleg bewerken
+          <>
+            <FavoriteButton
+              route={`/meetings/${meeting.id}`}
+              label={meeting.title}
+              kind="Overleg"
+            />
+            <Button
+              variant="secondary"
+              onClick={() => navigate(`/meetings/new?vervolgVan=${meeting.id}`)}
+            >
+              Vervolgoverleg maken
             </Button>
-          ) : (
-            <Badge tone="success">Historisch vastgelegd</Badge>
-          )
+            {!frozen ? (
+              <Button
+                onClick={() =>
+                  navigate(
+                    withReturnTo(
+                      `/meetings/${meeting.id}/edit`,
+                      currentAppRoute(location),
+                    ),
+                  )
+                }
+              >
+                Overleg bewerken
+              </Button>
+            ) : (
+              <Badge tone="success">Historisch vastgelegd</Badge>
+            )}
+          </>
         }
       />
+
+      {sourceMeeting ? (
+        <p className="meeting-source-link">
+          Vervolg op{" "}
+          <Link to={`/meetings/${sourceMeeting.id}`}>
+            {sourceMeeting.title}
+          </Link>
+        </p>
+      ) : null}
 
       {dirty || savedInNavigation || statusMessage ? (
         <div className="meeting-session-status" role="status">
           <strong>
-            {statusMessage || "Opgeslagen in sessie · JSON nog opslaan"}
+            {statusMessage || "Bewaard in lokale sessie · back-up nodig"}
           </strong>
           <small>
             De wijziging blijft lokaal tot het volgende JSON-bestand wordt
@@ -780,19 +650,19 @@ export function MeetingDetailPage() {
       <nav className="meeting-mode-nav" aria-label="Overlegmodus">
         <button
           className={mode === "prepare" ? "is-active" : ""}
-          onClick={() => setMode("prepare")}
+          onClick={() => selectMode("prepare")}
         >
           Voorbereiden <span>{model.agenda.length}</span>
         </button>
         <button
           className={mode === "process" ? "is-active" : ""}
-          onClick={() => setMode("process")}
+          onClick={() => selectMode("process")}
         >
           Verwerken <span>{model.decisions.length + model.actions.length}</span>
         </button>
         <button
           className={mode === "report" ? "is-active" : ""}
-          onClick={() => setMode("report")}
+          onClick={() => selectMode("report")}
         >
           Verslag <span>{model.reports.length}</span>
         </button>
@@ -1038,224 +908,6 @@ export function MeetingDetailPage() {
             setPanel({ type: "edit-action", actionId })
           }
         />
-      ) : meeting.id === ("legacy-processing" as UUID) ? (
-        <div className="meeting-processing">
-          <section className="meeting-section">
-            <header>
-              <div>
-                <span>Registratie</span>
-                <h2>Aanwezigheid</h2>
-              </div>
-            </header>
-            {model.participants.length ? (
-              <div className="meeting-attendance">
-                {model.participants.map(({ participant, actor }) => (
-                  <label key={participant.id}>
-                    <input
-                      type="checkbox"
-                      checked={participant.attended}
-                      disabled={frozen}
-                      onChange={(event) =>
-                        attendance(participant.id, event.target.checked)
-                      }
-                    />
-                    <span>{actor?.displayName ?? "Onbekende actor"}</span>
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                title="Geen deelnemers"
-                description="Voeg deelnemers toe voordat het overleg wordt verwerkt."
-              />
-            )}
-          </section>
-          <section className="meeting-section meeting-agenda meeting-agenda--processing">
-            <header>
-              <div>
-                <span>Per agendapunt</span>
-                <h2>Bespreking en opvolging</h2>
-              </div>
-            </header>
-            {model.agenda.length ? (
-              <ol>
-                {model.agenda.map((item) => (
-                  <li key={item.id}>
-                    <div className="meeting-agenda__order">
-                      <strong>{item.order}</strong>
-                    </div>
-                    <div className="meeting-agenda__content">
-                      <header>
-                        <strong>{item.title}</strong>
-                        <Badge
-                          tone={
-                            item.discussionStatus === "Besproken"
-                              ? "success"
-                              : "neutral"
-                          }
-                        >
-                          {item.discussionStatus}
-                        </Badge>
-                      </header>
-                      {item.notes ? (
-                        <p>{item.notes}</p>
-                      ) : (
-                        <p className="is-muted">Nog geen bespreeknotities.</p>
-                      )}
-                      <div className="meeting-agenda__context-actions">
-                        {!frozen ? (
-                          <>
-                            {item.objectType === "Topic" && item.objectId ? (
-                              <label className="meeting-agenda__topic-status">
-                                <span>Topicstatus</span>
-                                <select
-                                  aria-label={`Topicstatus ${item.title}`}
-                                  value={
-                                    session.state.indices.topicById.get(
-                                      item.objectId,
-                                    )?.status ?? "Open"
-                                  }
-                                  onChange={(event) =>
-                                    changeTopicStatus(
-                                      item.objectId!,
-                                      event.target.value as TopicStatus,
-                                    )
-                                  }
-                                >
-                                  <option>Open</option>
-                                  <option>Afgesloten</option>
-                                  <option>Geannuleerd</option>
-                                </select>
-                              </label>
-                            ) : null}
-                            <Button
-                              variant="tertiary"
-                              onClick={() => setPanel({ type: "agenda", item })}
-                            >
-                              Notitie / status
-                            </Button>
-                            <Button
-                              variant="secondary"
-                              onClick={() => setPanel({ type: "update", item })}
-                            >
-                              + Update
-                            </Button>
-                            <Button
-                              variant="secondary"
-                              onClick={() =>
-                                setPanel({ type: "decision", item })
-                              }
-                            >
-                              + Beslissing
-                            </Button>
-                            <Button
-                              onClick={() => setPanel({ type: "action", item })}
-                            >
-                              + Actie
-                            </Button>
-                          </>
-                        ) : null}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <EmptyState
-                title="Geen agenda om te verwerken"
-                description="Bouw de agenda eerst op in de voorbereidingsmodus."
-              />
-            )}
-          </section>
-          <section className="meeting-section">
-            <header>
-              <div>
-                <span>Overlegbijdragen</span>
-                <h2>Beslissingen en updates</h2>
-              </div>
-              <strong>{model.decisions.length + model.updates.length}</strong>
-            </header>
-            {model.decisions.length + model.updates.length ? (
-              <ol className="meeting-contributions">
-                {[...model.decisions, ...model.updates]
-                  .sort((left, right) =>
-                    right.audit.createdAt.localeCompare(left.audit.createdAt),
-                  )
-                  .map((entry) => (
-                    <li
-                      key={entry.id}
-                      className={
-                        entry.type === "Beslissing" ? "is-decision" : ""
-                      }
-                    >
-                      <Badge
-                        tone={
-                          entry.type === "Beslissing" ? "warning" : "neutral"
-                        }
-                      >
-                        {entry.type}
-                      </Badge>
-                      <div>
-                        <p>{entry.text}</p>
-                        <small>
-                          {formatLocalDate(entry.date)} · {entry.objectType}
-                        </small>
-                      </div>
-                    </li>
-                  ))}
-              </ol>
-            ) : (
-              <EmptyState
-                title="Nog geen bijdragen"
-                description="Updates en beslissingen verschijnen hier én in het gekoppelde brondossier."
-              />
-            )}
-          </section>
-          <section className="meeting-section">
-            <header>
-              <div>
-                <span>Verantwoordelijkheden</span>
-                <h2>Acties per persoon</h2>
-              </div>
-              <strong>{model.actions.length}</strong>
-            </header>
-            {model.actionOwnerGroups.length ? (
-              <div className="meeting-owner-groups">
-                {model.actionOwnerGroups.map((group) => (
-                  <section key={group.ownerActorId}>
-                    <header>
-                      <h3>{group.owner?.displayName ?? "Onbekende actor"}</h3>
-                      <span>{group.actions.length}</span>
-                    </header>
-                    <ActionRows
-                      items={group.actions}
-                      onEdit={(actionId) =>
-                        setPanel({ type: "edit-action", actionId })
-                      }
-                      showContext
-                    />
-                  </section>
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                title="Nog geen overlegacties"
-                description="Maak een actie vanuit het relevante agendapunt; de globale actielijst gebruikt hetzelfde record."
-              />
-            )}
-          </section>
-          {!frozen ? (
-            <div className="meeting-report-callout">
-              <div>
-                <span>Verwerking gereed?</span>
-                <strong>Maak eerst een controleerbaar conceptverslag.</strong>
-              </div>
-              <Button variant="secondary" onClick={saveDraft}>
-                Conceptverslag opbouwen
-              </Button>
-            </div>
-          ) : null}
-        </div>
       ) : (
         <div className="meeting-report-area">
           <header className="meeting-report-toolbar">
@@ -1318,9 +970,7 @@ export function MeetingDetailPage() {
                   className={
                     model.selectedReport?.id === report.id ? "is-active" : ""
                   }
-                  onClick={() =>
-                    setSearchParameters({ versie: String(report.version) })
-                  }
+                  onClick={() => selectReportVersion(report.version)}
                 >
                   Versie {report.version}
                   <small>
@@ -1436,49 +1086,12 @@ export function MeetingDetailPage() {
           onSaved={(message) => commit(message)}
         />
       ) : null}
-      {panel?.type === "update" || panel?.type === "decision" ? (
-        <ContributionPanel
-          meetingId={meeting.id}
-          item={panel.item}
-          mode={panel.type}
-          onClose={() => setPanel(undefined)}
-          onSaved={(message) => commit(message)}
-        />
-      ) : null}
-      {panel?.type === "action" ? (
-        <ActionPanel
-          objectType={
-            panel.item.objectType === "Project" ||
-            panel.item.objectType === "Cluster" ||
-            panel.item.objectType === "Topic"
-              ? panel.item.objectType
-              : "Meeting"
-          }
-          objectId={
-            panel.item.objectType === "Project" ||
-            panel.item.objectType === "Cluster" ||
-            panel.item.objectType === "Topic"
-              ? panel.item.objectId!
-              : meeting.id
-          }
-          sourceMeetingId={meeting.id}
-          contextLabel={`${meeting.title} · ${panel.item.title}`}
-          onClose={() => setPanel(undefined)}
-          onSaved={() =>
-            setStatusMessage(
-              "Actie opgeslagen in overleg en globale werklijst · JSON nog opslaan",
-            )
-          }
-        />
-      ) : null}
       {panel?.type === "edit-action" ? (
         <ActionPanel
           actionId={panel.actionId}
           contextLabel={meeting.title}
           onClose={() => setPanel(undefined)}
-          onSaved={() =>
-            setStatusMessage("Actie bijgewerkt · JSON nog opslaan")
-          }
+          onSaved={() => setStatusMessage("Actie bijgewerkt · back-up nodig")}
         />
       ) : null}
       {panel?.type === "topic" && canCreateTopic && meeting.scopeId ? (
@@ -1496,9 +1109,7 @@ export function MeetingDetailPage() {
               objectId: topic.id,
             })
             replaceDomainState(agenda.state)
-            commit(
-              "Nieuw topic en agendakoppeling opgeslagen · JSON nog opslaan",
-            )
+            commit("Nieuw topic en agendakoppeling opgeslagen · back-up nodig")
           }}
         />
       ) : null}

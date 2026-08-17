@@ -1,28 +1,51 @@
 import { useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import {
   buildPortfolioPlanningModel,
-  defaultGlobalPlanningFilters,
   summarizePortfolioPlanning,
   type GlobalPlanningFilters,
-  type PlanningRow,
   type PlanningZoom,
 } from "../../application/queries"
 import { useAppStore } from "../../app/state/app-store"
-import { Button, EmptyState, PageHeader } from "../../design-system/components"
+import {
+  Button,
+  EmptyState,
+  PageHeader,
+  SavedViewsControl,
+} from "../../design-system/components"
 import { planningStatuses, projectSizes, projectSizeFte } from "../../domain"
 import { formatLocalDate, todayAsLocalDate } from "../../utils"
-import { PlanningGantt } from "./planning-gantt"
+import { PlanningGantt, type PlanningDisplayRow } from "./planning-gantt"
 import "./planning.css"
 
 export function PlanningPage() {
   const navigate = useNavigate()
+  const [searchParameters, setSearchParameters] = useSearchParams()
   const session = useAppStore((state) => state.session)
   const setImportPanelOpen = useAppStore((state) => state.setImportPanelOpen)
-  const [filters, setFilters] = useState<GlobalPlanningFilters>(
-    defaultGlobalPlanningFilters,
+  const filters = useMemo<GlobalPlanningFilters>(
+    () => ({
+      chapterId: searchParameters.get("hoofdstuk") ?? "",
+      clusterId: searchParameters.get("cluster") ?? "",
+      projectId: searchParameters.get("project") ?? "",
+      status: (planningStatuses as readonly string[]).includes(
+        searchParameters.get("status") ?? "",
+      )
+        ? (searchParameters.get("status") as GlobalPlanningFilters["status"])
+        : "",
+      ownerActorId: searchParameters.get("eigenaar") ?? "",
+      riskOnly: searchParameters.get("risico") === "1",
+      delayedOnly: searchParameters.get("overTijd") === "1",
+    }),
+    [searchParameters],
   )
-  const [zoom, setZoom] = useState<PlanningZoom>("quarter")
+  const requestedZoom = searchParameters.get("zoom")
+  const zoom: PlanningZoom =
+    requestedZoom === "week" ||
+    requestedZoom === "month" ||
+    requestedZoom === "year"
+      ? requestedZoom
+      : "quarter"
   const [collapsedChapters, setCollapsedChapters] = useState<Set<string>>(
     new Set(),
   )
@@ -43,21 +66,46 @@ export function PlanningPage() {
     [model, today],
   )
   const rows = useMemo(() => {
-    const result: PlanningRow[] = []
+    const result: PlanningDisplayRow[] = []
     for (const chapter of model) {
+      const chapterProjectCount = chapter.clusters.reduce(
+        (count, cluster) => count + cluster.projects.length,
+        0,
+      )
+      result.push({
+        id: `chapter:${chapter.chapter.id}`,
+        title: `${chapter.chapter.code} · ${chapter.chapter.title}`,
+        subtitle: `${chapterProjectCount} projecten`,
+        depth: 0,
+        kind: "group",
+        expanded: !collapsedChapters.has(chapter.chapter.id),
+      })
       if (collapsedChapters.has(chapter.chapter.id)) continue
       for (const cluster of chapter.clusters) {
         const clusterKey = `${chapter.chapter.id}:${cluster.id}`
+        result.push({
+          id: `cluster:${clusterKey}`,
+          title: cluster.title,
+          subtitle: `${cluster.projects.length} projecten`,
+          depth: 1,
+          kind: "group",
+          expanded: !collapsedClusters.has(clusterKey),
+        })
         if (collapsedClusters.has(clusterKey)) continue
         for (const item of cluster.projects) {
           const projectRow = item.rows[0]
           if (!projectRow) continue
           result.push({
             ...projectRow,
+            depth: 2,
             subtitle: `${chapter.chapter.title} · ${cluster.title} · ${item.project.code}`,
           })
           if (expandedProjects.has(item.project.id))
-            result.push(...item.rows.slice(1))
+            result.push(
+              ...item.rows
+                .slice(1)
+                .map((row) => ({ ...row, depth: 3 as const })),
+            )
         }
       }
     }
@@ -110,7 +158,45 @@ export function PlanningPage() {
   )
 
   function patchFilters(patch: Partial<GlobalPlanningFilters>) {
-    setFilters((current) => ({ ...current, ...patch }))
+    const next = { ...filters, ...patch }
+    const parameters = new URLSearchParams(searchParameters)
+    const fields: [keyof GlobalPlanningFilters, string][] = [
+      ["chapterId", "hoofdstuk"],
+      ["clusterId", "cluster"],
+      ["projectId", "project"],
+      ["status", "status"],
+      ["ownerActorId", "eigenaar"],
+    ]
+    for (const [field, key] of fields) {
+      const value = next[field]
+      if (typeof value === "string" && value) parameters.set(key, value)
+      else parameters.delete(key)
+    }
+    if (next.riskOnly) parameters.set("risico", "1")
+    else parameters.delete("risico")
+    if (next.delayedOnly) parameters.set("overTijd", "1")
+    else parameters.delete("overTijd")
+    setSearchParameters(parameters, { replace: true })
+  }
+  function resetFilters() {
+    const parameters = new URLSearchParams(searchParameters)
+    for (const key of [
+      "hoofdstuk",
+      "cluster",
+      "project",
+      "status",
+      "eigenaar",
+      "risico",
+      "overTijd",
+    ])
+      parameters.delete(key)
+    setSearchParameters(parameters, { replace: true })
+  }
+  function selectZoom(value: PlanningZoom) {
+    const parameters = new URLSearchParams(searchParameters)
+    if (value === "quarter") parameters.delete("zoom")
+    else parameters.set("zoom", value)
+    setSearchParameters(parameters, { replace: true })
   }
   function toggle(
     setter: React.Dispatch<React.SetStateAction<Set<string>>>,
@@ -129,7 +215,7 @@ export function PlanningPage() {
       <PageHeader
         eyebrow="Tijd"
         title="Planning"
-        description="Hoofdstuk → cluster → project. Projectdetails zijn standaard ingeklapt."
+        description="Eén uitklapbare portfoliostructuur met de tijdslijn er direct naast."
         actions={
           <span className="planning-result-count">
             <strong>{summary.totalProjects}</strong> projecten
@@ -303,111 +389,13 @@ export function PlanningPage() {
           />
           <span>Alleen over tijd</span>
         </label>
-        <Button
-          variant="tertiary"
-          onClick={() => setFilters(defaultGlobalPlanningFilters)}
-        >
+        <Button variant="tertiary" onClick={resetFilters}>
           Filters wissen
         </Button>
+        <SavedViewsControl page="planning" />
       </section>
       {model.length ? (
         <>
-          <section
-            className="planning-hierarchy"
-            aria-labelledby="planning-hierarchy-title"
-          >
-            <header>
-              <span>Portfoliostructuur</span>
-              <h2 id="planning-hierarchy-title">Zichtbare lagen</h2>
-            </header>
-            {model.map((chapter) => {
-              const chapterCollapsed = collapsedChapters.has(chapter.chapter.id)
-              return (
-                <div
-                  className="planning-hierarchy__chapter"
-                  key={chapter.chapter.id}
-                >
-                  <button
-                    type="button"
-                    aria-expanded={!chapterCollapsed}
-                    onClick={() =>
-                      toggle(setCollapsedChapters, chapter.chapter.id)
-                    }
-                  >
-                    <span aria-hidden="true">
-                      {chapterCollapsed ? "+" : "−"}
-                    </span>
-                    <strong>
-                      {chapter.chapter.code} · {chapter.chapter.title}
-                    </strong>
-                  </button>
-                  {!chapterCollapsed
-                    ? chapter.clusters.map((cluster) => {
-                        const clusterKey = `${chapter.chapter.id}:${cluster.id}`
-                        const clusterCollapsed =
-                          collapsedClusters.has(clusterKey)
-                        return (
-                          <div
-                            className="planning-hierarchy__cluster"
-                            key={clusterKey}
-                          >
-                            <button
-                              type="button"
-                              aria-expanded={!clusterCollapsed}
-                              onClick={() =>
-                                toggle(setCollapsedClusters, clusterKey)
-                              }
-                            >
-                              <span aria-hidden="true">
-                                {clusterCollapsed ? "+" : "−"}
-                              </span>
-                              <strong>{cluster.title}</strong>
-                              <small>{cluster.projects.length} projecten</small>
-                            </button>
-                            {!clusterCollapsed ? (
-                              <div>
-                                {cluster.projects.map((item) => {
-                                  const expanded = expandedProjects.has(
-                                    item.project.id,
-                                  )
-                                  return (
-                                    <button
-                                      type="button"
-                                      key={item.project.id}
-                                      aria-expanded={expanded}
-                                      onClick={() =>
-                                        toggle(
-                                          setExpandedProjects,
-                                          item.project.id,
-                                        )
-                                      }
-                                    >
-                                      <span aria-hidden="true">
-                                        {expanded ? "−" : "+"}
-                                      </span>
-                                      <span>
-                                        {item.project.code} ·{" "}
-                                        {item.project.title}
-                                      </span>
-                                      <small>
-                                        {item.entries.length} items ·{" "}
-                                        {item.project.plannedEndDate
-                                          ? `einde ${formatLocalDate(item.project.plannedEndDate)}`
-                                          : "geen projecteinddatum"}
-                                      </small>
-                                    </button>
-                                  )
-                                })}
-                              </div>
-                            ) : null}
-                          </div>
-                        )
-                      })
-                    : null}
-                </div>
-              )
-            })}
-          </section>
           <section
             className="planning-canvas"
             aria-labelledby="portfolio-gantt-title"
@@ -426,7 +414,7 @@ export function PlanningPage() {
                         type="radio"
                         name="portfolio-zoom"
                         checked={zoom === value}
-                        onChange={() => setZoom(value)}
+                        onChange={() => selectZoom(value)}
                       />
                       <span>
                         {
@@ -447,13 +435,24 @@ export function PlanningPage() {
               rows={rows}
               zoom={zoom}
               today={today}
+              expandedProjectIds={expandedProjects}
+              onToggleGroup={(rowId) => {
+                if (rowId.startsWith("chapter:")) {
+                  toggle(setCollapsedChapters, rowId.slice(8))
+                } else if (rowId.startsWith("cluster:")) {
+                  toggle(setCollapsedClusters, rowId.slice(8))
+                }
+              }}
+              onToggleProject={(projectId) =>
+                toggle(setExpandedProjects, projectId)
+              }
               onSelectRow={(row) => {
                 if (row.kind === "project") {
-                  navigate(`/projects/${row.projectId}/edit`)
+                  navigate(`/projects/${row.projectId}`)
                 } else if (row.topic) {
                   navigate(`/projects/${row.projectId}/topics/${row.topic.id}`)
                 } else if (row.actionId) {
-                  navigate("/actions")
+                  navigate(`/actions?actie=${row.actionId}`)
                 } else {
                   navigate(`/projects/${row.projectId}/planning`)
                 }
@@ -466,10 +465,7 @@ export function PlanningPage() {
           title="Geen planning binnen deze selectie"
           description="Pas de filters aan om projecten en planningitems zichtbaar te maken."
           action={
-            <Button
-              variant="secondary"
-              onClick={() => setFilters(defaultGlobalPlanningFilters)}
-            >
+            <Button variant="secondary" onClick={resetFilters}>
               Filters wissen
             </Button>
           }

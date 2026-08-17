@@ -440,6 +440,22 @@ export function validateDomainIntegrity(
         meeting.id,
       )
     }
+    if (meeting.sourceMeetingId) {
+      const source = meetings.get(meeting.sourceMeetingId)
+      if (
+        !source ||
+        source.id === meeting.id ||
+        source.scopeType !== meeting.scopeType ||
+        source.scopeId !== meeting.scopeId
+      ) {
+        add(
+          "meetings",
+          "data.relation.meeting-source",
+          "Vervolgoverleg verwijst niet naar een geldig overleg met dezelfde scope.",
+          meeting.id,
+        )
+      }
+    }
   }
   const participantPairs = new Set<string>()
   for (const participant of records.meetingParticipants) {

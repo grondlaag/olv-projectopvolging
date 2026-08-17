@@ -44,7 +44,7 @@ test("fase-8-hoofdflow verwerkt overleg en bewaart een historisch verslag via JS
 
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })
-    .getByRole("link", { name: "Overleg" })
+    .getByRole("link", { name: "Overleg", exact: true })
     .click()
   await page.getByRole("button", { name: "+ Nieuw overleg" }).first().click()
   await page.getByLabel("Nummer").fill("OV-F8-E2E")

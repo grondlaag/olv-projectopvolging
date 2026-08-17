@@ -122,6 +122,83 @@ describe("overlegscope en deelnemers", () => {
 })
 
 describe("agenda, suggesties en volgorde", () => {
+  it("maakt een traceerbaar vervolgoverleg met alleen open gekoppelde agendapunten", () => {
+    const source = service.createMeeting(
+      createPortfolioTestSession().state,
+      meetingInput(),
+      { now, createUuid },
+    )
+    const discussed = service.saveAgendaItem(
+      source.state,
+      source.record.id,
+      {
+        title: "Afgerond punt",
+        discussionStatus: "Besproken",
+        objectType: "Project",
+        objectId: testIds.projectOne,
+      },
+      undefined,
+      { now, createUuid },
+    )
+    const forwarded = service.saveAgendaItem(
+      discussed.state,
+      source.record.id,
+      {
+        title: "Open topicpunt",
+        reason: "Nog verder uitwerken",
+        discussionStatus: "Doorgeschoven",
+        objectType: "Topic",
+        objectId: testIds.topicCritical,
+      },
+      undefined,
+      { now, createUuid },
+    )
+
+    const followUp = service.createMeeting(
+      forwarded.state,
+      meetingInput({
+        sourceMeetingId: source.record.id,
+        number: "OV-2026-02",
+        date: "2026-09-10" as LocalDate,
+      }),
+      { now, createUuid },
+    )
+    const carried =
+      followUp.state.indices.agendaItemsByMeeting.get(followUp.record.id) ?? []
+
+    expect(followUp.record.sourceMeetingId).toBe(source.record.id)
+    expect(carried).toHaveLength(1)
+    expect(carried[0]).toMatchObject({
+      title: "Open topicpunt",
+      objectType: "Topic",
+      objectId: testIds.topicCritical,
+      discussionStatus: "Te bespreken",
+      order: 1,
+    })
+    expect(carried[0]?.id).not.toBe(forwarded.record.id)
+    expect(
+      forwarded.state.indices.agendaItemsByMeeting.get(source.record.id),
+    ).toHaveLength(2)
+  })
+
+  it("weigert een vervolgoverleg met een andere scope", () => {
+    const source = service.createMeeting(
+      createPortfolioTestSession().state,
+      meetingInput(),
+      { now, createUuid },
+    )
+    expect(() =>
+      service.createMeeting(
+        source.state,
+        meetingInput({
+          sourceMeetingId: source.record.id,
+          scopeType: "Cluster",
+          scopeId: testIds.cluster,
+        }),
+      ),
+    ).toThrow("Een vervolgoverleg behoudt dezelfde scope")
+  })
+
   it("weigert een nieuw los agendapunt zonder project- of topicbron", () => {
     const meeting = service.createMeeting(
       createPortfolioTestSession().state,

@@ -97,7 +97,10 @@ test("fase-5-hoofdflow beheert, groepeert en roundtript acties volledig lokaal",
   await panel.getByLabel("Prioriteit").selectOption("Hoog")
   await panel.getByRole("button", { name: "Wijzigingen opslaan" }).click()
 
-  await page.getByLabel("Eigenaar").selectOption("")
+  await page
+    .locator(".actions-filterbar")
+    .getByLabel("Eigenaar")
+    .selectOption("")
   await page.getByRole("button", { name: /Controle medische toegang/ }).click()
   panel = page.getByRole("dialog", { name: "Actie bewerken" })
   await panel.getByLabel("Status").selectOption("Afgerond")

@@ -1,6 +1,7 @@
 import { defineConfig } from "@playwright/test"
 
 const usesExternalServer = process.env.PLAYWRIGHT_EXTERNAL_SERVER === "true"
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:4173"
 
 export default defineConfig({
   testDir: "./e2e",
@@ -11,7 +12,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: "html",
   use: {
-    baseURL: "http://127.0.0.1:4173",
+    baseURL,
     trace: "on-first-retry",
   },
   ...(usesExternalServer

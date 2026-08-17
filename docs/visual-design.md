@@ -156,7 +156,8 @@ Bevat:
 - productnaam;
 - geopend JSON-gegevensbestand;
 - dirty indicator;
-- duidelijke acties **JSON openen** en **JSON opslaan**;
+- duidelijke acties **Openen** en **Back-up downloaden**, met toegankelijke
+  namen die JSON expliciet benoemen;
 - globale zoekfunctie;
 - eventueel current actor.
 
@@ -249,7 +250,8 @@ Niet elke metadatawaarde als pill.
 
 ## Projectdossier
 
-Header toont:
+Dezelfde rustige dossierkop blijft zichtbaar op overzicht, topics, journaal,
+planning en budget. Header toont:
 
 - code;
 - titel;
@@ -259,7 +261,9 @@ Header toont:
 - planningstatus;
 - budgetstatus.
 
-Actuele toestand krijgt een rustige gemarkeerde zone.
+Actuele inhoudelijke toestand krijgt een rustige gemarkeerde zone met een
+compacte invoerkaart voor een nieuw statusmoment. Dit staat nadrukkelijk los van
+de levenscyclusstatus in de dossierkop.
 
 Split-view:
 
@@ -314,6 +318,11 @@ De globale planning plaatst vóór filters en Gantt één compacte cijferstrook 
 planningdekking, item- en mijlpaalaantallen, aandachtspunten en periode. Dit is
 een rustige samenvatting, geen extra dashboard met losse kaarten.
 
+Hoofdstuk, cluster, project en onderliggende planningitems vormen één
+uitklapbare boom in de vaste labelkolom van dezelfde Gantt. Er staat geen tweede
+hiërarchiepaneel boven de tijdslijn. De disclosure opent onderliggende regels;
+de recordnaam en de balk openen rechtstreeks het bronrecord.
+
 ## Budget
 
 Bovenaan:
@@ -353,6 +362,14 @@ De overlegwerkruimte is tekstgericht en puntsgewijs. Voorbereiding en verwerking
 zijn herkenbare modi binnen hetzelfde dossier; ze openen geen keten van modals.
 Deelnemers, agenda en afgeleide suggesties hebben een rustige hiërarchie en de
 agenda gebruikt toegankelijke omhoog/omlaagbediening naast contextacties.
+
+`Vervolgoverleg maken` staat als contextactie in ieder overlegdossier. Het
+formulier toont zichtbaar welk bronoverleg wordt gebruikt en hoeveel open
+agendapunten worden meegenomen. Het oude dossier blijft ongewijzigd.
+
+Tabs, werkmodi, filters, groepering, zoom en gekozen verslagversie worden waar
+relevant in hash-queryparameters bewaard. Een refresh, browser-terugactie of
+gedeelde interne URL herstelt daardoor dezelfde werkcontext.
 
 Projecten en topics bieden `Bespreken op overleg` als compacte contextactie. Een
 smalle drawer toont het vaste bronrecord, reeds geplande overlegmomenten en
@@ -396,6 +413,10 @@ De applicatiekop combineert zoeken en handelen:
 - Ctrl/Cmd+K of / opent de zoek- en commandolaag;
 - een lege zoeklaag biedt de belangrijkste creatieacties;
 - “+ Nieuw” houdt project en overleg vanuit elke route bereikbaar;
+- “+ Nieuw” toont dossiergebonden acties eerst en scheidt algemene creatie
+  visueel met een rustige lijn;
+- `N` opent de creatielaag, `?` het sneltoetsoverzicht en Escape sluit de
+  actieve bedieningslaag;
 - bestandsacties gebruiken menselijke labels “Openen” en “Back-up”, terwijl
   toegankelijke namen het JSON-karakter expliciet houden.
 
@@ -403,9 +424,21 @@ Portfolio toont zoeken en scopes altijd. Detailfilters staan achter “Filters�
 actieve keuzes blijven zichtbaar als verwijderbare chips en frequente selecties
 zijn beschikbaar als rustige presets.
 
-In een projectdossier biedt “Snel bijwerken” een contextvast formulier voor
-status, fase, coördinator en voortgang. De wijziging gebeurt uitsluitend na
-expliciete save; structurele gegevens blijven in het volledige projectformulier.
+Recente en favoriete dossiers vormen een compacte lijst onder de
+hoofdnavigatie. Toon maximaal vijf links, favorieten eerst. De ster is een
+secundaire bediening en het volledige tekstlabel blijft het primaire klikdoel.
+
+Benoemde weergaven staan naast de filters die ze bewaren. Tabelinstellingen
+gebruiken één compacte popover voor rijhoogte en kolommen; verplichte
+identiteitskolommen kunnen niet worden verborgen. Een actieve bulkselectie toont
+één sticky werkbalk boven de tabel met aantal, wijzigingsvelden, bevestigen en
+wissen. Selections mogen geen domeinmutatie veroorzaken vóór bevestiging.
+
+“Project bewerken” opent vanuit elk dossieronderdeel dezelfde volledige editor.
+Na expliciet bewaren keert de gebruiker terug naar het onderdeel van herkomst.
+Een afwijkende verkorte editor is niet toegestaan, omdat verborgen velden dan
+onbedoeld verloren kunnen gaan. Bij verlaten met niet-bewaarde invoer verschijnt
+een rustige keuze tussen verder bewerken en invoer verwerpen.
 
 ## Responsive
 

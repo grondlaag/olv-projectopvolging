@@ -32,7 +32,7 @@ describe("budgetwerkruimte", () => {
     expect(
       await screen.findByRole(
         "heading",
-        { name: "Projectbudget" },
+        { name: "Renovatie verpleegafdeling" },
         { timeout: 15_000 },
       ),
     ).toBeInTheDocument()
@@ -82,7 +82,7 @@ describe("budgetwerkruimte", () => {
     })
     expect(
       await screen.findByText(
-        "Budgetitem opgeslagen in de lokale sessie · JSON nog opslaan",
+        "Budgetitem opgeslagen in de lokale sessie · back-up nodig",
       ),
     ).toBeInTheDocument()
     view.unmount()
@@ -113,7 +113,7 @@ describe("budgetwerkruimte", () => {
 
     await screen.findByRole(
       "heading",
-      { name: "Projectbudget" },
+      { name: "Renovatie verpleegafdeling" },
       { timeout: 15_000 },
     )
     fireEvent.click(screen.getByRole("button", { name: "Corrigeren" }))
@@ -170,11 +170,15 @@ describe("budgetwerkruimte", () => {
     fireEvent.change(screen.getByLabelText("Projectfilter"), {
       target: { value: testIds.projectOne },
     })
+    expect(window.location.hash).toContain(`project=${testIds.projectOne}`)
     expect(screen.getByRole("cell", { name: /PRJ-001/ })).toBeVisible()
     fireEvent.change(screen.getByLabelText("Groepeer per"), {
-      target: { value: "type" },
+      target: { value: "project" },
     })
-    expect(screen.getAllByRole("cell", { name: "Raming" })[0]).toBeVisible()
+    expect(window.location.hash).toContain("groepering=project")
+    expect(
+      screen.queryByText("Regel vereist", { exact: true }),
+    ).not.toBeInTheDocument()
     view.unmount()
     router.dispose()
   })

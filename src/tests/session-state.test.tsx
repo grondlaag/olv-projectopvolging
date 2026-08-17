@@ -20,9 +20,7 @@ describe("dirty state en sessieherstel", () => {
     const router = createAppRouter()
     render(<RouterProvider router={router} />)
 
-    expect(
-      await screen.findByText("Wijzigingen nog niet opgeslagen"),
-    ).toBeInTheDocument()
+    expect(await screen.findByText("Back-up nodig")).toBeInTheDocument()
     const event = new Event("beforeunload", { cancelable: true })
     window.dispatchEvent(event)
     expect(event.defaultPrevented).toBe(true)

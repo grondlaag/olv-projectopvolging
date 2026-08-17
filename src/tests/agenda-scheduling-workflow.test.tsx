@@ -76,7 +76,7 @@ describe("project en topic inplannen voor overleg", () => {
     )
     expect(
       screen.getByText(
-        "Ingepland voor overleg in de lokale sessie · JSON nog opslaan",
+        "Ingepland voor overleg in de lokale sessie · back-up nodig",
       ),
     ).toBeInTheDocument()
     expect(useAppStore.getState().dirty).toBe(true)

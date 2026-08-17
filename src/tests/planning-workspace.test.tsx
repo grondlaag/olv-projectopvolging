@@ -64,10 +64,15 @@ describe("planningwerkruimte", () => {
     expect(
       await screen.findByRole(
         "heading",
-        { name: "Projectplanning" },
+        { name: "Renovatie verpleegafdeling" },
         { timeout: 15_000 },
       ),
     ).toBeInTheDocument()
+    expect(
+      within(
+        screen.getByRole("navigation", { name: "Projectdossierweergave" }),
+      ).getByRole("link", { name: "Planning" }),
+    ).toHaveAttribute("aria-current", "page")
     expect(screen.getAllByText("Toegang spoed").length).toBeGreaterThan(0)
     expect(
       screen.getByRole("button", {
@@ -133,7 +138,7 @@ describe("planningwerkruimte", () => {
       within(summary).getByText("Planningitems").parentElement,
     ).toHaveTextContent("2")
     const projectToggle = screen.getByRole("button", {
-      name: /PRJ-001 · Renovatie verpleegafdeling/,
+      name: "Details tonen voor Renovatie verpleegafdeling",
     })
     expect(projectToggle).toHaveAttribute("aria-expanded", "false")
     fireEvent.click(projectToggle)
@@ -141,6 +146,18 @@ describe("planningwerkruimte", () => {
       expect(projectToggle).toHaveAttribute("aria-expanded", "true"),
     )
     expect(screen.getByText("Toegang spoed")).toBeInTheDocument()
+    expect(
+      screen.queryByRole("heading", { name: "Zichtbare lagen" }),
+    ).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("radio", { name: "Maand" }))
+    fireEvent.change(screen.getByLabelText("Project"), {
+      target: { value: testIds.projectOne },
+    })
+    await waitFor(() => {
+      expect(window.location.hash).toContain(`project=${testIds.projectOne}`)
+      expect(window.location.hash).toContain("zoom=month")
+    })
     view.unmount()
     router.dispose()
   })

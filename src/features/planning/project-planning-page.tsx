@@ -15,11 +15,11 @@ import {
   Button,
   EmptyState,
   ErrorState,
-  PageHeader,
 } from "../../design-system/components"
 import { useEscapeKey } from "../../design-system/patterns"
 import { planningStatuses, type PlanningEntry, type UUID } from "../../domain"
 import { formatLocalDate, todayAsLocalDate } from "../../utils"
+import { ProjectDossierHeader } from "../projects/project-dossier-header"
 import {
   dependencyFormSchema,
   dependencyValuesToInput,
@@ -381,10 +381,6 @@ export function ProjectPlanningPage() {
       />
     )
 
-  const chapter = session.state.indices.chapterById.get(model.project.chapterId)
-  const cluster = model.project.clusterId
-    ? session.state.indices.clusterById.get(model.project.clusterId)
-    : undefined
   const selectedEntry = selectedEntryId
     ? session.state.indices.planningById.get(selectedEntryId)
     : undefined
@@ -393,29 +389,21 @@ export function ProjectPlanningPage() {
     : undefined
 
   function saved(message: string) {
-    setStatusMessage(`${message} in de lokale sessie · JSON nog opslaan`)
+    setStatusMessage(`${message} in de lokale sessie · back-up nodig`)
     setPanel(undefined)
     setSelectedEntryId(undefined)
   }
 
   return (
     <article className="planning-page planning-page--project">
-      <nav className="planning-breadcrumb" aria-label="Kruimelpad">
-        <Link to="/portfolio">Portfolio</Link>
-        <span>/</span>
-        <Link to={`/projects/${model.project.id}`}>{model.project.code}</Link>
-        <span>/</span>
-        <span aria-current="page">Planning</span>
-      </nav>
-      <PageHeader
-        eyebrow={`${model.project.code} · ${chapter?.title ?? "Onbekend hoofdstuk"}`}
-        title="Projectplanning"
-        description={`${model.project.title} · ${cluster?.title ?? "Zonder cluster"}`}
+      <ProjectDossierHeader
+        project={model.project}
+        activeTab="planning"
         actions={
           <div className="planning-actions">
             <Link
               className="planning-source-link"
-              to={`/projects/${model.project.id}`}
+              to={`/projects/${model.project.id}/topics`}
             >
               + Topic
             </Link>
@@ -424,7 +412,7 @@ export function ProjectPlanningPage() {
             </Link>
             <Link
               className="planning-source-link"
-              to={`/projects/${model.project.id}`}
+              to={`/projects/${model.project.id}/journal`}
             >
               + Beslissing
             </Link>
@@ -499,12 +487,11 @@ export function ProjectPlanningPage() {
           zoom={zoom}
           today={today}
           onSelectRow={(row) => {
-            if (row.kind === "project")
-              navigate(`/projects/${row.projectId}/edit`)
+            if (row.kind === "project") navigate(`/projects/${row.projectId}`)
             else if (row.entry) setSelectedEntryId(row.entry.id)
             else if (row.topic)
               navigate(`/projects/${row.projectId}/topics/${row.topic.id}`)
-            else if (row.actionId) navigate("/actions")
+            else if (row.actionId) navigate(`/actions?actie=${row.actionId}`)
             else navigate(`/projects/${row.projectId}`)
           }}
         />

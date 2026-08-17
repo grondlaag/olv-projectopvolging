@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { Link, useParams, useSearchParams } from "react-router-dom"
+import { useParams, useSearchParams } from "react-router-dom"
 import { buildProjectBudgetModel } from "../../application/queries"
 import {
   BudgetManagementError,
@@ -11,7 +11,6 @@ import {
   Button,
   EmptyState,
   ErrorState,
-  PageHeader,
 } from "../../design-system/components"
 import {
   BUDGET_AGGREGATION_RULE_REQUIRED,
@@ -21,6 +20,7 @@ import {
   type UUID,
 } from "../../domain"
 import { formatLocalDate } from "../../utils"
+import { ProjectDossierHeader } from "../projects/project-dossier-header"
 import { BudgetCorrectionPanel, NewBudgetPanel } from "./budget-panel"
 import "./budget.css"
 
@@ -42,7 +42,7 @@ function BudgetBusinessMetricStrip() {
       {metricLabels.map((label) => (
         <div key={label} title={BUDGET_AGGREGATION_RULE_REQUIRED}>
           <span>{label}</span>
-          <strong>Regel vereist</strong>
+          <strong>—</strong>
         </div>
       ))}
     </section>
@@ -192,21 +192,9 @@ export function ProjectBudgetPage() {
 
   return (
     <article className="project-budget-page">
-      <nav className="budget-breadcrumb" aria-label="Kruimelpad">
-        <Link to="/portfolio">Portfolio</Link>
-        <span>/</span>
-        <Link to={`/projects/${model.project.id}`}>{model.project.code}</Link>
-        <span>/</span>
-        <span>Budget</span>
-      </nav>
-      <PageHeader
-        eyebrow={`${model.project.code} · financieel dossier`}
-        title="Projectbudget"
-        description={
-          selectedTopic
-            ? `Gefilterd op ${selectedTopic.code} · ${selectedTopic.title}`
-            : model.project.title
-        }
+      <ProjectDossierHeader
+        project={model.project}
+        activeTab="budget"
         actions={<Button onClick={() => setPanel("new")}>+ Budgetitem</Button>}
       />
 
@@ -235,8 +223,11 @@ export function ProjectBudgetPage() {
 
       <BudgetBusinessMetricStrip />
       <aside className="budget-rule-note">
-        <strong>Kerncijfers zijn bewust nog niet berekend.</strong>
-        <span>{BUDGET_AGGREGATION_RULE_REQUIRED}</span>
+        <strong>Kerncijfers wachten op een besliste rekenregel.</strong>
+        <span>
+          De feitelijke budgetregels hieronder blijven volledig zichtbaar en
+          worden niet tot een onbetrouwbare prognose samengevoegd.
+        </span>
       </aside>
 
       <section
@@ -287,7 +278,7 @@ export function ProjectBudgetPage() {
               const result = budgetService.archiveRecord(latest, recordId)
               useAppStore.getState().replaceDomainState(result.state)
               setStatusMessage(
-                "Budgetitem verwijderd en audit-historiek bewaard · JSON nog opslaan",
+                "Budgetitem verwijderd en audit-historiek bewaard · back-up nodig",
               )
             } catch (error) {
               setStatusMessage(
@@ -328,7 +319,7 @@ export function ProjectBudgetPage() {
           onClose={() => setPanel(undefined)}
           onSaved={() =>
             setStatusMessage(
-              "Budgetitem opgeslagen in de lokale sessie · JSON nog opslaan",
+              "Budgetitem opgeslagen in de lokale sessie · back-up nodig",
             )
           }
         />
@@ -338,7 +329,7 @@ export function ProjectBudgetPage() {
           onClose={() => setPanel(undefined)}
           onSaved={() =>
             setStatusMessage(
-              "Foutcorrectie opgeslagen met historie · JSON nog opslaan",
+              "Foutcorrectie opgeslagen met historie · back-up nodig",
             )
           }
         />

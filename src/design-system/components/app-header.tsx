@@ -9,10 +9,33 @@ import {
 } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { buildGlobalSearchResults } from "../../application/queries"
+import { currentAppRoute } from "../../app/routing"
 import { useAppStore } from "../../app/state/app-store"
+import type { UUID } from "../../domain"
 import { Badge } from "./badge"
 import { Button } from "./button"
 import "./shell.css"
+
+interface QuickCreateItem {
+  title: string
+  description: string
+  route: string
+  contextual?: boolean
+}
+
+function actionCreateRoute(
+  objectType: "Project" | "Cluster" | "Topic" | "Meeting",
+  objectId: string,
+  returnTo: string,
+): string {
+  const parameters = new URLSearchParams({
+    nieuw: "1",
+    objectType,
+    objectId,
+    returnTo,
+  })
+  return `/actions?${parameters.toString()}`
+}
 
 export function AppHeader() {
   const navigate = useNavigate()
@@ -23,6 +46,7 @@ export function AppHeader() {
   const [saving, setSaving] = useState(false)
   const [saveFeedback, setSaveFeedback] = useState("")
   const [quickCreateOpen, setQuickCreateOpen] = useState(false)
+  const [keyboardHelpOpen, setKeyboardHelpOpen] = useState(false)
   const searchInput = useRef<HTMLInputElement>(null)
   const deferredSearch = useDeferredValue(search)
   const dirty = useAppStore((state) => state.dirty)
@@ -42,6 +66,115 @@ export function AppHeader() {
       session ? buildGlobalSearchResults(session.state, deferredSearch) : [],
     [deferredSearch, session],
   )
+  const quickCreateItems = useMemo<readonly QuickCreateItem[]>(() => {
+    const fallback: QuickCreateItem[] = [
+      {
+        title: "Project",
+        description: "Nieuw projectdossier",
+        route: "/projects/new",
+      },
+      {
+        title: "Overleg",
+        description: "Nieuw overlegmoment",
+        route: "/meetings/new",
+      },
+    ]
+    if (!session) return fallback
+
+    const returnTo = currentAppRoute(location)
+    const topicMatch = location.pathname.match(
+      /^\/(?:projects|clusters)\/[^/]+\/topics\/([^/]+)$/,
+    )
+    const projectMatch = location.pathname.match(/^\/projects\/([^/]+)/)
+    const clusterMatch = location.pathname.match(/^\/clusters\/([^/]+)/)
+    const meetingMatch = location.pathname.match(/^\/meetings\/([^/]+)$/)
+    const topicId = topicMatch?.[1] as UUID | undefined
+    const projectId = projectMatch?.[1] as UUID | "new" | undefined
+    const clusterId = clusterMatch?.[1] as UUID | undefined
+    const meetingId = meetingMatch?.[1] as UUID | "new" | undefined
+    const topic = topicId
+      ? session.state.indices.topicById.get(topicId)
+      : undefined
+    const project =
+      projectId && projectId !== "new"
+        ? session.state.indices.projectById.get(projectId)
+        : undefined
+    const cluster = clusterId
+      ? session.state.indices.clusterById.get(clusterId)
+      : undefined
+    const meeting =
+      meetingId && meetingId !== "new"
+        ? session.state.indices.meetingById.get(meetingId)
+        : undefined
+    const contextual: QuickCreateItem[] = []
+
+    if (topic) {
+      contextual.push({
+        title: "Actie bij dit topic",
+        description: topic.title,
+        route: actionCreateRoute("Topic", topic.id, returnTo),
+        contextual: true,
+      })
+    } else if (project) {
+      contextual.push(
+        {
+          title: "Topic in dit project",
+          description: `${project.code} · ${project.title}`,
+          route: `/projects/${project.id}/topics?nieuw=1`,
+          contextual: true,
+        },
+        {
+          title: "Actie bij dit project",
+          description: `${project.code} · ${project.title}`,
+          route: actionCreateRoute("Project", project.id, returnTo),
+          contextual: true,
+        },
+        {
+          title: "Overleg voor dit project",
+          description: "Projectscope is al ingevuld",
+          route: `/meetings/new?scopeType=Project&scopeId=${project.id}`,
+          contextual: true,
+        },
+      )
+    } else if (cluster) {
+      contextual.push(
+        {
+          title: "Topic in deze cluster",
+          description: `${cluster.code} · ${cluster.title}`,
+          route: `/clusters/${cluster.id}?nieuw=1`,
+          contextual: true,
+        },
+        {
+          title: "Actie bij deze cluster",
+          description: `${cluster.code} · ${cluster.title}`,
+          route: actionCreateRoute("Cluster", cluster.id, returnTo),
+          contextual: true,
+        },
+        {
+          title: "Overleg voor deze cluster",
+          description: "Clusterscope is al ingevuld",
+          route: `/meetings/new?scopeType=Cluster&scopeId=${cluster.id}`,
+          contextual: true,
+        },
+      )
+    } else if (meeting) {
+      contextual.push(
+        {
+          title: "Actie uit dit overleg",
+          description: meeting.title,
+          route: actionCreateRoute("Meeting", meeting.id, returnTo),
+          contextual: true,
+        },
+        {
+          title: "Vervolgoverleg",
+          description: "Neem scope en open agendapunten mee",
+          route: `/meetings/new?vervolgVan=${meeting.id}`,
+          contextual: true,
+        },
+      )
+    }
+    return [...contextual, ...fallback]
+  }, [location, session])
 
   useEffect(() => {
     function focusSearch(event: globalThis.KeyboardEvent) {
@@ -57,9 +190,22 @@ export function AppHeader() {
         event.preventDefault()
         searchInput.current?.focus()
         setSearchOpen(true)
+      } else if (
+        event.key.toLocaleLowerCase("nl") === "n" &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !isTextInput
+      ) {
+        event.preventDefault()
+        setQuickCreateOpen(true)
+      } else if (event.key === "?" && !isTextInput) {
+        event.preventDefault()
+        setKeyboardHelpOpen(true)
       } else if (event.key === "Escape") {
         setSearchOpen(false)
         setQuickCreateOpen(false)
+        setKeyboardHelpOpen(false)
       }
     }
     window.addEventListener("keydown", focusSearch)
@@ -197,22 +343,17 @@ export function AppHeader() {
               <div className="global-search-commands">
                 <div>
                   <span>Snel maken</span>
-                  <button
-                    type="button"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => openCreateRoute("/projects/new")}
-                  >
-                    <strong>Nieuw project</strong>
-                    <small>Start een projectdossier</small>
-                  </button>
-                  <button
-                    type="button"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => openCreateRoute("/meetings/new")}
-                  >
-                    <strong>Nieuw overleg</strong>
-                    <small>Plan een overlegmoment</small>
-                  </button>
+                  {quickCreateItems.map((item) => (
+                    <button
+                      type="button"
+                      key={item.route}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => openCreateRoute(item.route)}
+                    >
+                      <strong>{item.title}</strong>
+                      <small>{item.description}</small>
+                    </button>
+                  ))}
                 </div>
                 <p>
                   Typ minstens twee tekens om projecten, topics, acties en
@@ -257,25 +398,34 @@ export function AppHeader() {
           </Button>
           {quickCreateOpen ? (
             <div className="app-header__quick-menu" role="menu">
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => openCreateRoute("/projects/new")}
-              >
-                <strong>Project</strong>
-                <span>Nieuw projectdossier</span>
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => openCreateRoute("/meetings/new")}
-              >
-                <strong>Overleg</strong>
-                <span>Nieuw overlegmoment</span>
-              </button>
+              {quickCreateItems.map((item, index) => (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={
+                    index > 0 &&
+                    !item.contextual &&
+                    quickCreateItems[index - 1]?.contextual
+                      ? "app-header__quick-menu-separator"
+                      : undefined
+                  }
+                  key={item.route}
+                  onClick={() => openCreateRoute(item.route)}
+                >
+                  <strong>{item.title}</strong>
+                  <span>{item.description}</span>
+                </button>
+              ))}
             </div>
           ) : null}
         </div>
+        <Button
+          variant="tertiary"
+          aria-label="Sneltoetsen tonen"
+          onClick={() => setKeyboardHelpOpen(true)}
+        >
+          ?
+        </Button>
         <div className="app-header__session-copy">
           <span className="app-header__file">
             {loadedFileName ?? "Geen gegevensbestand geopend"}
@@ -290,7 +440,7 @@ export function AppHeader() {
           <span className="app-header__actor">{currentActor.displayName}</span>
         ) : null}
         <Badge tone={dirty ? "warning" : "success"}>
-          {dirty ? "Wijzigingen nog niet opgeslagen" : "Geen wijzigingen"}
+          {dirty ? "Back-up nodig" : "Back-up bijgewerkt"}
         </Badge>
         <Button
           variant="tertiary"
@@ -304,7 +454,7 @@ export function AppHeader() {
           onClick={() => void saveDataFile()}
           disabled={!session || saving || session.hasBlockingIssues}
         >
-          {saving ? "Opslaan…" : "Back-up"}
+          {saving ? "Downloaden…" : "Back-up downloaden"}
         </Button>
       </div>
       {saveFeedback ? (
@@ -318,6 +468,68 @@ export function AppHeader() {
         >
           {saveFeedback}
         </p>
+      ) : null}
+      {keyboardHelpOpen ? (
+        <div
+          className="keyboard-help-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setKeyboardHelpOpen(false)
+          }}
+        >
+          <section
+            className="keyboard-help"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="keyboard-help-title"
+          >
+            <header>
+              <div>
+                <span>Sneller werken</span>
+                <h2 id="keyboard-help-title">Sneltoetsen</h2>
+              </div>
+              <Button
+                variant="tertiary"
+                aria-label="Sneltoetsen sluiten"
+                onClick={() => setKeyboardHelpOpen(false)}
+              >
+                Sluiten
+              </Button>
+            </header>
+            <dl>
+              <div>
+                <dt>
+                  <kbd>Ctrl</kbd> + <kbd>K</kbd> of <kbd>/</kbd>
+                </dt>
+                <dd>Globaal zoeken</dd>
+              </div>
+              <div>
+                <dt>
+                  <kbd>N</kbd>
+                </dt>
+                <dd>Contextgevoelig nieuw record</dd>
+              </div>
+              <div>
+                <dt>
+                  <kbd>Ctrl</kbd> + <kbd>Enter</kbd>
+                </dt>
+                <dd>Snelle invoer opslaan waar beschikbaar</dd>
+              </div>
+              <div>
+                <dt>
+                  <kbd>Esc</kbd>
+                </dt>
+                <dd>Paneel of menu sluiten</dd>
+              </div>
+              <div>
+                <dt>
+                  <kbd>?</kbd>
+                </dt>
+                <dd>Dit overzicht tonen</dd>
+              </div>
+            </dl>
+          </section>
+        </div>
       ) : null}
     </header>
   )

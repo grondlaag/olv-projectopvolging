@@ -32,7 +32,7 @@ test("fase-7-hoofdflow beheert budget, correctiehistorie en JSON-roundtrip lokaa
     .getByRole("link", { name: "Budget" })
     .click()
   await expect(
-    page.getByRole("heading", { name: "Projectbudget" }),
+    page.getByRole("heading", { name: "Synthetisch renovatieproject" }),
   ).toBeVisible()
 
   const addBudgetItem = async (input: {
@@ -57,7 +57,7 @@ test("fase-7-hoofdflow beheert budget, correctiehistorie en JSON-roundtrip lokaa
     await panel.getByRole("button", { name: "Budgetitem opslaan" }).click()
     await expect(
       page.getByText(
-        "Budgetitem opgeslagen in de lokale sessie · JSON nog opslaan",
+        "Budgetitem opgeslagen in de lokale sessie · back-up nodig",
       ),
     ).toBeVisible()
   }
@@ -95,14 +95,18 @@ test("fase-7-hoofdflow beheert budget, correctiehistorie en JSON-roundtrip lokaa
   await expect(
     page.getByText("€ 25.000,00", { exact: true }).first(),
   ).toBeVisible()
-  await expect(page.getByText("Regel vereist").first()).toBeVisible()
+  await expect(
+    page.getByText("Kerncijfers wachten op een besliste rekenregel."),
+  ).toBeVisible()
   await page.screenshot({
     path: "test-results/phase7-project-budget.png",
     fullPage: true,
   })
 
-  await page.getByRole("link", { name: "PRJ-001" }).click()
-  await page.getByRole("link", { name: /^Topics/ }).click()
+  await page
+    .getByRole("navigation", { name: "Projectdossierweergave" })
+    .getByRole("link", { name: /^Topics/ })
+    .click()
   await expect(
     page.getByRole("heading", { name: "Budgetimpact" }),
   ).toBeVisible()
@@ -121,14 +125,20 @@ test("fase-7-hoofdflow beheert budget, correctiehistorie en JSON-roundtrip lokaa
     .getByLabel("Projectfilter")
     .selectOption({ label: "PRJ-001 · Synthetisch renovatieproject" })
   await expect(
-    page.getByRole("link", { name: /PRJ-001 · Synthetisch renovatieproject/ }),
+    page.getByRole("link", {
+      name: "PRJ-001 · Synthetisch renovatieproject",
+      exact: true,
+    }),
   ).toBeVisible()
   await page.screenshot({
     path: "test-results/phase7-portfolio-budget.png",
     fullPage: true,
   })
   await page
-    .getByRole("link", { name: /PRJ-001 · Synthetisch renovatieproject/ })
+    .getByRole("link", {
+      name: "PRJ-001 · Synthetisch renovatieproject",
+      exact: true,
+    })
     .click()
 
   const approvedRow = page
@@ -142,7 +152,7 @@ test("fase-7-hoofdflow beheert budget, correctiehistorie en JSON-roundtrip lokaa
     .fill("E2E foutcorrectie van het ingelezen bedrag.")
   await panel.getByRole("button", { name: "Correctie opslaan" }).click()
   await expect(
-    page.getByText("Foutcorrectie opgeslagen met historie · JSON nog opslaan"),
+    page.getByText("Foutcorrectie opgeslagen met historie · back-up nodig"),
   ).toBeVisible()
   await approvedRow.getByRole("button", { name: "Corrigeren (1)" }).click()
   panel = page.getByRole("dialog", { name: "Bedrag corrigeren" })

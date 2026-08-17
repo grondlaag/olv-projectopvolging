@@ -1,8 +1,7 @@
-import { useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useMemo } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import {
   buildMeetingListItems,
-  defaultMeetingFilters,
   filterMeetingListItems,
   type MeetingFilters,
 } from "../../application/queries"
@@ -12,16 +11,59 @@ import {
   Button,
   EmptyState,
   PageHeader,
+  SavedViewsControl,
+  TableDisplayControl,
 } from "../../design-system/components"
+import { useWorkspacePreferences } from "../../app/preferences/workspace-preferences"
 import { meetingScopeTypes, meetingStatuses } from "../../domain"
 import { formatLocalDate } from "../../utils"
 import "./meetings.css"
 
+const meetingTableColumns = [
+  { id: "date", label: "Datum", required: true },
+  { id: "meeting", label: "Overleg", required: true },
+  { id: "scope", label: "Scope" },
+  { id: "chair", label: "Voorzitter" },
+  { id: "participants", label: "Deelnemers" },
+  { id: "agenda", label: "Agenda" },
+  { id: "status", label: "Status" },
+] as const
+
 export function MeetingsPage() {
   const navigate = useNavigate()
+  const [searchParameters, setSearchParameters] = useSearchParams()
   const session = useAppStore((state) => state.session)
   const setImportPanelOpen = useAppStore((state) => state.setImportPanelOpen)
-  const [filters, setFilters] = useState<MeetingFilters>(defaultMeetingFilters)
+  const preferences = useWorkspacePreferences()
+  const tablePreference = preferences.tables.meetings ?? {
+    density: "comfortable" as const,
+    hiddenColumns: [],
+  }
+  const hiddenColumns = useMemo(
+    () => new Set(tablePreference.hiddenColumns),
+    [tablePreference.hiddenColumns],
+  )
+  const requestedScope = searchParameters.get("scope") ?? ""
+  const requestedStatus = searchParameters.get("status") ?? ""
+  const filters = useMemo<MeetingFilters>(
+    () => ({
+      search: searchParameters.get("zoeken") ?? "",
+      type: searchParameters.get("type") ?? "",
+      scopeType: meetingScopeTypes.includes(
+        requestedScope as (typeof meetingScopeTypes)[number],
+      )
+        ? (requestedScope as MeetingFilters["scopeType"])
+        : "",
+      status: meetingStatuses.includes(
+        requestedStatus as (typeof meetingStatuses)[number],
+      )
+        ? (requestedStatus as MeetingFilters["status"])
+        : "",
+      dateFrom: searchParameters.get("vanaf") ?? "",
+      dateTo: searchParameters.get("tot") ?? "",
+    }),
+    [requestedScope, requestedStatus, searchParameters],
+  )
   const items = useMemo(
     () => (session ? buildMeetingListItems(session.state) : []),
     [session],
@@ -59,7 +101,27 @@ export function MeetingsPage() {
   const setFilter = <K extends keyof MeetingFilters>(
     field: K,
     value: MeetingFilters[K],
-  ) => setFilters((current) => ({ ...current, [field]: value }))
+  ) => {
+    const parameters = new URLSearchParams(searchParameters)
+    const keys: Record<keyof MeetingFilters, string> = {
+      search: "zoeken",
+      type: "type",
+      scopeType: "scope",
+      status: "status",
+      dateFrom: "vanaf",
+      dateTo: "tot",
+    }
+    if (value) parameters.set(keys[field], value)
+    else parameters.delete(keys[field])
+    setSearchParameters(parameters, { replace: true })
+  }
+
+  function resetFilters() {
+    const parameters = new URLSearchParams(searchParameters)
+    for (const key of ["zoeken", "type", "scope", "status", "vanaf", "tot"])
+      parameters.delete(key)
+    setSearchParameters(parameters, { replace: true })
+  }
 
   return (
     <div className="meetings-page">
@@ -151,27 +213,31 @@ export function MeetingsPage() {
       <div className="meeting-list-meta">
         <strong>{filtered.length} overlegmomenten</strong>
         {Object.values(filters).some(Boolean) ? (
-          <Button
-            variant="tertiary"
-            onClick={() => setFilters(defaultMeetingFilters)}
-          >
+          <Button variant="tertiary" onClick={resetFilters}>
             Filters wissen
           </Button>
         ) : null}
+        <SavedViewsControl page="meetings" />
+        <TableDisplayControl table="meetings" columns={meetingTableColumns} />
       </div>
 
       {filtered.length ? (
         <div className="meeting-table-wrap">
-          <table className="meeting-table">
+          <table
+            className="meeting-table"
+            data-density={tablePreference.density}
+          >
             <thead>
               <tr>
                 <th>Datum</th>
                 <th>Overleg</th>
-                <th>Scope</th>
-                <th>Voorzitter</th>
-                <th>Deelnemers</th>
-                <th>Agenda</th>
-                <th>Status</th>
+                {!hiddenColumns.has("scope") ? <th>Scope</th> : null}
+                {!hiddenColumns.has("chair") ? <th>Voorzitter</th> : null}
+                {!hiddenColumns.has("participants") ? (
+                  <th>Deelnemers</th>
+                ) : null}
+                {!hiddenColumns.has("agenda") ? <th>Agenda</th> : null}
+                {!hiddenColumns.has("status") ? <th>Status</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -193,24 +259,34 @@ export function MeetingsPage() {
                       </small>
                     </button>
                   </td>
-                  <td>
-                    <strong>{item.meeting.scopeType}</strong>
-                    <small>{item.scopeLabel}</small>
-                  </td>
-                  <td>{item.chair?.displayName ?? "—"}</td>
-                  <td>{item.participantCount}</td>
-                  <td>{item.agendaCount}</td>
-                  <td>
-                    <Badge
-                      tone={
-                        item.meeting.status === "Definitief"
-                          ? "success"
-                          : "info"
-                      }
-                    >
-                      {item.meeting.status}
-                    </Badge>
-                  </td>
+                  {!hiddenColumns.has("scope") ? (
+                    <td>
+                      <strong>{item.meeting.scopeType}</strong>
+                      <small>{item.scopeLabel}</small>
+                    </td>
+                  ) : null}
+                  {!hiddenColumns.has("chair") ? (
+                    <td>{item.chair?.displayName ?? "—"}</td>
+                  ) : null}
+                  {!hiddenColumns.has("participants") ? (
+                    <td>{item.participantCount}</td>
+                  ) : null}
+                  {!hiddenColumns.has("agenda") ? (
+                    <td>{item.agendaCount}</td>
+                  ) : null}
+                  {!hiddenColumns.has("status") ? (
+                    <td>
+                      <Badge
+                        tone={
+                          item.meeting.status === "Definitief"
+                            ? "success"
+                            : "info"
+                        }
+                      >
+                        {item.meeting.status}
+                      </Badge>
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

@@ -9,7 +9,8 @@ import { RouterProvider } from "react-router-dom"
 import { beforeEach, describe, expect, it } from "vitest"
 import { createAppRouter } from "../app/routing"
 import { useAppStore } from "../app/state/app-store"
-import { createPortfolioTestSession } from "./test-data"
+import { normalizeDomainState } from "../application/services"
+import { createPortfolioTestSession, testIds } from "./test-data"
 
 describe("projectformulier met inline beheer", () => {
   beforeEach(() => {
@@ -107,7 +108,7 @@ describe("projectformulier met inline beheer", () => {
       ),
     ).toBeInTheDocument()
     expect(
-      screen.getByText("Opgeslagen in sessie · JSON nog opslaan"),
+      screen.getByText("Bewaard in lokale sessie · back-up nodig"),
     ).toBeInTheDocument()
     expect(useAppStore.getState().dirty).toBe(true)
     expect(useAppStore.getState().session?.state.records.projects).toHaveLength(
@@ -205,6 +206,98 @@ describe("projectformulier met inline beheer", () => {
       expect(project?.chapterId).toBe(chapter?.id)
       expect(project?.clusterId).toBe(cluster?.id)
     })
+    router.dispose()
+  })
+
+  it("gebruikt vanuit Planning dezelfde volledige editor en keert met alle velden terug", async () => {
+    const session = createPortfolioTestSession()
+    const records = structuredClone(session.state.records)
+    const project = records.projects.find(
+      (item) => item.id === testIds.projectOne,
+    )!
+    project.size = "L"
+    useAppStore.setState({
+      session: { ...session, state: normalizeDomainState(records) },
+      loadedFileName: "portfolio-test.json",
+    })
+    window.location.hash = `#/projects/${testIds.projectOne}/planning`
+    const router = createAppRouter()
+    render(<RouterProvider router={router} />)
+
+    fireEvent.click(
+      await screen.findByRole(
+        "button",
+        { name: "Project bewerken" },
+        { timeout: 10_000 },
+      ),
+    )
+    expect(await screen.findByLabelText(/Projectomvang/)).toHaveValue("L")
+    fireEvent.change(screen.getByLabelText("Titel"), {
+      target: { value: "Renovatie met behouden omvang" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Wijzigingen opslaan" }))
+
+    await waitFor(() =>
+      expect(window.location.hash).toBe(
+        `#/projects/${testIds.projectOne}/planning`,
+      ),
+    )
+    expect(
+      await screen.findByRole(
+        "heading",
+        { name: "Renovatie met behouden omvang" },
+        { timeout: 10_000 },
+      ),
+    ).toBeInTheDocument()
+    expect(
+      useAppStore
+        .getState()
+        .session?.state.indices.projectById.get(testIds.projectOne),
+    ).toMatchObject({ title: "Renovatie met behouden omvang", size: "L" })
+    expect(
+      within(
+        screen.getByRole("navigation", { name: "Projectdossierweergave" }),
+      ).getByRole("link", { name: "Planning" }),
+    ).toHaveAttribute("aria-current", "page")
+    router.dispose()
+  }, 30_000)
+
+  it("waarschuwt voordat niet-opgeslagen formulierinvoer wordt verlaten", async () => {
+    window.location.hash = `#/projects/${testIds.projectOne}/edit`
+    const router = createAppRouter()
+    render(<RouterProvider router={router} />)
+
+    fireEvent.change(await screen.findByLabelText("Titel"), {
+      target: { value: "Nog niet bewaarde titel" },
+    })
+    fireEvent.click(
+      within(screen.getByRole("navigation", { name: "Kruimelpad" })).getByRole(
+        "link",
+        { name: "Portfolio" },
+      ),
+    )
+
+    const guard = await screen.findByRole("alertdialog", {
+      name: "Deze wijzigingen zijn nog niet toegepast",
+    })
+    expect(window.location.hash).toBe(`#/projects/${testIds.projectOne}/edit`)
+    fireEvent.click(
+      within(guard).getByRole("button", { name: "Verder bewerken" }),
+    )
+    expect(screen.getByLabelText("Titel")).toHaveValue(
+      "Nog niet bewaarde titel",
+    )
+
+    fireEvent.click(
+      within(screen.getByRole("navigation", { name: "Kruimelpad" })).getByRole(
+        "link",
+        { name: "Portfolio" },
+      ),
+    )
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Invoer verwerpen" }),
+    )
+    await waitFor(() => expect(window.location.hash).toBe("#/portfolio"))
     router.dispose()
   })
 })

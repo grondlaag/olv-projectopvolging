@@ -54,7 +54,7 @@ function updateContext(
     const project = state.indices.projectById.get(update.objectId)
     if (!project) return undefined
     return {
-      route: `/projects/${project.id}?weergave=journaal`,
+      route: `/projects/${project.id}/journal`,
       context: `${project.code} · ${project.title}`,
     }
   }
@@ -77,33 +77,24 @@ function actionContext(
   state: NormalizedDomainState,
   action: Action,
 ): Pick<GlobalSearchResult, "route" | "context"> {
+  const route = `/actions?actie=${action.id}`
   if (action.objectType === "Topic") {
     const topic = state.indices.topicById.get(action.objectId)
-    if (topic)
-      return { route: topicRoute(topic), context: topicContext(state, topic) }
+    if (topic) return { route, context: topicContext(state, topic) }
   }
   if (action.objectType === "Project") {
     const project = state.indices.projectById.get(action.objectId)
-    if (project)
-      return {
-        route: `/projects/${project.id}`,
-        context: `${project.code} · ${project.title}`,
-      }
+    if (project) return { route, context: `${project.code} · ${project.title}` }
   }
   if (action.objectType === "Cluster") {
     const cluster = state.indices.clusterById.get(action.objectId)
-    if (cluster)
-      return {
-        route: `/clusters/${cluster.id}`,
-        context: `${cluster.code} · ${cluster.title}`,
-      }
+    if (cluster) return { route, context: `${cluster.code} · ${cluster.title}` }
   }
   if (action.objectType === "Meeting") {
     const meeting = state.indices.meetingById.get(action.objectId)
-    if (meeting)
-      return { route: `/meetings/${meeting.id}`, context: meeting.title }
+    if (meeting) return { route, context: meeting.title }
   }
-  return { route: "/actions", context: "Globale actielijst" }
+  return { route, context: "Globale actielijst" }
 }
 
 function meetingContext(

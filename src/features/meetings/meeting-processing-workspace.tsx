@@ -195,7 +195,7 @@ export function MeetingProcessingWorkspace({
         attended,
       )
       replaceDomainState(result.state)
-      onMessage("Aanwezigheid opgeslagen in sessie · JSON nog opslaan")
+      onMessage("Aanwezigheid opgeslagen in sessie · back-up nodig")
     } catch (error) {
       onMessage(error instanceof Error ? error.message : "Opslaan is mislukt.")
     }
@@ -206,7 +206,7 @@ export function MeetingProcessingWorkspace({
       const latest = useAppStore.getState().session!.state
       const result = topicService.setTopicStatus(latest, topicId, status)
       replaceDomainState(result.state)
-      onMessage("Topicstatus opgeslagen in sessie · JSON nog opslaan")
+      onMessage("Topicstatus opgeslagen in sessie · back-up nodig")
     } catch (error) {
       onMessage(error instanceof Error ? error.message : "Opslaan is mislukt.")
     }
@@ -348,9 +348,7 @@ export function MeetingProcessingWorkspace({
                 contextLabel={selected.title}
                 meetingId={model.meeting.id}
                 disabled={frozen}
-                onSaved={(message) =>
-                  onMessage(`${message} · JSON nog opslaan`)
-                }
+                onSaved={(message) => onMessage(`${message} · back-up nodig`)}
               />
             ) : (
               <div className="meeting-process-relink" role="alert">

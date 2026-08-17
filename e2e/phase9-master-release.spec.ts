@@ -253,7 +253,11 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
   await expect(
     page.getByText("Releasecoördinator", { exact: true }).first(),
   ).toBeVisible()
-  await expect(page.getByText("Release werfoverleg")).toBeVisible()
+  await expect(
+    page
+      .locator(".project-meeting-summary")
+      .getByText("Release werfoverleg", { exact: true }),
+  ).toBeVisible()
 
   await page.getByRole("link", { name: /^Topics/ }).click()
   await page

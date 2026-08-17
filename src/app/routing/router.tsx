@@ -112,11 +112,23 @@ export function createAppRouter() {
         },
         {
           path: "projects/:projectId",
-          element: <ProjectReadonlyPage />,
+          element: <ProjectReadonlyPage view="overview" />,
+        },
+        {
+          path: "projects/:projectId/overview",
+          element: <ProjectReadonlyPage view="overview" />,
+        },
+        {
+          path: "projects/:projectId/topics",
+          element: <ProjectReadonlyPage view="topics" />,
+        },
+        {
+          path: "projects/:projectId/journal",
+          element: <ProjectReadonlyPage view="journal" />,
         },
         {
           path: "projects/:projectId/topics/:topicId",
-          element: <ProjectReadonlyPage />,
+          element: <ProjectReadonlyPage view="topics" />,
         },
         {
           path: "clusters/:clusterId",

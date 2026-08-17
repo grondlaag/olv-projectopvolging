@@ -1,4 +1,8 @@
 import { NavLink } from "react-router-dom"
+import {
+  toggleFavoriteWorkspaceLink,
+  useWorkspacePreferences,
+} from "../../app/preferences/workspace-preferences"
 import "./shell.css"
 
 const navigationItems = [
@@ -12,24 +16,61 @@ const navigationItems = [
 ] as const
 
 export function MainNavigation() {
+  const preferences = useWorkspacePreferences()
+  const favoriteLinks = preferences.links.filter((item) => item.favorite)
+  const quickLinks = [
+    ...favoriteLinks,
+    ...preferences.links.filter((item) => !item.favorite),
+  ].slice(0, 5)
   return (
-    <nav className="main-navigation" aria-label="Hoofdnavigatie">
-      <p className="main-navigation__label">Werkruimte</p>
-      <ul className="main-navigation__list">
-        {navigationItems.map((item) => (
-          <li key={item.to}>
-            <NavLink
-              className={({ isActive }) =>
-                `main-navigation__link${isActive ? " main-navigation__link--active" : ""}`
-              }
-              to={item.to}
-            >
-              <span aria-hidden="true">{item.marker}</span>
-              {item.label}
-            </NavLink>
-          </li>
-        ))}
-      </ul>
-    </nav>
+    <aside className="main-navigation">
+      <nav aria-label="Hoofdnavigatie">
+        <p className="main-navigation__label">Werkruimte</p>
+        <ul className="main-navigation__list">
+          {navigationItems.map((item) => (
+            <li key={item.to}>
+              <NavLink
+                className={({ isActive }) =>
+                  `main-navigation__link${isActive ? " main-navigation__link--active" : ""}`
+                }
+                to={item.to}
+              >
+                <span aria-hidden="true">{item.marker}</span>
+                {item.label}
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      {quickLinks.length ? (
+        <nav className="main-navigation__quick" aria-label="Snel bereikbaar">
+          <p className="main-navigation__label">Snel bereikbaar</p>
+          <ul>
+            {quickLinks.map((item) => (
+              <li key={item.route}>
+                <NavLink to={item.route} title={item.label}>
+                  <small>{item.kind}</small>
+                  <span>{item.label}</span>
+                </NavLink>
+                <button
+                  type="button"
+                  aria-label={`${item.favorite ? "Verwijder" : "Maak"} ${item.label} ${item.favorite ? "uit favorieten" : "favoriet"}`}
+                  aria-pressed={item.favorite}
+                  onClick={() =>
+                    toggleFavoriteWorkspaceLink({
+                      route: item.route,
+                      label: item.label,
+                      kind: item.kind,
+                    })
+                  }
+                >
+                  <span aria-hidden="true">{item.favorite ? "★" : "☆"}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ) : null}
+    </aside>
   )
 }

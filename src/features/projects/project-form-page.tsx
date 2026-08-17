@@ -7,7 +7,7 @@ import {
   type FieldValues,
   type UseFormSetError,
 } from "react-hook-form"
-import { Link, useNavigate, useParams } from "react-router-dom"
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import {
   ProjectManagementError,
   ProjectManagementService,
@@ -15,13 +15,18 @@ import {
   SettingsManagementService,
 } from "../../application/services"
 import { useAppStore } from "../../app/state/app-store"
+import { safeReturnTo } from "../../app/routing"
 import {
   Button,
   EmptyState,
   ErrorState,
   SearchableSelect,
 } from "../../design-system/components"
-import { useEscapeKey } from "../../design-system/patterns"
+import {
+  UnsavedFormDialog,
+  useEscapeKey,
+  useUnsavedFormGuard,
+} from "../../design-system/patterns"
 import {
   actorTypes,
   projectStatuses,
@@ -445,6 +450,7 @@ export function InlineActorPanel({
 
 export function ProjectFormPage() {
   const navigate = useNavigate()
+  const [searchParameters] = useSearchParams()
   const { projectId } = useParams<{ projectId: string }>()
   const isEditing = Boolean(projectId)
   const session = useAppStore((state) => state.session)
@@ -463,10 +469,11 @@ export function ProjectFormPage() {
     handleSubmit,
     setValue,
     setError,
-    formState: { errors, isSubmitting },
+    formState: { errors, isDirty, isSubmitting },
   } = useForm<ProjectFormValues>({
     defaultValues: project ? projectValues(project) : emptyProjectValues(),
   })
+  const { blocker, allowNextNavigation } = useUnsavedFormGuard(isDirty)
 
   const chapterId = useWatch({ control, name: "chapterId" })
   const clusterId = useWatch({ control, name: "clusterId" })
@@ -544,10 +551,17 @@ export function ProjectFormPage() {
         ? projectManagementService.updateProject(latestState, project.id, input)
         : projectManagementService.createProject(latestState, input)
       replaceDomainState(result.state)
-      navigate(`/projects/${result.record.id}`, {
-        replace: isEditing,
-        state: { saved: true },
-      })
+      allowNextNavigation()
+      const fallback = `/projects/${result.record.id}`
+      navigate(
+        project
+          ? safeReturnTo(searchParameters.get("returnTo"), fallback)
+          : fallback,
+        {
+          replace: isEditing,
+          state: { saved: true },
+        },
+      )
     } catch (error) {
       if (error instanceof ProjectManagementError) {
         for (const issue of error.issues) {
@@ -559,7 +573,9 @@ export function ProjectFormPage() {
     }
   })
 
-  const cancelTarget = project ? `/projects/${project.id}` : "/portfolio"
+  const cancelTarget = project
+    ? safeReturnTo(searchParameters.get("returnTo"), `/projects/${project.id}`)
+    : "/portfolio"
 
   return (
     <div className="project-form-page">
@@ -949,6 +965,7 @@ export function ProjectFormPage() {
           />
         ) : null}
       </div>
+      <UnsavedFormDialog blocker={blocker} />
     </div>
   )
 }

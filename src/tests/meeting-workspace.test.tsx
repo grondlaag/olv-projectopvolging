@@ -24,6 +24,19 @@ describe("overlegwerkruimte", () => {
     })
   })
 
+  it("neemt een geldige projectscope uit context over", async () => {
+    window.location.hash = `#/meetings/new?scopeType=Project&scopeId=${testIds.projectOne}`
+    const router = createAppRouter()
+    render(<RouterProvider router={router} />)
+
+    expect(
+      await screen.findByRole("heading", { name: "Nieuw overleg" }),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText("Scopetype")).toHaveValue("Project")
+    expect(screen.getByLabelText("Scope")).toHaveValue(testIds.projectOne)
+    router.dispose()
+  })
+
   it("maakt een overleg en inline actor zonder formuliercontextverlies", async () => {
     window.location.hash = "#/meetings/new"
     const router = createAppRouter()
@@ -78,6 +91,87 @@ describe("overlegwerkruimte", () => {
     router.dispose()
   })
 
+  it("herstelt overlegfilters rechtstreeks uit de URL", async () => {
+    window.location.hash = "#/meetings?status=Concept&scope=Project"
+    const router = createAppRouter()
+    const view = render(<RouterProvider router={router} />)
+
+    expect(
+      await screen.findByRole("heading", { name: "Overleg" }),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText("Status")).toHaveValue("Concept")
+    expect(screen.getByLabelText("Scope")).toHaveValue("Project")
+    fireEvent.change(screen.getByLabelText("Vanaf"), {
+      target: { value: "2026-08-01" },
+    })
+    expect(window.location.hash).toContain("vanaf=2026-08-01")
+    view.unmount()
+    router.dispose()
+  })
+
+  it("maakt vanuit het dossier een vervolgoverleg met open agenda en bronlink", async () => {
+    const base = createPortfolioTestSession()
+    const source = service.createMeeting(base.state, {
+      type: "Projectoverleg",
+      scopeType: "Project",
+      scopeId: testIds.projectOne,
+      title: "Maandelijks werfoverleg",
+      date: "2026-08-10" as LocalDate,
+      nextMeetingDate: "2026-09-10" as LocalDate,
+      chairActorId: testIds.actorOne,
+      status: "Concept",
+      participants: [{ actorId: testIds.actorOne, attended: false }],
+    })
+    const agenda = service.saveAgendaItem(source.state, source.record.id, {
+      title: "Tijdelijke toegang",
+      discussionStatus: "Doorgeschoven",
+      objectType: "Topic",
+      objectId: testIds.topicCritical,
+    })
+    useAppStore.setState({ session: { ...base, state: agenda.state } })
+    window.location.hash = `#/meetings/${source.record.id}`
+    const router = createAppRouter()
+    const view = render(<RouterProvider router={router} />)
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Vervolgoverleg maken" }),
+    )
+    expect(
+      await screen.findByRole("heading", { name: "Vervolgoverleg maken" }),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText("Titel")).toHaveValue(
+      "Maandelijks werfoverleg",
+    )
+    expect(screen.getByLabelText("Datum")).toHaveValue("2026-09-10")
+    expect(screen.getByText(/1 open agendapunten/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "Overleg opslaan" }))
+    await waitFor(() =>
+      expect(
+        useAppStore.getState().session!.state.records.meetings,
+      ).toHaveLength(2),
+    )
+    const created = useAppStore
+      .getState()
+      .session!.state.records.meetings.find(
+        (meeting) => meeting.id !== source.record.id,
+      )!
+    expect(created.sourceMeetingId).toBe(source.record.id)
+    expect(
+      useAppStore
+        .getState()
+        .session!.state.indices.agendaItemsByMeeting.get(created.id),
+    ).toEqual([
+      expect.objectContaining({
+        title: "Tijdelijke toegang",
+        discussionStatus: "Te bespreken",
+      }),
+    ])
+    expect(await screen.findByText("Vervolg op")).toBeInTheDocument()
+    view.unmount()
+    router.dispose()
+  })
+
   it("bereidt voor, verwerkt en bevriest een professioneel verslag", async () => {
     const base = createPortfolioTestSession()
     const created = service.createMeeting(base.state, {
@@ -115,11 +209,12 @@ describe("overlegwerkruimte", () => {
     )
     expect(
       await screen.findByText(
-        "Suggestie aan de agenda toegevoegd · JSON nog opslaan",
+        "Suggestie aan de agenda toegevoegd · back-up nodig",
       ),
     ).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole("button", { name: /^Verwerken/ }))
+    expect(window.location.hash).toContain("modus=process")
     fireEvent.click(screen.getByLabelText(/Anna/))
     fireEvent.change(screen.getByLabelText("Topicstatus"), {
       target: { value: "Afgesloten" },
@@ -167,6 +262,8 @@ describe("overlegwerkruimte", () => {
     expect(
       await screen.findByRole("heading", { name: "Verslag versie 1" }),
     ).toBeInTheDocument()
+    expect(window.location.hash).toContain("modus=report")
+    expect(window.location.hash).toContain("versie=1")
     expect(
       screen.getByText("De technische variant is goedgekeurd."),
     ).toBeInTheDocument()

@@ -248,6 +248,7 @@ const budgetMutationSchema = z
 const meetingSchema = z
   .object({
     ...audited,
+    sourceMeetingId: uuidSchema.optional(),
     type: z.string(),
     scopeType: z.enum(meetingScopeTypes),
     scopeId: uuidSchema.optional(),

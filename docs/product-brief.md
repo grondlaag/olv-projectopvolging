@@ -55,7 +55,7 @@ Een bestand wordt eerst syntactisch, structureel en relationeel gecontroleerd.
 Blokkerende fouten verhinderen openen. Na bevestiging wordt de genormaliseerde
 state de enige actieve source of truth.
 
-**JSON opslaan** bouwt een nieuw, leesbaar UTF-8-bestand. Opslaan gebeurt alleen
+**Back-up downloaden** bouwt een nieuw, leesbaar UTF-8 JSON-bestand. Opslaan gebeurt alleen
 op expliciete gebruikersactie; formulierbewerkingen veroorzaken nooit automatisch
 een download.
 
@@ -72,7 +72,9 @@ De hoofdnavigatie bevat:
 - Instellingen.
 
 Hashrouting ondersteunt GitHub Pages en rechtstreeks herstel van dossiercontext.
-Globaal zoeken vindt projecten, topics, acties en overleg.
+Projectoverzicht, topics, journaal, planning en budget hebben stabiele routes
+binnen dezelfde dossierkop. Globaal zoeken vindt projecten, topics, acties en
+overleg; resultaten openen het concrete record rechtstreeks.
 
 ## Instellingen
 
@@ -121,7 +123,8 @@ als geplande Gantt-balk.
 
 De globale planning toont zonder projectselectie de planningdekking, het aantal
 planningitems en mijlpalen, aandachtspunten en de zichtbare periode. De cijfers
-volgen de actieve portfoliofilters.
+volgen de actieve portfoliofilters. Hoofdstuk, cluster, project en detailregels
+staan in één uitklapbare boom naast dezelfde Gantt-tijdslijn.
 
 ## Budget
 
@@ -143,6 +146,9 @@ basisopmaak worden gekopieerd voor Outlook.
 Overleg ondersteunt scope, deelnemers, agenda, gekoppelde bronobjecten,
 beslissingen en acties. Verslagen bewaren snapshots en versies, zodat een
 definitief verslag niet verandert wanneer een bronrecord later wordt aangepast.
+Vanuit ieder overlegdossier kan een traceerbaar vervolgoverleg worden gemaakt;
+dezelfde scope, deelnemers en open gekoppelde agendapunten worden vooringevuld
+zonder het brondossier te wijzigen.
 
 Vanuit een project of topic kan de gebruiker in hetzelfde dossier kiezen op welk
 toekomstig conceptoverleg het besproken moet worden. De app toont alleen
@@ -181,6 +187,26 @@ build, Playwright, performance- en release-audit moeten slagen.
 De primaire workflow begint bij “Mijn werk” en blijft vanuit elke route
 toegankelijk via globaal zoeken en “+ Nieuw”. Portfolio ondersteunt compacte
 snelle selecties, inklapbare detailfilters en zichtbare filterchips.
-Projectdossiers laten status, fase, coördinator en voortgang contextvast
-bijwerken met expliciete save. Deze versnellingen gebruiken dezelfde
-domeinrecords en services; er ontstaat geen tweede UI-opslagmodel.
+Projectdossiers gebruiken overal dezelfde volledige projecteditor. De editor
+keert na bewaren terug naar het dossieronderdeel van herkomst en bewaart alle
+projectvelden, inclusief omvang. Niet-bewaarde complexe formulierinvoer wordt
+bij interne navigatie en venstersluiten beschermd. Er ontstaat geen tweede
+UI-opslagmodel. Een projectstatusmoment is inhoudelijke journaalinformatie en
+blijft onderscheiden van de levenscyclusstatus. Deelbare werkcontext zoals
+tabs, filters, groepering, zoom en overlegmodus staat in de hash-URL.
+
+De globale “+ Nieuw”-actie volgt de geopende context. In een project verschijnen
+direct een projecttopic, projectactie en overleg met vaste projectscope; bij een
+topic, cluster of overleg worden alleen relevante contextacties aangeboden.
+Sneltoets `N` opent deze laag en `?` toont het compacte sneltoetsoverzicht.
+
+Recente project-, topic- en overlegdossiers staan onder **Snel bereikbaar** en
+kunnen lokaal als favoriet worden vastgezet. Acties, planning, budget en overleg
+ondersteunen benoemde weergaven op basis van hun deelbare URL-filters. Sterke
+tabellen kunnen een lokale compacte dichtheid en relevante zichtbare kolommen
+bewaren. Deze persoonlijke werkruimtevoorkeuren zijn apparaatgebonden en maken
+geen deel uit van het operationele JSON-bestand.
+
+De actielijst ondersteunt een bewuste bulkhandeling voor eigenaar en status.
+Selectie alleen wijzigt niets; na bevestiging gebruikt elke actie dezelfde
+validatie en traceerbare historie als een individuele wijziging.

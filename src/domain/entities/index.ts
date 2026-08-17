@@ -193,6 +193,7 @@ export interface BudgetMutation extends AuditedEntity {
 }
 
 export interface Meeting extends AuditedEntity {
+  sourceMeetingId?: UUID
   type: string
   scopeType: MeetingScopeType
   scopeId?: UUID

@@ -32,7 +32,7 @@ test("fase-4-hoofdflow beheert topics, actuele stand en beslissingen volledig lo
     page.getByRole("heading", { name: "Synthetisch renovatieproject" }),
   ).toBeVisible()
   await expect(
-    page.getByText("Actuele projectstand", { exact: true }),
+    page.getByText("Actuele inhoudelijke projectstand", { exact: true }),
   ).toBeVisible()
   await expect(page.getByText("Open topics", { exact: true })).toBeVisible()
   await page.screenshot({

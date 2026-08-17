@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import {
   addLocalDateDays,
   buildActionListItems,
-  defaultActionFilters,
   filterActionListItems,
   groupActionListItemsByOwner,
   isActionOpen,
@@ -10,14 +10,21 @@ import {
   type ActionFilters,
   type ActionListItem,
 } from "../../application/queries"
-import { ActionManagementService } from "../../application/services"
+import {
+  ActionManagementService,
+  type ActionContextType,
+} from "../../application/services"
+import { safeReturnTo } from "../../app/routing"
 import { useAppStore } from "../../app/state/app-store"
 import {
   Badge,
   Button,
   EmptyState,
   PageHeader,
+  SavedViewsControl,
+  TableDisplayControl,
 } from "../../design-system/components"
+import { useWorkspacePreferences } from "../../app/preferences/workspace-preferences"
 import {
   actionStatuses,
   priorities,
@@ -45,22 +52,56 @@ interface ActionTableProps {
   items: readonly ActionListItem[]
   onEdit: (actionId: UUID) => void
   onStatusChange: (action: Action, status: ActionStatus) => void
+  selectedIds: ReadonlySet<UUID>
+  onToggleSelected: (actionId: UUID) => void
+  onToggleAll: (selected: boolean) => void
+  hiddenColumns: ReadonlySet<string>
+  density: "comfortable" | "compact"
 }
 
-function ActionTable({ items, onEdit, onStatusChange }: ActionTableProps) {
+const actionTableColumns = [
+  { id: "action", label: "Actie", required: true },
+  { id: "context", label: "Project / context" },
+  { id: "topic", label: "Topic" },
+  { id: "owner", label: "Eigenaar" },
+  { id: "deadline", label: "Deadline" },
+  { id: "status", label: "Status" },
+  { id: "priority", label: "Prioriteit" },
+] as const
+
+function ActionTable({
+  items,
+  onEdit,
+  onStatusChange,
+  selectedIds,
+  onToggleSelected,
+  onToggleAll,
+  hiddenColumns,
+  density,
+}: ActionTableProps) {
   const today = todayAsLocalDate()
+  const allSelected =
+    items.length > 0 && items.every((item) => selectedIds.has(item.action.id))
   return (
     <div className="actions-table-wrap">
-      <table className="actions-table">
+      <table className="actions-table" data-density={density}>
         <thead>
           <tr>
+            <th className="actions-table__selection">
+              <input
+                type="checkbox"
+                aria-label="Selecteer alle zichtbare acties"
+                checked={allSelected}
+                onChange={(event) => onToggleAll(event.target.checked)}
+              />
+            </th>
             <th>Actie</th>
-            <th>Project / context</th>
-            <th>Topic</th>
-            <th>Eigenaar</th>
-            <th>Deadline</th>
-            <th>Status</th>
-            <th>Prioriteit</th>
+            {!hiddenColumns.has("context") ? <th>Project / context</th> : null}
+            {!hiddenColumns.has("topic") ? <th>Topic</th> : null}
+            {!hiddenColumns.has("owner") ? <th>Eigenaar</th> : null}
+            {!hiddenColumns.has("deadline") ? <th>Deadline</th> : null}
+            {!hiddenColumns.has("status") ? <th>Status</th> : null}
+            {!hiddenColumns.has("priority") ? <th>Prioriteit</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -71,39 +112,59 @@ function ActionTable({ items, onEdit, onStatusChange }: ActionTableProps) {
                 isActionOverdue(item.action, today) ? "is-overdue" : undefined
               }
             >
+              <td className="actions-table__selection">
+                <input
+                  type="checkbox"
+                  aria-label={`Selecteer ${item.action.title}`}
+                  checked={selectedIds.has(item.action.id)}
+                  onChange={() => onToggleSelected(item.action.id)}
+                />
+              </td>
               <td>
                 <button type="button" onClick={() => onEdit(item.action.id)}>
                   <strong>{item.action.title}</strong>
                   <small>{item.action.code}</small>
                 </button>
               </td>
-              <td>
-                <strong>{item.projectLabel}</strong>
-                <small>{item.contextLabel}</small>
-              </td>
-              <td>{item.topic?.title ?? "—"}</td>
-              <td>{item.owner?.displayName ?? "Onbekende actor"}</td>
-              <td>{formatLocalDate(item.action.deadline)}</td>
-              <td className="actions-table__quick-status">
-                <Badge tone={actionTone(item.action.status)}>
-                  {item.action.status}
-                </Badge>
-                <select
-                  value={item.action.status}
-                  aria-label={`Status van ${item.action.title}`}
-                  onChange={(event) =>
-                    onStatusChange(
-                      item.action,
-                      event.target.value as ActionStatus,
-                    )
-                  }
-                >
-                  {actionStatuses.map((status) => (
-                    <option key={status}>{status}</option>
-                  ))}
-                </select>
-              </td>
-              <td>{item.action.priority}</td>
+              {!hiddenColumns.has("context") ? (
+                <td>
+                  <strong>{item.projectLabel}</strong>
+                  <small>{item.contextLabel}</small>
+                </td>
+              ) : null}
+              {!hiddenColumns.has("topic") ? (
+                <td>{item.topic?.title ?? "—"}</td>
+              ) : null}
+              {!hiddenColumns.has("owner") ? (
+                <td>{item.owner?.displayName ?? "Onbekende actor"}</td>
+              ) : null}
+              {!hiddenColumns.has("deadline") ? (
+                <td>{formatLocalDate(item.action.deadline)}</td>
+              ) : null}
+              {!hiddenColumns.has("status") ? (
+                <td className="actions-table__quick-status">
+                  <Badge tone={actionTone(item.action.status)}>
+                    {item.action.status}
+                  </Badge>
+                  <select
+                    value={item.action.status}
+                    aria-label={`Status van ${item.action.title}`}
+                    onChange={(event) =>
+                      onStatusChange(
+                        item.action,
+                        event.target.value as ActionStatus,
+                      )
+                    }
+                  >
+                    {actionStatuses.map((status) => (
+                      <option key={status}>{status}</option>
+                    ))}
+                  </select>
+                </td>
+              ) : null}
+              {!hiddenColumns.has("priority") ? (
+                <td>{item.action.priority}</td>
+              ) : null}
             </tr>
           ))}
         </tbody>
@@ -113,14 +174,76 @@ function ActionTable({ items, onEdit, onStatusChange }: ActionTableProps) {
 }
 
 export function ActionsPage() {
+  const navigate = useNavigate()
+  const [searchParameters, setSearchParameters] = useSearchParams()
   const session = useAppStore((state) => state.session)
   const setImportPanelOpen = useAppStore((state) => state.setImportPanelOpen)
-  const [filters, setFilters] = useState<ActionFilters>(defaultActionFilters)
-  const [view, setView] = useState<ViewMode>("list")
-  const [operationalView, setOperationalView] =
-    useState<OperationalView>("open")
-  const [editingId, setEditingId] = useState<UUID>()
+  const filters = useMemo<ActionFilters>(() => {
+    const status = searchParameters.get("status") ?? ""
+    const priority = searchParameters.get("prioriteit") ?? ""
+    const dateScope = searchParameters.get("timing") ?? ""
+    return {
+      search: searchParameters.get("zoeken") ?? "",
+      ownerActorId: searchParameters.get("eigenaar") ?? "",
+      projectId: searchParameters.get("project") ?? "",
+      clusterId: searchParameters.get("cluster") ?? "",
+      status: (actionStatuses as readonly string[]).includes(status)
+        ? (status as ActionFilters["status"])
+        : "",
+      priority: (priorities as readonly string[]).includes(priority)
+        ? (priority as ActionFilters["priority"])
+        : "",
+      dateScope: [
+        "overdue",
+        "thisWeek",
+        "next14",
+        "noDeadline",
+        "waitingDecision",
+      ].includes(dateScope)
+        ? (dateScope as ActionFilters["dateScope"])
+        : "",
+    }
+  }, [searchParameters])
+  const view: ViewMode =
+    searchParameters.get("groep") === "eigenaar" ? "owner" : "list"
+  const requestedOperationalView = searchParameters.get("scope")
+  const operationalView: OperationalView = [
+    "all",
+    "mine",
+    "open",
+    "overdue",
+    "week",
+    "waiting",
+  ].includes(requestedOperationalView ?? "")
+    ? (requestedOperationalView as OperationalView)
+    : "open"
+  const editingId = (searchParameters.get("actie") || undefined) as
+    UUID | undefined
+  const requestedObjectType = searchParameters.get("objectType")
+  const newObjectType = ["Project", "Cluster", "Topic", "Meeting"].includes(
+    requestedObjectType ?? "",
+  )
+    ? (requestedObjectType as ActionContextType)
+    : undefined
+  const newObjectId = (searchParameters.get("objectId") || undefined) as
+    UUID | undefined
+  const newActionContext =
+    searchParameters.get("nieuw") === "1" && newObjectType && newObjectId
+      ? { objectType: newObjectType, objectId: newObjectId }
+      : undefined
   const [statusMessage, setStatusMessage] = useState("")
+  const [selectedIds, setSelectedIds] = useState<Set<UUID>>(new Set())
+  const [bulkStatus, setBulkStatus] = useState<"" | ActionStatus>("")
+  const [bulkOwnerId, setBulkOwnerId] = useState("")
+  const preferences = useWorkspacePreferences()
+  const tablePreference = preferences.tables.actions ?? {
+    density: "comfortable" as const,
+    hiddenColumns: [],
+  }
+  const hiddenColumns = useMemo(
+    () => new Set(tablePreference.hiddenColumns),
+    [tablePreference.hiddenColumns],
+  )
   const items = useMemo(
     () => (session ? buildActionListItems(session.state) : []),
     [session],
@@ -158,6 +281,10 @@ export function ActionsPage() {
     () => groupActionListItemsByOwner(visible),
     [visible],
   )
+  const visibleSelectedIds = useMemo(() => {
+    const visibleIds = new Set(visible.map((item) => item.action.id))
+    return new Set([...selectedIds].filter((id) => visibleIds.has(id)))
+  }, [selectedIds, visible])
 
   if (!session) {
     return (
@@ -189,11 +316,83 @@ export function ActionsPage() {
   const activeClusters = session.state.records.clusters.filter(
     (cluster) => cluster.audit.active,
   )
+  const newActionContextLabel =
+    newActionContext?.objectType === "Project"
+      ? session.state.indices.projectById.get(newActionContext.objectId)?.title
+      : newActionContext?.objectType === "Cluster"
+        ? session.state.indices.clusterById.get(newActionContext.objectId)
+            ?.title
+        : newActionContext?.objectType === "Topic"
+          ? session.state.indices.topicById.get(newActionContext.objectId)
+              ?.title
+          : newActionContext?.objectType === "Meeting"
+            ? session.state.indices.meetingById.get(newActionContext.objectId)
+                ?.title
+            : undefined
 
   const updateFilter = <K extends keyof ActionFilters>(
     field: K,
     value: ActionFilters[K],
-  ) => setFilters((current) => ({ ...current, [field]: value }))
+  ) => {
+    const parameters = new URLSearchParams(searchParameters)
+    const keys: Record<keyof ActionFilters, string> = {
+      search: "zoeken",
+      ownerActorId: "eigenaar",
+      projectId: "project",
+      clusterId: "cluster",
+      status: "status",
+      priority: "prioriteit",
+      dateScope: "timing",
+    }
+    if (value) parameters.set(keys[field], value)
+    else parameters.delete(keys[field])
+    setSearchParameters(parameters, { replace: true })
+  }
+
+  function selectOperationalView(nextView: OperationalView) {
+    const parameters = new URLSearchParams(searchParameters)
+    if (nextView === "open") parameters.delete("scope")
+    else parameters.set("scope", nextView)
+    setSearchParameters(parameters, { replace: true })
+  }
+
+  function selectView(nextView: ViewMode) {
+    const parameters = new URLSearchParams(searchParameters)
+    if (nextView === "owner") parameters.set("groep", "eigenaar")
+    else parameters.delete("groep")
+    setSearchParameters(parameters, { replace: true })
+  }
+
+  function resetFilters() {
+    const parameters = new URLSearchParams(searchParameters)
+    for (const key of [
+      "zoeken",
+      "eigenaar",
+      "project",
+      "cluster",
+      "status",
+      "prioriteit",
+      "timing",
+    ])
+      parameters.delete(key)
+    setSearchParameters(parameters, { replace: true })
+  }
+
+  function openAction(actionId: UUID) {
+    const next = new URLSearchParams(searchParameters)
+    next.set("actie", actionId)
+    setSearchParameters(next)
+  }
+
+  function closeAction() {
+    if (newActionContext) {
+      navigate(safeReturnTo(searchParameters.get("returnTo"), "/actions"))
+      return
+    }
+    const next = new URLSearchParams(searchParameters)
+    next.delete("actie")
+    setSearchParameters(next, { replace: true })
+  }
 
   function updateStatus(action: Action, status: ActionStatus) {
     const latest = useAppStore.getState().session?.state
@@ -210,14 +409,56 @@ export function ActionsPage() {
       useAppStore.getState().replaceDomainState(result.state)
       setStatusMessage(
         status === "Afgerond"
-          ? "Actie afgerond · JSON nog opslaan"
-          : "Actiestatus bijgewerkt · JSON nog opslaan",
+          ? "Actie afgerond · back-up nodig"
+          : "Actiestatus bijgewerkt · back-up nodig",
       )
     } catch (error) {
       setStatusMessage(
         error instanceof Error
           ? error.message
           : "De actiestatus kon niet worden gewijzigd.",
+      )
+    }
+  }
+
+  function toggleSelected(actionId: UUID) {
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      if (next.has(actionId)) next.delete(actionId)
+      else next.add(actionId)
+      return next
+    })
+  }
+
+  function applyBulkChange() {
+    if (!visibleSelectedIds.size || (!bulkStatus && !bulkOwnerId)) return
+    let state = useAppStore.getState().session!.state
+    try {
+      for (const actionId of visibleSelectedIds) {
+        const action = state.indices.actionById.get(actionId)
+        if (!action) continue
+        const result = actionService.updateAction(state, action.id, {
+          title: action.title,
+          ...(action.description ? { description: action.description } : {}),
+          ownerActorId: (bulkOwnerId || action.ownerActorId) as UUID,
+          ...(action.deadline ? { deadline: action.deadline } : {}),
+          status: bulkStatus || action.status,
+          priority: action.priority,
+        })
+        state = result.state
+      }
+      useAppStore.getState().replaceDomainState(state)
+      setStatusMessage(
+        `${visibleSelectedIds.size} acties bijgewerkt · back-up nodig`,
+      )
+      setSelectedIds(new Set())
+      setBulkStatus("")
+      setBulkOwnerId("")
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error
+          ? error.message
+          : "De geselecteerde acties konden niet worden bijgewerkt.",
       )
     }
   }
@@ -245,7 +486,7 @@ export function ActionsPage() {
           <Button
             key={value}
             variant={operationalView === value ? "secondary" : "tertiary"}
-            onClick={() => setOperationalView(value)}
+            onClick={() => selectOperationalView(value)}
           >
             {label}
           </Button>
@@ -253,8 +494,10 @@ export function ActionsPage() {
         <Button
           variant={view === "owner" ? "secondary" : "tertiary"}
           onClick={() => {
-            setView("owner")
-            setOperationalView("open")
+            const parameters = new URLSearchParams(searchParameters)
+            parameters.set("groep", "eigenaar")
+            parameters.delete("scope")
+            setSearchParameters(parameters, { replace: true })
           }}
         >
           Per persoon
@@ -381,26 +624,68 @@ export function ActionsPage() {
           <legend>Weergave</legend>
           <Button
             variant={view === "list" ? "secondary" : "tertiary"}
-            onClick={() => setView("list")}
+            onClick={() => selectView("list")}
           >
             Lijst
           </Button>
           <Button
             variant={view === "owner" ? "secondary" : "tertiary"}
-            onClick={() => setView("owner")}
+            onClick={() => selectView("owner")}
           >
             Per eigenaar
           </Button>
         </fieldset>
-        {filters !== defaultActionFilters ? (
-          <Button
-            variant="tertiary"
-            onClick={() => setFilters(defaultActionFilters)}
-          >
+        {Object.values(filters).some(Boolean) ? (
+          <Button variant="tertiary" onClick={resetFilters}>
             Filters wissen
           </Button>
         ) : null}
+        <SavedViewsControl page="actions" />
+        <TableDisplayControl table="actions" columns={actionTableColumns} />
       </div>
+
+      {visibleSelectedIds.size ? (
+        <section className="actions-bulk-bar" aria-label="Bulkacties">
+          <strong>{visibleSelectedIds.size} geselecteerd</strong>
+          <label>
+            <span>Status</span>
+            <select
+              value={bulkStatus}
+              onChange={(event) =>
+                setBulkStatus(event.target.value as "" | ActionStatus)
+              }
+            >
+              <option value="">Ongewijzigd</option>
+              {actionStatuses.map((status) => (
+                <option key={status}>{status}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Eigenaar</span>
+            <select
+              value={bulkOwnerId}
+              onChange={(event) => setBulkOwnerId(event.target.value)}
+            >
+              <option value="">Ongewijzigd</option>
+              {activeActors.map((actor) => (
+                <option value={actor.id} key={actor.id}>
+                  {actor.displayName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button
+            onClick={applyBulkChange}
+            disabled={!bulkStatus && !bulkOwnerId}
+          >
+            Wijziging toepassen
+          </Button>
+          <Button variant="tertiary" onClick={() => setSelectedIds(new Set())}>
+            Selectie wissen
+          </Button>
+        </section>
+      ) : null}
 
       {visible.length ? (
         view === "owner" ? (
@@ -413,8 +698,22 @@ export function ActionsPage() {
                 </header>
                 <ActionTable
                   items={group.actions}
-                  onEdit={setEditingId}
+                  onEdit={openAction}
                   onStatusChange={updateStatus}
+                  selectedIds={visibleSelectedIds}
+                  onToggleSelected={toggleSelected}
+                  onToggleAll={(selected) =>
+                    setSelectedIds((current) => {
+                      const next = new Set(current)
+                      for (const item of group.actions) {
+                        if (selected) next.add(item.action.id)
+                        else next.delete(item.action.id)
+                      }
+                      return next
+                    })
+                  }
+                  hiddenColumns={hiddenColumns}
+                  density={tablePreference.density}
                 />
               </section>
             ))}
@@ -422,8 +721,19 @@ export function ActionsPage() {
         ) : (
           <ActionTable
             items={visible}
-            onEdit={setEditingId}
+            onEdit={openAction}
             onStatusChange={updateStatus}
+            selectedIds={visibleSelectedIds}
+            onToggleSelected={toggleSelected}
+            onToggleAll={(selected) =>
+              setSelectedIds(
+                selected
+                  ? new Set(visible.map((item) => item.action.id))
+                  : new Set(),
+              )
+            }
+            hiddenColumns={hiddenColumns}
+            density={tablePreference.density}
           />
         )
       ) : (
@@ -433,11 +743,17 @@ export function ActionsPage() {
         />
       )}
 
-      {editingId ? (
+      {editingId || (newActionContext && newActionContextLabel) ? (
         <ActionPanel
-          actionId={editingId}
-          contextLabel="Globale actielijst"
-          onClose={() => setEditingId(undefined)}
+          {...(editingId ? { actionId: editingId } : {})}
+          {...(newActionContext
+            ? {
+                objectType: newActionContext.objectType,
+                objectId: newActionContext.objectId,
+              }
+            : {})}
+          contextLabel={newActionContextLabel ?? "Globale actielijst"}
+          onClose={closeAction}
         />
       ) : null}
     </div>

@@ -31,6 +31,7 @@ export interface MeetingParticipantInput {
 }
 
 export interface MeetingInput {
+  sourceMeetingId?: UUID
   type: string
   scopeType: MeetingScopeType
   scopeId?: UUID
@@ -143,6 +144,7 @@ function scopeReferences(state: NormalizedDomainState): MeetingScopeReferences {
 function validateMeetingInput(
   state: NormalizedDomainState,
   input: MeetingInput,
+  meetingId?: UUID,
 ): void {
   const issues: MeetingManagementIssue[] = []
   if (!input.type.trim()) {
@@ -157,6 +159,30 @@ function validateMeetingInput(
       message: issue.message,
     })),
   )
+
+  if (input.sourceMeetingId) {
+    const source = state.indices.meetingById.get(input.sourceMeetingId)
+    if (!source?.audit.active) {
+      issues.push({
+        field: "sourceMeetingId",
+        message: "Het oorspronkelijke overleg bestaat niet meer.",
+      })
+    } else if (source.id === meetingId) {
+      issues.push({
+        field: "sourceMeetingId",
+        message: "Een overleg kan niet zijn eigen vervolg zijn.",
+      })
+    } else if (
+      source.scopeType !== input.scopeType ||
+      source.scopeId !== input.scopeId
+    ) {
+      issues.push({
+        field: "scopeId",
+        message:
+          "Een vervolgoverleg behoudt dezelfde scope als het bronoverleg.",
+      })
+    }
+  }
 
   const actorIds = new Set<UUID>()
   for (const participant of input.participants) {
@@ -216,6 +242,9 @@ function ensureConceptMeeting(
 function normalizedMeetingInput(input: MeetingInput) {
   const number = optionalText(input.number)
   return {
+    ...(input.sourceMeetingId
+      ? { sourceMeetingId: input.sourceMeetingId }
+      : {}),
     type: input.type.trim(),
     scopeType: input.scopeType,
     ...(input.scopeId ? { scopeId: input.scopeId } : {}),
@@ -453,6 +482,31 @@ export class MeetingManagementService {
       actorId,
       createUuid,
     )
+    if (input.sourceMeetingId) {
+      const carriedItems = (
+        state.indices.agendaItemsByMeeting.get(input.sourceMeetingId) ?? []
+      ).filter(
+        (item) =>
+          item.audit.active &&
+          item.discussionStatus !== "Besproken" &&
+          (item.objectType === "Project" || item.objectType === "Topic") &&
+          Boolean(item.objectId),
+      )
+      records.agendaItems.push(
+        ...carriedItems.map((item, index): AgendaItem => ({
+          id: createUuid(),
+          meetingId: meeting.id,
+          order: index + 1,
+          title: item.title,
+          ...(item.reason ? { reason: item.reason } : {}),
+          ...(item.notes ? { notes: item.notes } : {}),
+          objectType: item.objectType as "Project" | "Topic",
+          objectId: item.objectId!,
+          discussionStatus: "Te bespreken",
+          audit: auditFields(now, actorId),
+        })),
+      )
+    }
     return { state: normalizeDomainState(records), record: meeting }
   }
 
@@ -463,7 +517,7 @@ export class MeetingManagementService {
     options: MeetingMutationOptions = {},
   ): MeetingMutationResult<Meeting> {
     const existing = ensureConceptMeeting(state, meetingId)
-    validateMeetingInput(state, input)
+    validateMeetingInput(state, input, meetingId)
     const now = options.now ?? new Date()
     const createUuid = options.createUuid ?? defaultUuid
     const actorId = state.records.config[0]?.currentActorId
@@ -478,6 +532,7 @@ export class MeetingManagementService {
       "chairActorId",
       "reporterActorId",
       "nextMeetingDate",
+      "sourceMeetingId",
     ] as const) {
       if (!(field in normalizedMeetingInput(input))) delete record[field]
     }

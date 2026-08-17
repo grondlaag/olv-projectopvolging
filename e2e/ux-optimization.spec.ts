@@ -45,13 +45,31 @@ test("geoptimaliseerde werkflow blijft compact en contextvast", async ({
   })
 
   await page.locator(".portfolio-row--project").first().click()
-  await page.getByRole("button", { name: "Snel bijwerken" }).click()
+  await page.getByRole("button", { name: "Project bewerken" }).click()
   await expect(
-    page.getByRole("heading", { name: "Kerngegevens snel bijwerken" }),
+    page.getByRole("heading", { name: "Project bewerken" }),
   ).toBeVisible()
   await expect(page.getByLabel("Voortgang (%)")).toBeVisible()
   await page.screenshot({
-    path: "test-results/ux-project-quick-edit.png",
+    path: "test-results/ux-project-editor.png",
     fullPage: true,
   })
+
+  await page.getByLabel("Titel").fill("Nog niet bewaarde projecttitel")
+  await page
+    .getByRole("navigation", { name: "Hoofdnavigatie" })
+    .getByRole("link", { name: "Portfolio" })
+    .click()
+  const guard = page.getByRole("alertdialog", {
+    name: "Deze wijzigingen zijn nog niet toegepast",
+  })
+  await expect(guard).toBeVisible()
+  await page.screenshot({
+    path: "test-results/ux-unsaved-project-guard.png",
+    fullPage: true,
+  })
+  await guard.getByRole("button", { name: "Verder bewerken" }).click()
+  await expect(page.getByLabel("Titel")).toHaveValue(
+    "Nog niet bewaarde projecttitel",
+  )
 })

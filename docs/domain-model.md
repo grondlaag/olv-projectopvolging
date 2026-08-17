@@ -397,6 +397,7 @@ Fase-7-mutatieregels:
 ## Meeting
 
 - id;
+- sourceMeetingId?;
 - type;
 - scopeType;
 - scopeId?;
@@ -423,6 +424,13 @@ Invarianten:
   het overeenkomstige type;
 - voorzitter, verslaggever en deelnemers verwijzen naar actieve actoren;
 - status is `Concept` of `Definitief`;
+- `sourceMeetingId` verwijst, indien gevuld, naar een ander actief overleg met
+  exact dezelfde scope;
+- een vervolgoverleg krijgt een nieuw ID en kopieert alleen actieve,
+  brongebonden agendapunten met status `Te bespreken` of `Doorgeschoven`; de
+  nieuwe punten krijgen nieuwe IDs en status `Te bespreken`;
+- deelnemers en basisvelden worden in het vervolgformulier vooringevuld, maar
+  pas bij expliciete save opgeslagen;
 - een definitief overleg blijft historisch beschikbaar en inhoudelijke
   mutaties vereisen een nieuwe verslagrevisie.
 
@@ -451,10 +459,11 @@ verwerking geregistreerd; personen worden niet als vrije tekst gedupliceerd.
 - discussionStatus;
 - audit.
 
-Een gekoppeld agendapunt verwijst naar één bestaand `Project`, `Cluster`,
-`Topic` of `Action` binnen de overlegscope. Een vrij punt heeft noch
-`objectType`, noch `objectId`. De volgorde is expliciet en uniek gemaakt door de
-applicatieservice. Bespreekstatus is `Te bespreken`, `Besproken` of
+Nieuwe of bewerkte agendapunten verwijzen naar één bestaand `Project` of `Topic`
+binnen de overlegscope. Historisch geïmporteerde vrije of anders gekoppelde
+punten blijven leesbaar omdat de bronvelden optioneel zijn, maar kunnen niet als
+nieuw los punt worden opgeslagen. De volgorde is expliciet en uniek gemaakt
+door de applicatieservice. Bespreekstatus is `Te bespreken`, `Besproken` of
 `Doorgeschoven`.
 
 Een actief bronrecord kan per overleg maximaal één actief gekoppeld agendapunt

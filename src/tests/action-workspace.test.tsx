@@ -108,12 +108,28 @@ describe("actie-invoer en globale opvolging", () => {
       )
     })
     expect(
-      screen.getByText("Actiestatus bijgewerkt · JSON nog opslaan"),
+      screen.getByText("Actiestatus bijgewerkt · back-up nodig"),
     ).toBeInTheDocument()
     fireEvent.click(screen.getByRole("button", { name: "Per eigenaar" }))
+    expect(window.location.hash).toContain("groep=eigenaar")
     expect(
       screen.getByRole("heading", { name: "Nieuwe Actiehouder" }),
     ).toBeInTheDocument()
+    router.dispose()
+  })
+
+  it("opent en sluit een actie rechtstreeks via de URL", async () => {
+    const action = useAppStore.getState().session!.state.records.actions[0]!
+    window.location.hash = `#/actions?actie=${action.id}`
+    const router = createAppRouter()
+    render(<RouterProvider router={router} />)
+
+    expect(
+      await screen.findByRole("dialog", { name: "Actie bewerken" }),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText("Titel")).toHaveValue(action.title)
+    fireEvent.click(screen.getByRole("button", { name: "Actiepaneel sluiten" }))
+    await waitFor(() => expect(window.location.hash).toBe("#/actions"))
     router.dispose()
   })
 })

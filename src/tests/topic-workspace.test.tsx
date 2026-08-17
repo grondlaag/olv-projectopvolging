@@ -21,8 +21,58 @@ describe("topicwerkruimte", () => {
     })
   })
 
+  it("opent nieuwe topicinvoer rechtstreeks uit context en ruimt de URL op bij sluiten", async () => {
+    window.location.hash = `#/projects/${testIds.projectOne}/topics?nieuw=1`
+    const router = createAppRouter()
+    render(<RouterProvider router={router} />)
+
+    expect(
+      await screen.findByRole("dialog", { name: "Nieuw topic" }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Paneel sluiten" }))
+    await waitFor(() =>
+      expect(window.location.hash).toBe(
+        `#/projects/${testIds.projectOne}/topics`,
+      ),
+    )
+    router.dispose()
+  })
+
+  it("legt een inhoudelijk projectstatusmoment vast zonder de levenscyclusstatus te wijzigen", async () => {
+    window.location.hash = `#/projects/${testIds.projectOne}`
+    const router = createAppRouter()
+    const view = render(<RouterProvider router={router} />)
+
+    expect(
+      await screen.findByText("Actuele inhoudelijke projectstand"),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/levenscyclusstatus/)).toBeInTheDocument()
+    const composer = screen.getByRole("form", {
+      name: /Bijdrage toevoegen aan PRJ-001/,
+    })
+    fireEvent.change(
+      within(composer).getByPlaceholderText(/Wat is er gewijzigd/),
+      { target: { value: "De werfzone is klaar voor ingebruikname." } },
+    )
+    fireEvent.click(within(composer).getByLabelText("Maak actuele stand"))
+    fireEvent.click(
+      within(composer).getByRole("button", { name: "Update opslaan" }),
+    )
+
+    await waitFor(() => {
+      const state = useAppStore.getState().session!.state
+      const project = state.indices.projectById.get(testIds.projectOne)!
+      expect(project.status).toBe("Uitvoering")
+      expect(state.indices.updateById.get(project.currentUpdateId!)?.text).toBe(
+        "De werfzone is klaar voor ingebruikname.",
+      )
+    })
+    view.unmount()
+    router.dispose()
+  })
+
   it("maakt een projecttopic, actuele update en beslissing zonder formuliercontextverlies", async () => {
-    window.location.hash = `#/projects/${testIds.projectOne}?weergave=topics`
+    window.location.hash = `#/projects/${testIds.projectOne}/topics`
     const router = createAppRouter()
     render(<RouterProvider router={router} />)
 
@@ -240,12 +290,66 @@ describe("topicwerkruimte", () => {
     )
     expect(useAppStore.getState().dirty).toBe(true)
     expect(
-      screen.getByText(
-        "Timing opgeslagen in de lokale sessie · JSON nog opslaan",
-      ),
+      screen.getByText("Timing opgeslagen in de lokale sessie · back-up nodig"),
     ).toBeInTheDocument()
     expect(
       screen.getByRole("button", { name: "Timing bewerken" }),
+    ).toBeInTheDocument()
+    router.dispose()
+  })
+
+  it("bewerkt alle kernvelden zonder broncontext of historiek te verliezen", async () => {
+    window.location.hash = `#/projects/${testIds.projectOne}/topics/${testIds.topicCritical}`
+    const before = useAppStore.getState().session!.state
+    const original = before.indices.topicById.get(testIds.topicCritical)!
+    const updateCount = before.records.updates.length
+    const currentUpdateId = original.currentUpdateId
+    const router = createAppRouter()
+    render(<RouterProvider router={router} />)
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Topic bewerken" }),
+    )
+    const panel = screen.getByRole("dialog", { name: "Topic bewerken" })
+    fireEvent.change(within(panel).getByLabelText("Titel"), {
+      target: { value: "Toegang spoed herwerkt" },
+    })
+    fireEvent.change(within(panel).getByLabelText("Vaste context"), {
+      target: { value: "Aangepaste vaste context voor de spoedtoegang." },
+    })
+    fireEvent.change(within(panel).getByLabelText("Eigenaar"), {
+      target: { value: testIds.actorTwo },
+    })
+    fireEvent.change(within(panel).getByLabelText("Prioriteit"), {
+      target: { value: "Hoog" },
+    })
+    fireEvent.click(
+      within(panel).getByRole("button", { name: "Wijzigingen opslaan" }),
+    )
+
+    expect(
+      await screen.findByRole("heading", { name: "Toegang spoed herwerkt" }),
+    ).toBeInTheDocument()
+    const updated = useAppStore
+      .getState()
+      .session!.state.indices.topicById.get(testIds.topicCritical)!
+    expect(updated).toMatchObject({
+      title: "Toegang spoed herwerkt",
+      context: "Aangepaste vaste context voor de spoedtoegang.",
+      ownerActorId: testIds.actorTwo,
+      priority: "Hoog",
+      parentType: "Project",
+      projectId: testIds.projectOne,
+    })
+    expect(updated.currentUpdateId).toBe(currentUpdateId)
+    expect(useAppStore.getState().session!.state.records.updates).toHaveLength(
+      updateCount,
+    )
+    expect(window.location.hash).toBe(
+      `#/projects/${testIds.projectOne}/topics/${testIds.topicCritical}`,
+    )
+    expect(
+      screen.getByText("Topic bijgewerkt in de lokale sessie · back-up nodig"),
     ).toBeInTheDocument()
     router.dispose()
   })

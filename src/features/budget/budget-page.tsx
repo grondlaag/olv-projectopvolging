@@ -1,13 +1,17 @@
-import { useMemo, useState } from "react"
-import { Link } from "react-router-dom"
+import { useMemo } from "react"
+import { Link, useSearchParams } from "react-router-dom"
 import {
   buildBudgetPortfolioModel,
-  defaultBudgetFilters,
   type BudgetFilters,
   type BudgetGrouping,
 } from "../../application/queries"
 import { useAppStore } from "../../app/state/app-store"
-import { Button, EmptyState, PageHeader } from "../../design-system/components"
+import {
+  Button,
+  EmptyState,
+  PageHeader,
+  SavedViewsControl,
+} from "../../design-system/components"
 import {
   BUDGET_AGGREGATION_RULE_REQUIRED,
   budgetStatuses,
@@ -42,10 +46,47 @@ function factualTypeTotal(records: readonly BudgetRecord[], type: BudgetType) {
 }
 
 export function BudgetPage() {
+  const [searchParameters, setSearchParameters] = useSearchParams()
   const session = useAppStore((state) => state.session)
   const setImportPanelOpen = useAppStore((state) => state.setImportPanelOpen)
-  const [filters, setFilters] = useState<BudgetFilters>(defaultBudgetFilters)
-  const [grouping, setGrouping] = useState<BudgetGrouping>("type")
+  const filters = useMemo<BudgetFilters>(() => {
+    const projectStatus = searchParameters.get("projectstatus") ?? ""
+    const budgetStatus = searchParameters.get("budgetstatus") ?? ""
+    return {
+      ...(searchParameters.get("hoofdstuk")
+        ? { chapterId: searchParameters.get("hoofdstuk") as UUID }
+        : {}),
+      ...(searchParameters.get("cluster")
+        ? { clusterId: searchParameters.get("cluster") as UUID }
+        : {}),
+      ...(searchParameters.get("project")
+        ? { projectId: searchParameters.get("project") as UUID }
+        : {}),
+      ...((projectStatuses as readonly string[]).includes(projectStatus)
+        ? {
+            projectStatus: projectStatus as NonNullable<
+              BudgetFilters["projectStatus"]
+            >,
+          }
+        : {}),
+      ...((budgetStatuses as readonly string[]).includes(budgetStatus)
+        ? {
+            budgetStatus: budgetStatus as NonNullable<
+              BudgetFilters["budgetStatus"]
+            >,
+          }
+        : {}),
+      ...(searchParameters.get("categorie")
+        ? { category: searchParameters.get("categorie")! }
+        : {}),
+    }
+  }, [searchParameters])
+  const requestedGrouping = searchParameters.get("groepering")
+  const grouping: BudgetGrouping = groupingOptions.some(
+    ([value]) => value === requestedGrouping,
+  )
+    ? (requestedGrouping as BudgetGrouping)
+    : "type"
   const model = useMemo(
     () =>
       session
@@ -79,12 +120,39 @@ export function BudgetPage() {
     key: K,
     value: BudgetFilters[K] | "",
   ) => {
-    setFilters((current) => {
-      const next = { ...current }
-      if (value === "") delete next[key]
-      else next[key] = value as BudgetFilters[K]
-      return next
-    })
+    const parameters = new URLSearchParams(searchParameters)
+    const keys: Record<keyof BudgetFilters, string> = {
+      chapterId: "hoofdstuk",
+      clusterId: "cluster",
+      projectId: "project",
+      projectStatus: "projectstatus",
+      budgetStatus: "budgetstatus",
+      category: "categorie",
+    }
+    if (value) parameters.set(keys[key], value)
+    else parameters.delete(keys[key])
+    setSearchParameters(parameters, { replace: true })
+  }
+
+  function resetFilters() {
+    const parameters = new URLSearchParams(searchParameters)
+    for (const key of [
+      "hoofdstuk",
+      "cluster",
+      "project",
+      "projectstatus",
+      "budgetstatus",
+      "categorie",
+    ])
+      parameters.delete(key)
+    setSearchParameters(parameters, { replace: true })
+  }
+
+  function selectGrouping(value: BudgetGrouping) {
+    const parameters = new URLSearchParams(searchParameters)
+    if (value === "type") parameters.delete("groepering")
+    else parameters.set("groepering", value)
+    setSearchParameters(parameters, { replace: true })
   }
 
   return (
@@ -103,7 +171,7 @@ export function BudgetPage() {
           (label) => (
             <div key={label} title={BUDGET_AGGREGATION_RULE_REQUIRED}>
               <span>{label}</span>
-              <strong>Regel vereist</strong>
+              <strong>—</strong>
             </div>
           ),
         )}
@@ -120,8 +188,11 @@ export function BudgetPage() {
       </section>
 
       <aside className="budget-rule-note">
-        <strong>Geen schijnzekerheid in financiële KPI’s.</strong>
-        <span>{BUDGET_AGGREGATION_RULE_REQUIRED}</span>
+        <strong>Kerncijfers wachten op een besliste rekenregel.</strong>
+        <span>
+          De feitelijke budgetregels hieronder blijven volledig zichtbaar en
+          worden niet tot een onbetrouwbare prognose samengevoegd.
+        </span>
       </aside>
 
       <section className="budget-filter-bar" aria-label="Budgetfilters">
@@ -225,9 +296,10 @@ export function BudgetPage() {
             ))}
           </select>
         </label>
-        <Button variant="tertiary" onClick={() => setFilters({})}>
+        <Button variant="tertiary" onClick={resetFilters}>
           Filters wissen
         </Button>
+        <SavedViewsControl page="budget" />
       </section>
 
       <section className="budget-section">
@@ -341,7 +413,7 @@ export function BudgetPage() {
             <select
               value={grouping}
               onChange={(event) =>
-                setGrouping(event.target.value as BudgetGrouping)
+                selectGrouping(event.target.value as BudgetGrouping)
               }
             >
               {groupingOptions.map(([value, label]) => (
@@ -405,11 +477,11 @@ export function BudgetPage() {
       <div className="budget-exceptions">
         <section>
           <h2>Projecten boven budget</h2>
-          <p>{BUDGET_AGGREGATION_RULE_REQUIRED}</p>
+          <p>Nog niet beschikbaar zolang de prognoseregel niet is beslist.</p>
         </section>
         <section>
           <h2>Grootste afwijkingen</h2>
-          <p>{BUDGET_AGGREGATION_RULE_REQUIRED}</p>
+          <p>Nog niet beschikbaar zolang de afwijkingsregel niet is beslist.</p>
         </section>
         <section>
           <h2>Projecten zonder niet-geannuleerd ramingrecord</h2>

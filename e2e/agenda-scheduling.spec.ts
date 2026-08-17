@@ -57,7 +57,7 @@ test("project en topic worden vanuit hun dossier op een overlegagenda geplaatst"
   await panel.getByRole("button", { name: "Op agenda plaatsen" }).click()
   await expect(
     page.getByText(
-      "Ingepland voor overleg in de lokale sessie · JSON nog opslaan",
+      "Ingepland voor overleg in de lokale sessie · back-up nodig",
     ),
   ).toBeVisible()
 
@@ -73,7 +73,9 @@ test("project en topic worden vanuit hun dossier op een overlegagenda geplaatst"
   await panel.getByRole("button", { name: "Op agenda plaatsen" }).click()
 
   await expect(page.getByText("1 keer ingepland")).toBeVisible()
-  await page.getByRole("link", { name: "Projectoverleg agenda" }).click()
+  await page
+    .getByRole("link", { name: "Projectoverleg agenda", exact: true })
+    .click()
   const agenda = page.locator(".meeting-agenda--grouped")
   await expect(agenda).toContainText("PRJ-001 · Synthetisch renovatieproject")
   await expect(agenda).toContainText("TOP-001 · Tijdelijke toegang")

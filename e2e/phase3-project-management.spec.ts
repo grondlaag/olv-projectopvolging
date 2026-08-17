@@ -60,24 +60,22 @@ test("fase-3-hoofdflow beheert en roundtript een project volledig lokaal", async
     page.getByRole("heading", { name: "Fase 3 hoofdflow" }),
   ).toBeVisible()
   await expect(
-    page.getByText("Opgeslagen in sessie · JSON nog opslaan"),
+    page.getByText("Bewaard in lokale sessie · back-up nodig"),
   ).toBeVisible()
   await expect(
     page.getByText("E2E cluster", { exact: true }).first(),
   ).toBeVisible()
 
-  await page.getByRole("button", { name: "Snel bijwerken" }).click()
-  await page.getByLabel("Voortgang (%)").fill("35")
-  await page.getByRole("button", { name: "Bijwerken in sessie" }).click()
-  await expect(page.getByText("35%", { exact: true }).first()).toBeVisible()
-  await expect(page.getByText(/Kerngegevens bijgewerkt/)).toBeVisible()
-
   await page.getByRole("button", { name: "Project bewerken" }).click()
   await page.getByLabel("Titel").fill("Fase 3 hoofdflow gewijzigd")
+  await page.getByLabel("Voortgang (%)").fill("35")
+  await page.getByLabel("Projectomvang").selectOption("L")
   await page.getByRole("button", { name: "Wijzigingen opslaan" }).click()
   await expect(
     page.getByRole("heading", { name: "Fase 3 hoofdflow gewijzigd" }),
   ).toBeVisible()
+  await expect(page.getByText("35%", { exact: true }).first()).toBeVisible()
+  await expect(page.getByText("L", { exact: true }).first()).toBeVisible()
 
   const downloadPromise = page.waitForEvent("download")
   await page.getByRole("button", { name: "JSON opslaan" }).click()

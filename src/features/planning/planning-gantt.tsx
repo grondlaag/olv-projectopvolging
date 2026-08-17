@@ -82,13 +82,31 @@ function statusTone(status?: PlanningRow["status"]) {
 }
 
 interface PlanningGanttProps {
-  rows: readonly PlanningRow[]
+  rows: readonly PlanningDisplayRow[]
   dependencies?: readonly PlanningDependency[]
   zoom: PlanningZoom
   today: string
   onSelectEntry?: (entryId: UUID) => void
   onSelectRow?: (row: PlanningRow) => void
+  onToggleGroup?: (rowId: string) => void
+  expandedProjectIds?: ReadonlySet<string>
+  onToggleProject?: (projectId: UUID) => void
   emptyMessage?: string
+}
+
+export interface PlanningGroupRow {
+  id: string
+  title: string
+  subtitle: string
+  depth: 0 | 1
+  kind: "group"
+  expanded: boolean
+}
+
+export type PlanningDisplayRow = PlanningRow | PlanningGroupRow
+
+function isPlanningGroupRow(row: PlanningDisplayRow): row is PlanningGroupRow {
+  return row.kind === "group"
 }
 
 export const PlanningGantt = memo(function PlanningGantt({
@@ -98,20 +116,25 @@ export const PlanningGantt = memo(function PlanningGantt({
   today,
   onSelectEntry,
   onSelectRow,
+  onToggleGroup,
+  expandedProjectIds,
+  onToggleProject,
   emptyMessage = "Nog geen planningitems om weer te geven.",
 }: PlanningGanttProps) {
   const scrollerRef = useRef<HTMLDivElement>(null)
   const layout = useMemo(() => {
-    const datedRows = rows.filter((row) => row.endDate)
-    if (!datedRows.length) return undefined
+    const datedRows = rows.filter(
+      (row): row is PlanningRow =>
+        !isPlanningGroupRow(row) && Boolean(row.endDate),
+    )
     const definition = zoomDefinitions[zoom]
     const starts = datedRows.map((row) =>
       ordinal(row.startDate ?? row.endDate!),
     )
     const ends = datedRows.map((row) => ordinal(row.endDate!))
     const todayDay = ordinal(today)
-    const dataStart = Math.min(...starts)
-    const dataEnd = Math.max(...ends)
+    const dataStart = starts.length ? Math.min(...starts) : todayDay
+    const dataEnd = ends.length ? Math.max(...ends) : todayDay
     const includeToday =
       todayDay >= dataStart - 366 && todayDay <= dataEnd + 366
     const startDay =
@@ -134,7 +157,7 @@ export const PlanningGantt = memo(function PlanningGantt({
       { start: number; end: number; row: number }
     >()
     rows.forEach((row, index) => {
-      if (!row.endDate) return
+      if (isPlanningGroupRow(row) || !row.endDate) return
       const start = ordinal(row.startDate ?? row.endDate)
       const end = ordinal(row.endDate)
       positions.set(row.id, {
@@ -164,7 +187,7 @@ export const PlanningGantt = memo(function PlanningGantt({
     )
   }, [layout])
 
-  if (!rows.length || !layout) {
+  if (!rows.length) {
     return <p className="planning-gantt__empty">{emptyMessage}</p>
   }
 
@@ -193,30 +216,85 @@ export const PlanningGantt = memo(function PlanningGantt({
             {formatLocalDate(localDate(layout.endDay))}
           </small>
         </div>
-        {rows.map((row) => (
-          <button
-            type="button"
-            key={row.id}
-            className={`planning-gantt__label planning-gantt__label--depth-${row.depth}`}
-            disabled={!onSelectRow && (!row.entry || !onSelectEntry)}
-            onClick={() =>
-              onSelectRow
-                ? onSelectRow(row)
-                : row.entry && onSelectEntry?.(row.entry.id)
-            }
-          >
-            <span>
-              <strong>{row.title}</strong>
-              <small>{row.subtitle}</small>
-            </span>
-            <span className="planning-gantt__signals">
-              {row.delayed ? <em>Over tijd</em> : null}
-              {row.status ? (
-                <Badge tone={statusTone(row.status)}>{row.status}</Badge>
-              ) : null}
-            </span>
-          </button>
-        ))}
+        {rows.map((row) => {
+          if (isPlanningGroupRow(row)) {
+            return (
+              <button
+                type="button"
+                key={row.id}
+                className={`planning-gantt__label planning-gantt__label--group planning-gantt__label--depth-${row.depth}`}
+                aria-expanded={row.expanded}
+                onClick={() => onToggleGroup?.(row.id)}
+              >
+                <span className="planning-gantt__disclosure" aria-hidden="true">
+                  {row.expanded ? "−" : "+"}
+                </span>
+                <span>
+                  <strong>{row.title}</strong>
+                  <small>{row.subtitle}</small>
+                </span>
+              </button>
+            )
+          }
+
+          const labelContent = (
+            <>
+              <span>
+                <strong>{row.title}</strong>
+                <small>{row.subtitle}</small>
+              </span>
+              <span className="planning-gantt__signals">
+                {row.delayed ? <em>Over tijd</em> : null}
+                {row.status ? (
+                  <Badge tone={statusTone(row.status)}>{row.status}</Badge>
+                ) : null}
+              </span>
+            </>
+          )
+
+          if (row.kind === "project" && onToggleProject) {
+            const expanded = expandedProjectIds?.has(row.projectId) ?? false
+            return (
+              <div
+                key={row.id}
+                className={`planning-gantt__label planning-gantt__label--project planning-gantt__label--depth-${row.depth}`}
+              >
+                <button
+                  type="button"
+                  className="planning-gantt__disclosure"
+                  aria-label={`${expanded ? "Details verbergen voor" : "Details tonen voor"} ${row.title}`}
+                  aria-expanded={expanded}
+                  onClick={() => onToggleProject(row.projectId)}
+                >
+                  {expanded ? "−" : "+"}
+                </button>
+                <button
+                  type="button"
+                  className="planning-gantt__record-link"
+                  onClick={() => onSelectRow?.(row)}
+                >
+                  {labelContent}
+                </button>
+              </div>
+            )
+          }
+
+          return (
+            <button
+              type="button"
+              key={row.id}
+              className={`planning-gantt__label planning-gantt__label--depth-${row.depth}`}
+              disabled={!onSelectRow && (!row.entry || !onSelectEntry)}
+              onClick={() =>
+                onSelectRow
+                  ? onSelectRow(row)
+                  : row.entry && onSelectEntry?.(row.entry.id)
+              }
+            >
+              {labelContent}
+            </button>
+          )
+        })}
       </div>
       <div
         className="planning-gantt__scroller"
@@ -277,9 +355,23 @@ export const PlanningGantt = memo(function PlanningGantt({
               <g markerEnd="url(#planning-arrow)">{connectors}</g>
             </svg>
             {rows.map((row, index) => {
+              if (isPlanningGroupRow(row))
+                return (
+                  <div
+                    className="planning-gantt__row planning-gantt__row--group"
+                    key={row.id}
+                    style={{ top: index * rowHeight }}
+                  />
+                )
               const position = layout.positions.get(row.id)
               if (!position)
-                return <div className="planning-gantt__row" key={row.id} />
+                return (
+                  <div
+                    className="planning-gantt__row"
+                    key={row.id}
+                    style={{ top: index * rowHeight }}
+                  />
+                )
               const top = index * rowHeight + 11
               if (row.isMilestone) {
                 return (

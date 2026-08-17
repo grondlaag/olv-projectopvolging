@@ -107,19 +107,3 @@ export function agendaValuesToInput(
     objectId: values.objectId as UUID,
   }
 }
-
-export const meetingContributionSchema = z.object({
-  type: z.enum(["Update", "Beslissing"]),
-  date: z
-    .string()
-    .refine(
-      (value) => localDateSchema.safeParse(value).success,
-      "Datum is verplicht.",
-    ),
-  text: z.string().trim().min(1, "Tekst is verplicht."),
-  makeCurrent: z.boolean(),
-})
-
-export type MeetingContributionValues = z.input<
-  typeof meetingContributionSchema
->

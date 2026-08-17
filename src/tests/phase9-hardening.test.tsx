@@ -80,7 +80,7 @@ describe("fase 9 zoek-, fout- en indexhardening", () => {
       expect.arrayContaining([
         expect.objectContaining({
           type: "Beslissing",
-          route: `/projects/${testIds.projectOne}?weergave=journaal`,
+          route: `/projects/${testIds.projectOne}/journal`,
         }),
       ]),
     )

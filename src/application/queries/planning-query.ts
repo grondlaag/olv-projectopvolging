@@ -24,7 +24,7 @@ export interface PlanningRow {
   id: string
   title: string
   subtitle: string
-  depth: 0 | 1 | 2
+  depth: 0 | 1 | 2 | 3
   kind: "project" | "topic" | "milestone" | "custom"
   projectId: UUID
   entry?: PlanningEntry

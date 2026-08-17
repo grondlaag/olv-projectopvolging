@@ -37,6 +37,7 @@ describe("volwaardige instellingenpagina", () => {
     fireEvent.click(
       screen.getByRole("tab", { name: "Hoofdstukken en clusters" }),
     )
+    expect(window.location.hash).toContain("tab=structure")
     fireEvent.click(screen.getByRole("button", { name: "+ Hoofdstuk" }))
     let dialog = screen.getByRole("dialog", { name: "Nieuw hoofdstuk" })
     fireEvent.change(within(dialog).getByLabelText("Code"), {
@@ -77,6 +78,7 @@ describe("volwaardige instellingenpagina", () => {
     )
 
     fireEvent.click(screen.getByRole("tab", { name: "Actoren" }))
+    expect(window.location.hash).toContain("tab=actors")
     fireEvent.click(screen.getByRole("button", { name: "+ Actor" }))
     dialog = screen.getByRole("dialog", { name: "Nieuwe actor" })
     fireEvent.change(within(dialog).getByLabelText("Naam"), {
@@ -90,6 +92,7 @@ describe("volwaardige instellingenpagina", () => {
     )
 
     fireEvent.click(screen.getByRole("tab", { name: "Keuzelijsten" }))
+    expect(window.location.hash).toContain("tab=choices")
     fireEvent.click(screen.getAllByRole("button", { name: "+ Waarde" })[0]!)
     dialog = screen.getByRole("dialog", { name: "Nieuwe keuzewaarde" })
     fireEvent.change(within(dialog).getByLabelText("Keuzelijst"), {

@@ -143,6 +143,22 @@ GUID, projects/topics/actions/planning/budgetten per parent en overleg per scope
 Queries gebruiken deze indices en memoiseerbare viewmodellen; ze voeren geen
 geneste GUID-scans bij elke render uit.
 
+### Persoonlijke werkruimtevoorkeuren
+
+Niet-operationele voorkeuren leven in een afzonderlijke, versievaste
+`localStorage`-store (`olv-projectopvolging.workspace-preferences.v1`). Deze
+bevat uitsluitend:
+
+- benoemde weergaven als pagina + genormaliseerde hash-query;
+- recente en favoriete links naar project-, topic- en overlegdossiers;
+- tabeldichtheid en verborgen kolommen.
+
+Deze voorkeuren bevatten geen domeinrecords, worden nooit aan de
+genormaliseerde sessie toegevoegd, zetten de dirty state niet en komen niet in
+JSON of IndexedDB-sessiesnapshots terecht. Een onleesbare voorkeurenset valt
+veilig terug op standaardwaarden; het operationele gegevensbestand blijft
+onaangeroerd.
+
 Agenda-items zijn daarnaast geïndexeerd per bronobject. De contextuele
 overlegplanner voor project en topic leest daardoor bestaande koppelingen via
 `agendaItemsByObject` en maakt met de bestaande overlegservice pas bij expliciete
@@ -200,7 +216,22 @@ De dashboardactie-status en de snelle projectupdate roepen bestaande
 applicatieservices aan. Invoer blijft lokale componentstate tot expliciete save.
 De commandolaag navigeert alleen en houdt returnTo bij; zij maakt zelf geen
 records. Portfolio-presets en chips zijn projecties op PortfolioFilters en
-worden in hash-queryparameters gespiegeld.
+worden in hash-queryparameters gespiegeld. Hetzelfde contract geldt voor
+instellingentabs, overlegmodus en -filters, actieweergave, planningsfilters en
+-zoom en budgetfilters en -groepering; alleen tijdelijke formulier- en
+drawerstate blijft lokale componentstate.
+
+De contextgevoelige creatielaag zet alleen bestaande GUID-context in tijdelijke
+hash-queryparameters. Project- en clustertopics, acties en overlegformulieren
+lezen die context als voorinvulling; de bestaande application service valideert
+de relatie opnieuw bij expliciete save. Actie-invoer gebruikt een veilige
+`returnTo`, zodat bewaren of annuleren terugkeert naar het brondossier.
+
+Bulkbewerking is voorlopig beperkt tot acties. De UI verzamelt een zichtbare
+selectie en past eigenaar en/of status pas na één expliciete bevestiging toe.
+Iedere actie blijft via de bestaande `ActionManagementService` lopen, zodat
+actiehistoriek en domeinvalidatie behouden blijven; de store wordt pas na de
+volledige geslaagde reeks vervangen.
 
 ## Financiële architectuur
 
@@ -220,6 +251,10 @@ Voorbeelden:
 #/projects/new
 #/projects/:projectId
 #/projects/:projectId/edit
+#/projects/:projectId/overview
+#/projects/:projectId/topics
+#/projects/:projectId/topics/:topicId
+#/projects/:projectId/journal
 #/projects/:projectId/planning
 #/projects/:projectId/budget
 #/clusters/:clusterId
@@ -229,6 +264,14 @@ Voorbeelden:
 #/meetings
 #/settings
 ```
+
+Alle projectonderdelen gebruiken dezelfde dossierkop en dezelfde volledige
+projecteditor. Een veilige `returnTo`-parameter bewaart de bronroute bij
+bewerken; externe of protocolrelatieve terugkeerpaden worden geweigerd.
+Complexe project- en overlegformulieren blokkeren interne navigatie zolang de
+invoer vuil is en waarschuwen ook bij het sluiten of herladen van het venster.
+Vervolgoverleggen gebruiken `?vervolgVan=<meetingId>` als tijdelijke
+formuliercontext en bewaren na save een domeinrelatie via `sourceMeetingId`.
 
 Vite `base` gebruikt de repositorybase. Assets worden via imports geladen; er
 zijn geen root-absolute URLs of serverrewrites nodig.

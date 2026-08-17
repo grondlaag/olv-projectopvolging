@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react"
+import { useSearchParams } from "react-router-dom"
 import {
   useForm,
   type FieldPath,
@@ -621,13 +622,25 @@ function GeneralSettings() {
 }
 
 export function SettingsPage() {
+  const [searchParameters, setSearchParameters] = useSearchParams()
   const session = useAppStore((state) => state.session)
   const dirty = useAppStore((state) => state.dirty)
   const setImportPanelOpen = useAppStore((state) => state.setImportPanelOpen)
   const markSaved = useAppStore((state) => state.markSaved)
-  const [tab, setTab] = useState<SettingsTab>("general")
+  const requestedTab = searchParameters.get("tab")
+  const tab: SettingsTab = tabs.some((item) => item.key === requestedTab)
+    ? (requestedTab as SettingsTab)
+    : "general"
   const [editor, setEditor] = useState<Editor>()
   const [saveFeedback, setSaveFeedback] = useState("")
+
+  function selectTab(nextTab: SettingsTab) {
+    const parameters = new URLSearchParams(searchParameters)
+    if (nextTab === "general") parameters.delete("tab")
+    else parameters.set("tab", nextTab)
+    setSearchParameters(parameters, { replace: true })
+    setEditor(undefined)
+  }
 
   const resolvedEditor = useMemo(() => {
     if (!session || !editor?.id) return undefined
@@ -733,10 +746,7 @@ export function SettingsPage() {
             role="tab"
             aria-selected={tab === item.key}
             key={item.key}
-            onClick={() => {
-              setTab(item.key)
-              setEditor(undefined)
-            }}
+            onClick={() => selectTab(item.key)}
           >
             {item.label}
           </button>

@@ -30,9 +30,21 @@ async function assertAccessibleSurface(page: Page) {
   const hasDocumentOverflow = await page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth + 1,
   )
+  const overflowSources = hasDocumentOverflow
+    ? await page.locator("body *").evaluateAll((elements) =>
+        elements
+          .map((element) => ({
+            element: `${element.tagName.toLocaleLowerCase()}${element.className ? `.${String(element.className).replaceAll(" ", ".")}` : ""}`,
+            right: Math.round(element.getBoundingClientRect().right),
+            width: Math.round(element.getBoundingClientRect().width),
+          }))
+          .filter((item) => item.right > window.innerWidth + 1)
+          .slice(0, 8),
+      )
+    : []
   expect(unnamedButtons).toBe(0)
   expect(unlabelledFields).toBe(0)
-  expect(hasDocumentOverflow).toBe(false)
+  expect(hasDocumentOverflow, JSON.stringify(overflowSources)).toBe(false)
   await expect(page.getByRole("button", { name: "JSON opslaan" })).toBeVisible()
 }
 

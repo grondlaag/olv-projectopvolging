@@ -1,11 +1,5 @@
 import { useMemo, useState } from "react"
-import {
-  Link,
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router-dom"
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom"
 import {
   buildProjectBudgetModel,
   buildProjectJournal,
@@ -22,7 +16,6 @@ import {
   Button,
   EmptyState,
   ErrorState,
-  PageHeader,
 } from "../../design-system/components"
 import type {
   Cluster,
@@ -38,7 +31,10 @@ import {
   ConversationComposer,
   ConversationFeed,
 } from "../journal/conversation-composer"
-import { ProjectQuickEdit } from "./project-quick-edit"
+import {
+  ProjectDossierHeader,
+  type ProjectDossierTab,
+} from "./project-dossier-header"
 import { formatLocalDate, todayAsLocalDate } from "../../utils"
 import "./project-readonly-page.css"
 
@@ -46,9 +42,15 @@ interface ProjectOverviewProps {
   project: Project
   cluster?: Cluster
   history: readonly ProjectClusterHistory[]
+  onSaved: (message: string) => void
 }
 
-function ProjectOverview({ project, cluster, history }: ProjectOverviewProps) {
+function ProjectOverview({
+  project,
+  cluster,
+  history,
+  onSaved,
+}: ProjectOverviewProps) {
   const session = useAppStore((state) => state.session)!
   const overview = useMemo(
     () => buildProjectOverview(session.state, project.id, todayAsLocalDate()),
@@ -117,7 +119,7 @@ function ProjectOverview({ project, cluster, history }: ProjectOverviewProps) {
         <main className="project-overview__main">
           <section className="project-readonly__current">
             <div className="project-readonly__section-title">
-              <span>Actuele projectstand</span>
+              <span>Actuele inhoudelijke projectstand</span>
               {currentUpdate ? (
                 <time>{formatLocalDate(currentUpdate.date)}</time>
               ) : null}
@@ -135,6 +137,25 @@ function ProjectOverview({ project, cluster, history }: ProjectOverviewProps) {
                 </span>
               </div>
             )}
+            <p className="project-readonly__current-explanation">
+              Dit statusmoment beschrijft de inhoudelijke stand van het project.
+              De levenscyclusstatus in de dossierkop blijft een apart
+              bestuurbaar veld.
+            </p>
+            <details className="project-status-moment" open={!currentUpdate}>
+              <summary>
+                {currentUpdate
+                  ? "Nieuw statusmoment vastleggen"
+                  : "Eerste statusmoment vastleggen"}
+              </summary>
+              <ConversationComposer
+                contextType="Project"
+                contextId={project.id}
+                contextLabel={`${project.code} · ${project.title}`}
+                compact
+                onSaved={onSaved}
+              />
+            </details>
           </section>
 
           <section className="project-readonly__section project-attention">
@@ -155,7 +176,7 @@ function ProjectOverview({ project, cluster, history }: ProjectOverviewProps) {
               <ul>
                 {overview.criticalTopicCount ? (
                   <li>
-                    <Link to={`/projects/${project.id}?weergave=topics`}>
+                    <Link to={`/projects/${project.id}/topics`}>
                       <strong>
                         {overview.criticalTopicCount} kritieke topics
                       </strong>
@@ -264,7 +285,7 @@ function ProjectOverview({ project, cluster, history }: ProjectOverviewProps) {
           <section className="project-readonly__section">
             <div className="project-readonly__section-heading">
               <h2>Actuele topics</h2>
-              <Link to={`/projects/${project.id}?weergave=topics`}>
+              <Link to={`/projects/${project.id}/topics`}>
                 Alle topics bekijken
               </Link>
             </div>
@@ -310,7 +331,7 @@ function ProjectOverview({ project, cluster, history }: ProjectOverviewProps) {
           <section className="project-readonly__section project-recent">
             <div className="project-readonly__section-heading">
               <h2>Recente beslissingen</h2>
-              <Link to={`/projects/${project.id}?weergave=journaal`}>
+              <Link to={`/projects/${project.id}/journal`}>
                 Volledig journaal
               </Link>
             </div>
@@ -365,15 +386,15 @@ function ProjectOverview({ project, cluster, history }: ProjectOverviewProps) {
             <dl>
               <div>
                 <dt>Goedgekeurd</dt>
-                <dd>Regel vereist</dd>
+                <dd>—</dd>
               </div>
               <div>
                 <dt>Prognose</dt>
-                <dd>Regel vereist</dd>
+                <dd>—</dd>
               </div>
               <div>
                 <dt>Afwijking</dt>
-                <dd>Regel vereist</dd>
+                <dd>—</dd>
               </div>
               <div>
                 <dt>Netto meer/minwerk</dt>
@@ -386,6 +407,9 @@ function ProjectOverview({ project, cluster, history }: ProjectOverviewProps) {
                 <dd>{budget?.summary.recordCount ?? 0}</dd>
               </div>
             </dl>
+            <p className="project-budget-summary__note">
+              Prognose en afwijking wachten op een besliste rekenregel.
+            </p>
           </section>
 
           <section className="project-readonly__section project-meeting-summary">
@@ -823,9 +847,7 @@ function GroupedProjectJournal({
                     contextId={group.topic?.id ?? project.id}
                     contextLabel={`${group.code} · ${group.title}`}
                     compact
-                    onSaved={(message) =>
-                      onSaved(`${message} · JSON nog opslaan`)
-                    }
+                    onSaved={onSaved}
                   />
                   <ConversationFeed
                     updates={updates}
@@ -866,19 +888,23 @@ function GroupedProjectJournal({
   )
 }
 
-export function ProjectReadonlyPage() {
+interface ProjectReadonlyPageProps {
+  view?: Extract<ProjectDossierTab, "overview" | "topics" | "journal">
+}
+
+export function ProjectReadonlyPage({
+  view: routeView,
+}: ProjectReadonlyPageProps) {
   const { projectId, topicId } = useParams<{
     projectId: string
     topicId?: string
   }>()
-  const navigate = useNavigate()
   const location = useLocation()
   const [searchParameters] = useSearchParams()
   const session = useAppStore((state) => state.session)
   const dirty = useAppStore((state) => state.dirty)
   const setImportPanelOpen = useAppStore((state) => state.setImportPanelOpen)
   const [agendaPanelOpen, setAgendaPanelOpen] = useState(false)
-  const [quickEditOpen, setQuickEditOpen] = useState(false)
   const [sessionStatus, setSessionStatus] = useState("")
   const project = projectId
     ? session?.state.indices.projectById.get(projectId as UUID)
@@ -914,12 +940,8 @@ export function ProjectReadonlyPage() {
     )
   }
 
-  const chapter = session.state.indices.chapterById.get(project.chapterId)
   const cluster = project.clusterId
     ? session.state.indices.clusterById.get(project.clusterId)
-    : undefined
-  const coordinator = project.coordinatorActorId
-    ? session.state.indices.actorById.get(project.coordinatorActorId)
     : undefined
   const overview = buildProjectOverview(
     session.state,
@@ -930,38 +952,24 @@ export function ProjectReadonlyPage() {
   const view = topicId
     ? "topics"
     : requestedView === "topics" || requestedView === "journaal"
-      ? requestedView
-      : "overview"
+      ? requestedView === "journaal"
+        ? "journal"
+        : requestedView
+      : (routeView ?? "overview")
   const savedInNavigation = Boolean(
     (location.state as { saved?: boolean } | null)?.saved,
   )
 
   return (
     <article className="project-readonly">
-      <nav className="project-readonly__breadcrumb" aria-label="Kruimelpad">
-        <Link to="/portfolio">Portfolio</Link>
-        <span aria-hidden="true">/</span>
-        <span>{chapter?.title ?? "Onbekend hoofdstuk"}</span>
-        <span aria-hidden="true">/</span>
-        <span aria-current="page">{project.code}</span>
-      </nav>
-
-      <PageHeader
-        eyebrow={project.code}
-        title={project.title}
-        description={`${chapter?.title ?? "Onbekend hoofdstuk"} · ${cluster?.title ?? "Zonder cluster"}`}
+      <ProjectDossierHeader
+        project={project}
+        activeTab={view}
+        openTopicCount={overview.openTopicCount}
         actions={
-          <>
-            <Button
-              variant="secondary"
-              onClick={() => setAgendaPanelOpen(true)}
-            >
-              Project bespreken op overleg
-            </Button>
-            <Button onClick={() => navigate(`/projects/${project.id}/edit`)}>
-              Project bewerken
-            </Button>
-          </>
+          <Button variant="secondary" onClick={() => setAgendaPanelOpen(true)}>
+            Project bespreken op overleg
+          </Button>
         }
       />
 
@@ -971,8 +979,8 @@ export function ProjectReadonlyPage() {
           <div>
             <strong>
               {sessionStatus
-                ? `${sessionStatus} · JSON nog opslaan`
-                : "Opgeslagen in sessie · JSON nog opslaan"}
+                ? `${sessionStatus} · back-up nodig`
+                : "Bewaard in lokale sessie · back-up nodig"}
             </strong>
             <small>
               De wijziging staat lokaal klaar en zit nog niet in een gedownload
@@ -981,68 +989,6 @@ export function ProjectReadonlyPage() {
           </div>
         </div>
       ) : null}
-
-      <div className="project-readonly__quickbar">
-        <div>
-          <strong>Dagelijkse opvolging</strong>
-          <span>Status, fase, coördinator en voortgang direct bijwerken.</span>
-        </div>
-        <Button
-          variant="secondary"
-          aria-expanded={quickEditOpen}
-          onClick={() => setQuickEditOpen((open) => !open)}
-        >
-          {quickEditOpen ? "Snel bijwerken sluiten" : "Snel bijwerken"}
-        </Button>
-      </div>
-
-      {quickEditOpen ? (
-        <ProjectQuickEdit
-          key={project.audit.updatedAt}
-          project={project}
-          onSaved={(message) => {
-            setSessionStatus(message)
-            setQuickEditOpen(false)
-          }}
-        />
-      ) : null}
-
-      <div className="project-readonly__summary" aria-label="Projectstatus">
-        <div>
-          <span>Status</span>
-          <Badge
-            tone={
-              project.status === "Afgesloten"
-                ? "success"
-                : project.status === "Geannuleerd"
-                  ? "danger"
-                  : "info"
-            }
-          >
-            {project.status}
-          </Badge>
-        </div>
-        <div>
-          <span>Fase</span>
-          <strong>{project.phase || "—"}</strong>
-        </div>
-        <div>
-          <span>Coördinator</span>
-          <strong>{coordinator?.displayName ?? "—"}</strong>
-        </div>
-        <div>
-          <span>Geplande einddatum</span>
-          <strong>{formatLocalDate(project.plannedEndDate)}</strong>
-        </div>
-        <div>
-          <span>Voortgang</span>
-          <strong>{project.progressPercent ?? 0}%</strong>
-        </div>
-        <div>
-          <span>Omvang</span>
-          <strong>{project.size ?? "—"}</strong>
-        </div>
-      </div>
 
       <div className="project-overview-strip" aria-label="Dossierkerncijfers">
         <div>
@@ -1071,29 +1017,6 @@ export function ProjectReadonlyPage() {
         </div>
       </div>
 
-      <nav className="project-view-nav" aria-label="Projectdossierweergave">
-        <Link
-          to={`/projects/${project.id}`}
-          className={view === "overview" ? "is-active" : undefined}
-        >
-          Overzicht
-        </Link>
-        <Link
-          to={`/projects/${project.id}?weergave=topics`}
-          className={view === "topics" ? "is-active" : undefined}
-        >
-          Topics <span>{overview.openTopicCount}</span>
-        </Link>
-        <Link
-          to={`/projects/${project.id}?weergave=journaal`}
-          className={view === "journaal" ? "is-active" : undefined}
-        >
-          Projectjournaal
-        </Link>
-        <Link to={`/projects/${project.id}/planning`}>Planning</Link>
-        <Link to={`/projects/${project.id}/budget`}>Budget</Link>
-      </nav>
-
       {view === "topics" ? (
         <TopicWorkspace
           parentType="Project"
@@ -1101,12 +1024,13 @@ export function ProjectReadonlyPage() {
           basePath={`/projects/${project.id}`}
           {...(topicId ? { selectedTopicId: topicId as UUID } : {})}
         />
-      ) : view === "journaal" ? (
+      ) : view === "journal" ? (
         <GroupedProjectJournal project={project} onSaved={setSessionStatus} />
       ) : (
         <ProjectOverview
           project={project}
           history={history}
+          onSaved={setSessionStatus}
           {...(cluster ? { cluster } : {})}
         />
       )}

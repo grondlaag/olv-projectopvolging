@@ -135,6 +135,7 @@ De gatewaytests controleren:
 - inline actor toevoegen aan een update met behoud van ingevoerde tekst;
 - acties en actiehistoriek;
 - planning, globale cijferstrook, Gantt en afhankelijkheden;
+- gecombineerde planningboom/Gantt, uitklappen en URL-herstel van filter en zoom;
 - budget, correcties en topicimpact;
 - overleg, agenda en definitief verslag;
 - project en topic vanuit het brondossier voor overleg inplannen;
@@ -144,7 +145,21 @@ De gatewaytests controleren:
 - commandolaag en globale “+ Nieuw”-acties;
 - “Mijn werk” met directe statusupdate;
 - compacte portfoliofilters, snelle selectie en filterchips;
-- contextvaste snelle projectupdate met dirty state.
+- canonieke projecteditor vanuit planning met behoud van omvang en terugkeerroute;
+- bescherming tegen verlies van niet-bewaarde project- en overleginvoer;
+- volledige topicbewerking met behoud van broncontext en historiek;
+- rechtstreeks adresseerbare topic- en actiedetails;
+- persistente hash-querycontext voor instellingen, acties, planning, budget en
+  overleg;
+- lokale benoemde weergaven, tabeldichtheid en kolomzichtbaarheid zonder
+  wijziging van operationele JSON of dirty state;
+- recente dossiers en favorieten in de applicatieshell;
+- sneltoetsen voor zoeken, contextgevoelig creëren en hulp;
+- contextuele topic-, actie- en overleginvoer met geldige vaste broncontext en
+  veilige terugkeerroute;
+- expliciete actiebulkmutatie met individuele actiehistoriek;
+- vervolgoverleg met bronrelatie, gelijke scope en carry-over van uitsluitend
+  open, gekoppelde agendapunten.
 
 Screenshots komen alleen in `test-results` en bevatten uitsluitend synthetische
 data.

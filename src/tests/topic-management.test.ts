@@ -110,6 +110,48 @@ describe("topicbeheer", () => {
     ])
   })
 
+  it("bewerkt alle topickerngegevens zonder ouder of historiek te wijzigen", () => {
+    const session = createPortfolioTestSession()
+    const before = session.state.indices.topicById.get(testIds.topicCritical)!
+    const historyCount = session.state.records.updates.length
+    const result = service.updateTopic(
+      session.state,
+      before.id,
+      projectTopicInput({
+        code: "TOP-GEWIJZIGD",
+        title: "Gewijzigde topictitel",
+        context: "Bijgewerkte vaste context.",
+        ownerActorId: testIds.actorTwo,
+        priority: "Kritiek",
+      }),
+      { now },
+    )
+
+    expect(result.record).toMatchObject({
+      id: before.id,
+      parentType: "Project",
+      projectId: testIds.projectOne,
+      code: "TOP-GEWIJZIGD",
+      title: "Gewijzigde topictitel",
+      context: "Bijgewerkte vaste context.",
+      ownerActorId: testIds.actorTwo,
+      priority: "Kritiek",
+      status: before.status,
+    })
+    expect(result.record.currentUpdateId).toBe(before.currentUpdateId)
+    expect(result.state.records.updates).toHaveLength(historyCount)
+    expect(() =>
+      service.updateTopic(result.state, before.id, {
+        parentType: "Cluster",
+        clusterId: testIds.cluster,
+        code: "TOP-VERPLAATS",
+        title: "Verplaatsing is niet toegestaan",
+        context: "Context",
+        priority: "Normaal",
+      }),
+    ).toThrow("De project- of clustercontext")
+  })
+
   it("weigert twee ouders en een inactieve eigenaar", () => {
     const session = createPortfolioTestSession()
     const records = structuredClone(session.state.records)

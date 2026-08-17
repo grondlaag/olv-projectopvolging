@@ -210,6 +210,57 @@ export class TopicManagementService {
     return { state: normalizeDomainState(records), record: topic }
   }
 
+  updateTopic(
+    state: NormalizedDomainState,
+    topicId: UUID,
+    input: TopicInput,
+    options: TopicMutationOptions = {},
+  ): TopicMutationResult<Topic> {
+    validateTopicInput(state, input)
+    const existing = state.indices.topicById.get(topicId)
+    if (!existing?.audit.active) {
+      throw new TopicManagementError([
+        { field: "topic", message: "Topic niet gevonden." },
+      ])
+    }
+    const expectedParentId =
+      existing.parentType === "Project"
+        ? existing.projectId
+        : existing.clusterId
+    const inputParentId =
+      input.parentType === "Project" ? input.projectId : input.clusterId
+    if (
+      input.parentType !== existing.parentType ||
+      inputParentId !== expectedParentId
+    ) {
+      throw new TopicManagementError([
+        {
+          field: "parentType",
+          message:
+            "De project- of clustercontext van een bestaand topic kan hier niet worden gewijzigd.",
+        },
+      ])
+    }
+
+    const now = options.now ?? new Date()
+    const actorId = currentActorId(state)
+    const updated: Topic = {
+      ...existing,
+      code: requiredText(input.code),
+      title: requiredText(input.title),
+      context: requiredText(input.context),
+      priority: input.priority,
+      audit: updateAudit(existing.audit, now, actorId),
+    }
+    if (input.ownerActorId) updated.ownerActorId = input.ownerActorId
+    else delete updated.ownerActorId
+
+    const records = cloneDomainCollections(state.records)
+    const index = records.topics.findIndex((item) => item.id === topicId)
+    records.topics[index] = updated
+    return { state: normalizeDomainState(records), record: updated }
+  }
+
   addJournalEntry(
     state: NormalizedDomainState,
     topicId: UUID,

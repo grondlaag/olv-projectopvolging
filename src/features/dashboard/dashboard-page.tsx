@@ -100,7 +100,7 @@ export function DashboardPage() {
         priority: action.priority,
       })
       useAppStore.getState().replaceDomainState(result.state)
-      setStatusMessage("Actiestatus bijgewerkt · JSON nog opslaan")
+      setStatusMessage("Actiestatus bijgewerkt · back-up nodig")
     } catch (error) {
       setStatusMessage(
         error instanceof Error

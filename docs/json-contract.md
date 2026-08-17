@@ -91,7 +91,7 @@ kolommapping.
 | `planningDependencies` | PlanningDependency | twee planningentries |
 | `budgets` | BudgetRecord | project, optioneel topic/leverancier |
 | `budgetMutations` | BudgetMutation | budgetrecord, auteur |
-| `meetings` | Meeting | scope, voorzitter, verslaggever |
+| `meetings` | Meeting | scope, optioneel bronoverleg, voorzitter, verslaggever |
 | `meetingParticipants` | MeetingParticipant | overleg, actor |
 | `agendaItems` | AgendaItem | overleg, bronobject historisch optioneel |
 | `reports` | Report | overleg, auteur |
@@ -111,7 +111,8 @@ De grens valideert in vaste volgorde:
 5. unieke GUIDs over alle collecties;
 6. referentiële integriteit;
 7. domeininvarianten, waaronder cluster/hoofdstuk, topicouder, current update,
-   actie-eigenaar, planningcycli, budget-topicproject en overlegscope;
+   actie-eigenaar, planningcycli, budget-topicproject, overlegscope en geldige
+   vervolgrelaties tussen overleggen;
 8. exact één Config-record en unieke keuzelijstsleutels.
 
 Syntax-, structuur- en relatieproblemen zijn `Blocking`; het bestand wordt pas
@@ -123,6 +124,11 @@ financiële of relationele waarden worden nooit stilzwijgend aangepast.
 Voor download wordt de actuele domain state opnieuw relationeel gecontroleerd en
 door hetzelfde Zod-schema gehaald. Afgeleide indices, filters en tijdelijke
 formulierstate worden niet geschreven.
+
+Lokale werkruimtevoorkeuren — benoemde filterweergaven, recente/favoriete links,
+tabeldichtheid en kolomzichtbaarheid — zijn evenmin onderdeel van de envelope.
+Ze zijn apparaatgebonden UI-configuratie en mogen een semantische
+JSON-roundtrip nooit beïnvloeden.
 
 Verplicht regressiecontract:
 
@@ -136,7 +142,13 @@ JSON openen
 ```
 
 Dit contract omvat GUIDs, integer cents, booleans, lokale datums, Unicode,
-optionele relaties, cluster-/actie-/budgethistoriek en verslagsnapshots.
+optionele relaties, cluster-/actie-/budgethistoriek, vervolgoverleggen en
+verslagsnapshots.
+
+`Meeting.sourceMeetingId` is een optionele, achterwaarts compatibele relatie.
+De adapter schrijft alleen de relatie; het opnieuw klaarzetten van open
+agendapunten is applicatielogica en gebeurt uitsluitend bij het expliciet maken
+van een vervolgoverleg.
 
 ## Nieuwe gegevensset
 

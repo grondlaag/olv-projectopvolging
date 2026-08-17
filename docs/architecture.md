@@ -42,6 +42,13 @@ gedownload. GitHub Pages ontvangt nooit de inhoud.
 presentatiecomponenten en lokale formulierstate. UI-componenten kennen geen
 JSON-envelope en schrijven niet rechtstreeks naar IndexedDB.
 
+Progressive disclosure wordt centraal aangeboden door de presentatielaag via
+`Collapsible`, `FilterPanel`, `SidePanel`, `KpiStrip`, `OverflowMenu` en
+`Composer`. Features leveren alleen labels, samenvattingen, lokale open/dicht-
+state en bestaande commandhandlers. De componenten maken zelf geen
+domeinrecords, voeren geen aggregaties uit en worden niet in JSON of IndexedDB
+bewaard. Daardoor blijft inklappen een zuivere weergavekeuze.
+
 Belangrijke features:
 
 - dashboard en portfolio;

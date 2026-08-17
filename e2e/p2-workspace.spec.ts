@@ -42,6 +42,7 @@ test("P2 persoonlijke werkruimte en contextacties", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Synthetisch renovatieproject" }),
   ).toBeVisible()
+  await page.getByRole("button", { name: "Projectacties" }).click()
   await page.getByRole("button", { name: "Als favoriet" }).click()
   await expect(page.getByText("Snel bereikbaar")).toBeVisible()
 

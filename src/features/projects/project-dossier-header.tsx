@@ -6,6 +6,8 @@ import {
   Badge,
   Button,
   FavoriteButton,
+  KpiStrip,
+  OverflowMenu,
   PageHeader,
 } from "../../design-system/components"
 import type { Project } from "../../domain"
@@ -19,6 +21,7 @@ interface ProjectDossierHeaderProps {
   project: Project
   activeTab: ProjectDossierTab
   actions?: ReactNode
+  primaryAction?: ReactNode
   openTopicCount?: number
 }
 
@@ -42,6 +45,7 @@ export function ProjectDossierHeader({
   project,
   activeTab,
   actions,
+  primaryAction,
   openTopicCount,
 }: ProjectDossierHeaderProps) {
   const navigate = useNavigate()
@@ -74,70 +78,87 @@ export function ProjectDossierHeader({
         description={`${chapter?.title ?? "Onbekend hoofdstuk"} · ${cluster?.title ?? "Zonder cluster"}`}
         actions={
           <>
-            <FavoriteButton
-              route={`/projects/${project.id}`}
-              label={`${project.code} · ${project.title}`}
-              kind="Project"
-            />
-            {actions}
-            <Button
-              onClick={() =>
-                navigate(
-                  withReturnTo(
-                    `/projects/${project.id}/edit`,
-                    currentAppRoute(location),
-                  ),
-                )
-              }
-            >
-              Project bewerken
-            </Button>
+            {primaryAction ?? (
+              <Button
+                onClick={() =>
+                  navigate(
+                    withReturnTo(
+                      `/projects/${project.id}/edit`,
+                      currentAppRoute(location),
+                    ),
+                  )
+                }
+              >
+                Project bewerken
+              </Button>
+            )}
+            <OverflowMenu label="Projectacties">
+              {primaryAction ? (
+                <Button
+                  variant="tertiary"
+                  onClick={() =>
+                    navigate(
+                      withReturnTo(
+                        `/projects/${project.id}/edit`,
+                        currentAppRoute(location),
+                      ),
+                    )
+                  }
+                >
+                  Project bewerken
+                </Button>
+              ) : null}
+              {actions}
+              <FavoriteButton
+                route={`/projects/${project.id}`}
+                label={`${project.code} · ${project.title}`}
+                kind="Project"
+              />
+            </OverflowMenu>
           </>
         }
       />
 
-      <div
+      <KpiStrip
         className="project-dossier-header__summary"
-        aria-label="Projectstatus"
-      >
-        <div>
-          <span>Status</span>
-          <Badge
-            tone={
-              project.status === "Afgesloten"
-                ? "success"
-                : project.status === "Geannuleerd"
-                  ? "danger"
-                  : "info"
-            }
-          >
-            {project.status}
-          </Badge>
-        </div>
-        <div>
-          <span>Fase</span>
-          <strong>{project.phase || "—"}</strong>
-        </div>
-        <div>
-          <span>Coördinator</span>
-          <strong>{coordinator?.displayName ?? "—"}</strong>
-        </div>
-        <div>
-          <span>Projectperiode</span>
-          <strong>
-            {formatLocalDate(project.startDate)} –{" "}
-            {formatLocalDate(project.plannedEndDate)}
-          </strong>
-        </div>
-        <div>
-          <span>Voortgang</span>
-          <strong>{project.progressPercent ?? 0}%</strong>
-        </div>
-        <div>
-          <span>Omvang</span>
-          <strong>{project.size ?? "—"}</strong>
-        </div>
-      </div>
+        ariaLabel="Projectstatus"
+        items={[
+          {
+            id: "status",
+            label: "Status",
+            value: (
+              <Badge
+                tone={
+                  project.status === "Afgesloten"
+                    ? "success"
+                    : project.status === "Geannuleerd"
+                      ? "danger"
+                      : "info"
+                }
+              >
+                {project.status}
+              </Badge>
+            ),
+          },
+          { id: "phase", label: "Fase", value: project.phase || "—" },
+          {
+            id: "coordinator",
+            label: "Coördinator",
+            value: coordinator?.displayName ?? "—",
+          },
+          {
+            id: "period",
+            label: "Projectperiode",
+            value: `${formatLocalDate(project.startDate)} – ${formatLocalDate(project.plannedEndDate)}`,
+          },
+          {
+            id: "progress",
+            label: "Voortgang",
+            value: `${project.progressPercent ?? 0}%`,
+          },
+          { id: "size", label: "Omvang", value: project.size ?? "—" },
+        ]}
+      />
 
       <nav
         className="project-dossier-header__tabs"

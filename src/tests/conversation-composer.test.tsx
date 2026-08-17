@@ -16,6 +16,7 @@ describe("universele invoerkaart", () => {
         contextType="Topic"
         contextId={testIds.topicCritical}
         contextLabel="TOP-001 · Toegang spoed"
+        defaultOpen
       />,
     )
 
@@ -67,6 +68,7 @@ describe("universele invoerkaart", () => {
         contextType="Project"
         contextId={testIds.projectOne}
         contextLabel="PRJ-001 · Spoed"
+        defaultOpen
       />,
     )
     fireEvent.click(screen.getByRole("button", { name: "Actie" }))

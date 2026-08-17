@@ -61,6 +61,7 @@ test("fase-4-hoofdflow beheert topics, actuele stand en beslissingen volledig lo
     page.getByRole("heading", { name: "Medische validatie bouwfase" }),
   ).toBeVisible()
 
+  await page.getByRole("button", { name: "+ Bijdrage" }).click()
   panel = page.getByRole("form", { name: /Bijdrage toevoegen aan/ })
   await panel
     .getByPlaceholder(/Wat is er gewijzigd/)

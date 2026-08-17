@@ -163,6 +163,7 @@ test("fase 9 productiepreview blijft rustig, responsive en toetsenbordbruikbaar"
 
   await page.setViewportSize({ width: 1024, height: 1000 })
   await page.goto(topicRoute)
+  await page.getByRole("button", { name: "+ Bijdrage" }).click()
   const composer = page.getByRole("form", {
     name: /Bijdrage toevoegen aan/,
   })

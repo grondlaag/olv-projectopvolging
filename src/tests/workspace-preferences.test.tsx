@@ -32,11 +32,14 @@ describe("persoonlijke werkruimtevoorkeuren", () => {
     ).toBeInTheDocument()
     expect(screen.getByText("Snel bereikbaar")).toBeInTheDocument()
 
+    fireEvent.click(screen.getByRole("button", { name: "Projectacties" }))
     fireEvent.click(screen.getByRole("button", { name: "Als favoriet" }))
+    fireEvent.click(screen.getByRole("button", { name: "Projectacties" }))
     expect(screen.getByRole("button", { name: "Favoriet" })).toHaveAttribute(
       "aria-pressed",
       "true",
     )
+    fireEvent.click(screen.getByRole("button", { name: "Projectacties" }))
 
     fireEvent.keyDown(window, { key: "?" })
     expect(

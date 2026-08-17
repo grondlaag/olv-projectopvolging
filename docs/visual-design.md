@@ -40,6 +40,30 @@ De gebruiker moet direct zien:
 
 Decoratie is ondergeschikt aan informatie.
 
+## Progressive disclosure
+
+De applicatie toont standaard alleen wat nodig is om toestand, context en de
+volgende handeling te begrijpen. Filters, metadata, historiek en secundaire
+acties blijven beschikbaar zonder het primaire werkvlak te verdringen.
+
+Gebruik door alle features dezelfde patronen:
+
+- `Collapsible` voor een inhoudelijke sectie met een leesbare samenvatting in
+  gesloten toestand;
+- `FilterPanel` voor één compacte filterregel en permanent zichtbare,
+  verwijderbare actieve filterchips;
+- `SidePanel` voor agenda- en contextkolommen die zonder contextverlies kunnen
+  worden ingeklapt;
+- `KpiStrip` voor één horizontale, rustige cijferstrook;
+- `OverflowMenu` voor bewerken, koppelen, timing, favoriet en verwijderen als
+  deze niet de primaire handeling zijn;
+- `Composer` voor update, beslissing en actie, standaard gesloten achter één
+  duidelijke toevoegactie.
+
+Een gesloten sectie verbergt nooit de betekenis van de toestand: titel,
+relevante aantallen en noodzakelijke subtotalen blijven in de samenvatting
+zichtbaar. Er is per werkvlak maximaal één dominante primaire actie.
+
 ## Kleuren
 
 Centrale tokens:
@@ -339,6 +363,14 @@ Daaronder tabel.
 
 Grafieken alleen als ze een echte vergelijking ondersteunen.
 
+De globale financiële portefeuille gebruikt bovenaan vijf feitelijke
+typesommen: Budget, Raming, Contract, Factuur en Betaling. Dit zijn sommen van
+niet-geannuleerde records per exact type en geen impliciete prognose. Nulbedragen
+worden als `—` weergegeven. De boom is standaard ingeklapt als Hoofdstuk →
+Cluster → Project; gesloten hoofdstukken en clusters tonen projectaantal en de
+vijf subtotalen. Filters, aanvullende groepering, uitzonderingen en uitleg over
+de aggregatieguardrail zijn progressive disclosure.
+
 ## Overleg en verslag
 
 De voorbereiding groepeert brongebonden agendapunten als hoofdstuk → cluster →
@@ -347,6 +379,12 @@ de agenda en selectie links, bespreking met één vaste invoerkaart centraal en
 actuele stand plus bronjournaal rechts. Op smallere schermen stapelen deze
 kolommen. Na save blijft de invoerkaart staan en wordt alleen de invoer
 leeggemaakt.
+
+Tijdens verwerking toont een compacte vergaderbalk steeds huidig punt/totaal,
+vorig, volgend en `Punt besproken`. Agenda en context zijn afzonderlijk
+inklapbaar. De focusmodus verbergt beide zijpanelen tijdelijk en centreert het
+actieve agendapunt met de composer; verlaten van focus herstelt de gekozen
+zijpaneeltoestand.
 
 Agenda en verslag hebben een echte client-side PDF-download met paginanummers.
 `Kopieer voor Outlook` schrijft zowel `text/html` als `text/plain` naar het

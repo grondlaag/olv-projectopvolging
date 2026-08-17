@@ -195,7 +195,9 @@ export function ProjectBudgetPage() {
       <ProjectDossierHeader
         project={model.project}
         activeTab="budget"
-        actions={<Button onClick={() => setPanel("new")}>+ Budgetitem</Button>}
+        primaryAction={
+          <Button onClick={() => setPanel("new")}>+ Budgetitem</Button>
+        }
       />
 
       {statusMessage ? (

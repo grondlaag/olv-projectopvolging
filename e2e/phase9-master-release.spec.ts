@@ -99,6 +99,7 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
     page.getByRole("heading", { name: "Façade en medische toegang" }),
   ).toBeVisible()
 
+  await page.getByRole("button", { name: "+ Bijdrage" }).click()
   const quickEntry = page.getByRole("form", { name: /Bijdrage toevoegen aan/ })
   await quickEntry
     .getByPlaceholder(/Wat is er gewijzigd/)
@@ -128,6 +129,7 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
   await panel.getByLabel(/Deadline/).fill("2026-09-15")
   await panel.getByRole("button", { name: "Actie opslaan" }).click()
 
+  await page.getByRole("button", { name: "Topicacties" }).click()
   await page.getByRole("button", { name: "+ Timing" }).click()
   panel = page.getByRole("dialog", { name: "Timing toevoegen" })
   await panel.getByLabel("Startdatum").fill("2026-08-15")
@@ -274,8 +276,12 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
   await expect(
     page.getByText("Signalisatie werfroute plaatsen").first(),
   ).toBeVisible()
+  await page
+    .getByLabel("Topiccontext")
+    .getByText("Budgetimpact", { exact: true })
+    .click()
   await expect(
-    page.getByRole("heading", { name: "Budgetimpact" }),
+    page.getByLabel("Topiccontext").getByText(/gekoppelde records/),
   ).toBeVisible()
 
   await page

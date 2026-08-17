@@ -42,6 +42,7 @@ test("fase-6-hoofdflow beheert planning, Gantt en JSON-roundtrip lokaal", async 
   await panel.getByLabel("Eigenaar").selectOption({ index: 1 })
   await panel.getByRole("button", { name: "Topic opslaan" }).click()
 
+  await page.getByRole("button", { name: "Topicacties" }).click()
   await page.getByRole("button", { name: "+ Timing" }).click()
   panel = page.getByRole("dialog", { name: "Timing toevoegen" })
   await panel.getByLabel("Startdatum").fill("2026-08-10")
@@ -50,7 +51,7 @@ test("fase-6-hoofdflow beheert planning, Gantt en JSON-roundtrip lokaal", async 
   await panel.getByLabel("Status").selectOption("Op schema")
   await panel.getByRole("button", { name: "Timing opslaan" }).click()
   await expect(
-    page.getByRole("button", { name: "Timing bewerken" }),
+    page.getByText("Timing opgeslagen in de lokale sessie · back-up nodig"),
   ).toBeVisible()
 
   await page

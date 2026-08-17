@@ -210,3 +210,16 @@ geen deel uit van het operationele JSON-bestand.
 De actielijst ondersteunt een bewuste bulkhandeling voor eigenaar en status.
 Selectie alleen wijzigt niets; na bevestiging gebruikt elke actie dezelfde
 validatie en traceerbare historie als een individuele wijziging.
+
+Werkvlakken volgen progressive disclosure. Paginatitel, geselecteerd record,
+actuele stand, hoofdstatus, primaire actie en financiële kernfeiten blijven
+zichtbaar. Detailfilters, metadata, planning- en budgetdetails, overlegverleden,
+actorbeheer en secundaire acties zijn samengevat en uitklapbaar. Updates,
+beslissingen en acties starten vanuit dezelfde compacte composer; er staat niet
+op elk scherm permanent een volledig formulier open.
+
+De financiële portefeuille toont vijf controleerbare typesommen en een
+ingeklapte hoofdstuk/cluster/projectboom. De overlegverwerking biedt daarnaast
+een focusmodus met vorig/volgend punt en een directe markering `Punt besproken`.
+Deze UI-state wijzigt de operationele gegevensset niet; alleen expliciete saves
+lopen via de bestaande applicatieservices.

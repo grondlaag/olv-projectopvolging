@@ -8,7 +8,11 @@ import {
   type UpdateContextType,
 } from "../../application/services"
 import { useAppStore } from "../../app/state/app-store"
-import { Button, SearchableSelect } from "../../design-system/components"
+import {
+  Button,
+  Composer,
+  SearchableSelect,
+} from "../../design-system/components"
 import {
   priorities,
   type Action,
@@ -37,6 +41,10 @@ export interface ConversationComposerProps {
   meetingId?: UUID
   disabled?: boolean
   compact?: boolean
+  open?: boolean
+  defaultOpen?: boolean
+  onOpenChange?: (open: boolean) => void
+  launcherLabel?: string
   onSaved?: (message: string) => void
 }
 
@@ -47,6 +55,10 @@ export function ConversationComposer({
   meetingId,
   disabled = false,
   compact = false,
+  open,
+  defaultOpen = false,
+  onOpenChange,
+  launcherLabel = "+ Update toevoegen",
   onSaved,
 }: ConversationComposerProps) {
   const session = useAppStore((state) => state.session)!
@@ -194,141 +206,129 @@ export function ConversationComposer({
       onKeyDown={shortcuts}
       aria-label={`Bijdrage toevoegen aan ${contextLabel}`}
     >
-      <header>
-        <div>
-          <span>Vastleggen in context</span>
-          <strong>{contextLabel}</strong>
-        </div>
-        <div
-          className="conversation-composer__kinds"
-          role="group"
-          aria-label="Soort bijdrage"
-        >
-          {(
-            [
-              ["update", "Update"],
-              ["decision", "Beslissing"],
-              ["action", "Actie"],
-            ] as const
-          ).map(([value, label], index) => (
-            <button
-              key={value}
-              type="button"
-              className={kind === value ? "is-active" : ""}
-              onClick={() => chooseKind(value)}
-              aria-pressed={kind === value}
-              title={`Alt+${index + 1}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </header>
-      <label className="conversation-composer__text">
-        <span className="sr-only">
-          {kind === "update"
-            ? "Update"
-            : kind === "decision"
-              ? "Beslissing"
-              : "Actie"}
-        </span>
-        <textarea
-          rows={compact ? 3 : 4}
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          placeholder={
-            kind === "update"
-              ? "Wat is er gewijzigd of wat is de actuele stand?"
+      <Composer
+        launcherLabel={launcherLabel}
+        title="Vastleggen in context"
+        context={contextLabel}
+        tabs={[
+          { id: "update", label: "Update" },
+          { id: "decision", label: "Beslissing" },
+          { id: "action", label: "Actie" },
+        ]}
+        activeTab={kind}
+        onTabChange={chooseKind}
+        open={open}
+        defaultOpen={defaultOpen}
+        onOpenChange={onOpenChange}
+        disabled={disabled}
+        className={compact ? "composer--compact" : ""}
+      >
+        <label className="conversation-composer__text">
+          <span className="sr-only">
+            {kind === "update"
+              ? "Update"
               : kind === "decision"
-                ? "Welke beslissing is genomen?"
-                : "Wat moet gebeuren?"
-          }
-          disabled={disabled}
-          aria-invalid={Boolean(error)}
-        />
-      </label>
-      <div className="conversation-composer__metadata">
-        <SearchableSelect
-          label={kind === "action" ? "Eigenaar" : "Auteur"}
-          emptyLabel="Kies een actieve actor"
-          options={activeActors.map((actor) => ({
-            value: actor.id,
-            label: actor.displayName,
-          }))}
-          value={actorId}
-          onChange={(event) => setActorId(event.target.value as UUID | "")}
-          action={
-            <Button variant="tertiary" onClick={() => setActorMode(true)}>
-              + Nieuwe actor
-            </Button>
-          }
-        />
-        {kind === "action" ? (
-          <>
-            <label>
-              <span>
-                Deadline <em>optioneel</em>
-              </span>
-              <input
-                type="date"
-                value={deadline}
-                onChange={(event) =>
-                  setDeadline(event.target.value as LocalDate | "")
-                }
-              />
-            </label>
-            <label>
-              <span>Prioriteit</span>
-              <select
-                value={priority}
-                onChange={(event) =>
-                  setPriority(event.target.value as Priority)
-                }
-              >
-                {priorities.map((value) => (
-                  <option key={value}>{value}</option>
-                ))}
-              </select>
-            </label>
-          </>
-        ) : (
-          <>
-            <label>
-              <span>Datum</span>
-              <input
-                type="date"
-                value={date}
-                onChange={(event) => setDate(event.target.value as LocalDate)}
-              />
-            </label>
-            {kind === "update" && contextType !== "Meeting" ? (
-              <label className="conversation-composer__current">
+                ? "Beslissing"
+                : "Actie"}
+          </span>
+          <textarea
+            rows={compact ? 3 : 4}
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            placeholder={
+              kind === "update"
+                ? "Wat is er gewijzigd of wat is de actuele stand?"
+                : kind === "decision"
+                  ? "Welke beslissing is genomen?"
+                  : "Wat moet gebeuren?"
+            }
+            disabled={disabled}
+            aria-invalid={Boolean(error)}
+          />
+        </label>
+        <div className="conversation-composer__metadata">
+          <SearchableSelect
+            label={kind === "action" ? "Eigenaar" : "Auteur"}
+            emptyLabel="Kies een actieve actor"
+            options={activeActors.map((actor) => ({
+              value: actor.id,
+              label: actor.displayName,
+            }))}
+            value={actorId}
+            onChange={(event) => setActorId(event.target.value as UUID | "")}
+            action={
+              <Button variant="tertiary" onClick={() => setActorMode(true)}>
+                + Nieuwe actor
+              </Button>
+            }
+          />
+          {kind === "action" ? (
+            <>
+              <label>
+                <span>
+                  Deadline <em>optioneel</em>
+                </span>
                 <input
-                  type="checkbox"
-                  checked={makeCurrent}
-                  onChange={(event) => setMakeCurrent(event.target.checked)}
+                  type="date"
+                  value={deadline}
+                  onChange={(event) =>
+                    setDeadline(event.target.value as LocalDate | "")
+                  }
                 />
-                <span>Maak actuele stand</span>
               </label>
-            ) : null}
-          </>
-        )}
-      </div>
-      {error ? (
-        <p className="conversation-composer__error" role="alert">
-          {error}
-        </p>
-      ) : null}
-      <footer>
-        <small>Ctrl/Cmd + Enter om op te slaan</small>
-        <Button type="submit" disabled={disabled || saving}>
-          {kind === "update"
-            ? "Update opslaan"
-            : kind === "decision"
-              ? "Beslissing opslaan"
-              : "Actie opslaan"}
-        </Button>
-      </footer>
+              <label>
+                <span>Prioriteit</span>
+                <select
+                  value={priority}
+                  onChange={(event) =>
+                    setPriority(event.target.value as Priority)
+                  }
+                >
+                  {priorities.map((value) => (
+                    <option key={value}>{value}</option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : (
+            <>
+              <label>
+                <span>Datum</span>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(event) => setDate(event.target.value as LocalDate)}
+                />
+              </label>
+              {kind === "update" && contextType !== "Meeting" ? (
+                <label className="conversation-composer__current">
+                  <input
+                    type="checkbox"
+                    checked={makeCurrent}
+                    onChange={(event) => setMakeCurrent(event.target.checked)}
+                  />
+                  <span>Maak actuele stand</span>
+                </label>
+              ) : null}
+            </>
+          )}
+        </div>
+        {error ? (
+          <p className="conversation-composer__error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <footer>
+          <small>Ctrl/Cmd + Enter om op te slaan</small>
+          <Button type="submit" disabled={disabled || saving}>
+            {kind === "update"
+              ? "Update opslaan"
+              : kind === "decision"
+                ? "Beslissing opslaan"
+                : "Actie opslaan"}
+          </Button>
+        </footer>
+      </Composer>
     </form>
   )
 }

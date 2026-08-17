@@ -1,14 +1,14 @@
 .conversation-composer {
   display: grid;
   gap: 1rem;
-  padding: clamp(1rem, 2vw, 1.4rem);
-  border: 1px solid var(--border-color);
-  border-left: 4px solid var(--color-accent);
-  background: var(--color-surface, #fff);
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .conversation-composer > header,
 .conversation-composer > footer,
+.composer__body > footer,
 .conversation-composer__metadata,
 .conversation-composer__kinds {
   display: flex;
@@ -16,7 +16,8 @@
 }
 
 .conversation-composer > header,
-.conversation-composer > footer {
+.conversation-composer > footer,
+.composer__body > footer {
   justify-content: space-between;
   gap: 1rem;
 }
@@ -27,7 +28,8 @@
 }
 
 .conversation-composer > header span,
-.conversation-composer > footer small {
+.conversation-composer > footer small,
+.composer__body > footer small {
   color: var(--color-text-muted);
   font-size: 0.78rem;
 }
@@ -103,7 +105,7 @@
 }
 
 .conversation-composer--compact {
-  padding: 1rem;
+  padding: 0;
 }
 
 .conversation-feed {
@@ -159,7 +161,8 @@
 
 @media (max-width: 700px) {
   .conversation-composer > header,
-  .conversation-composer > footer {
+  .conversation-composer > footer,
+  .composer__body > footer {
     align-items: stretch;
     flex-direction: column;
   }

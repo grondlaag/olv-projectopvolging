@@ -9,7 +9,13 @@ import {
   TopicManagementService,
 } from "../../application/services"
 import { useAppStore } from "../../app/state/app-store"
-import { Badge, Button, EmptyState } from "../../design-system/components"
+import {
+  Badge,
+  Button,
+  Collapsible,
+  EmptyState,
+  SidePanel,
+} from "../../design-system/components"
 import type { AgendaItem, TopicStatus, UUID } from "../../domain"
 import { formatLocalDate } from "../../utils"
 import {
@@ -178,8 +184,14 @@ export function MeetingProcessingWorkspace({
   const [selectedId, setSelectedId] = useState<UUID | undefined>(
     model.agenda[0]?.id,
   )
+  const [focusMode, setFocusMode] = useState(false)
+  const [agendaOpen, setAgendaOpen] = useState(true)
+  const [contextOpen, setContextOpen] = useState(true)
   const selected =
     model.agenda.find((item) => item.id === selectedId) ?? model.agenda[0]
+  const selectedIndex = selected
+    ? model.agenda.findIndex((item) => item.id === selected.id)
+    : -1
   const context = useMemo(
     () =>
       selected ? buildAgendaItemContext(session.state, selected) : undefined,
@@ -212,8 +224,47 @@ export function MeetingProcessingWorkspace({
     }
   }
 
+  function selectRelative(offset: number) {
+    const next = model.agenda[selectedIndex + offset]
+    if (next) setSelectedId(next.id)
+  }
+
+  function markDiscussed() {
+    if (
+      !selected ||
+      frozen ||
+      (selected.objectType !== "Project" && selected.objectType !== "Topic") ||
+      !selected.objectId
+    )
+      return
+    try {
+      const latest = useAppStore.getState().session!.state
+      const result = meetingService.saveAgendaItem(
+        latest,
+        model.meeting.id,
+        {
+          title: selected.title,
+          discussionStatus: "Besproken",
+          objectType: selected.objectType,
+          objectId: selected.objectId,
+          ...(selected.reason ? { reason: selected.reason } : {}),
+          ...(selected.notes ? { notes: selected.notes } : {}),
+        },
+        selected.id,
+      )
+      replaceDomainState(result.state)
+      onMessage("Agendapunt besproken · opgeslagen in sessie · back-up nodig")
+      const next = model.agenda[selectedIndex + 1]
+      if (next) setSelectedId(next.id)
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Opslaan is mislukt.")
+    }
+  }
+
   return (
-    <div className="meeting-process-workspace">
+    <div
+      className={`meeting-process-workspace${focusMode ? " meeting-process-workspace--focus" : ""}`}
+    >
       <details className="meeting-process-attendance">
         <summary>
           Aanwezigheid ·{" "}
@@ -241,168 +292,255 @@ export function MeetingProcessingWorkspace({
       </details>
 
       {selected && context ? (
-        <div className="meeting-process-grid">
-          <nav
-            className="meeting-process-agenda"
-            aria-label="Agenda tijdens overleg"
-          >
-            <header>
-              <span>Agenda</span>
-              <strong>{model.agenda.length} punten</strong>
-            </header>
-            {model.agendaGroups.map((group) => (
-              <section
-                key={group.id}
-                className={group.legacy ? "is-legacy" : ""}
-              >
-                <header>
-                  <small>
-                    {group.chapter
-                      ? `${group.chapter.code} · ${group.chapter.title}`
-                      : "Zonder hoofdstuk"}
-                  </small>
-                  <strong>
-                    {group.cluster
-                      ? `${group.cluster.code} · ${group.cluster.title}`
-                      : "Zonder cluster"}
-                  </strong>
-                  <span>{group.label}</span>
-                </header>
-                {group.items.map((item) => (
-                  <button
-                    key={item.id}
-                    className={selected.id === item.id ? "is-active" : ""}
-                    onClick={() => setSelectedId(item.id)}
-                  >
-                    <span>{item.order}</span>
-                    <strong>{item.title}</strong>
-                    <small>{item.discussionStatus}</small>
-                  </button>
-                ))}
-              </section>
-            ))}
-          </nav>
-
-          <main className="meeting-process-discussion">
-            <header>
-              <div>
-                <span>Agendapunt {selected.order}</span>
-                <h2>{selected.title}</h2>
-                <p>
-                  {selected.reason ||
-                    "Geen afzonderlijke aanleiding opgegeven."}
-                </p>
-              </div>
-              <Badge
-                tone={
-                  selected.discussionStatus === "Besproken"
-                    ? "success"
-                    : selected.discussionStatus === "Doorgeschoven"
-                      ? "warning"
-                      : "neutral"
-                }
-              >
-                {selected.discussionStatus}
-              </Badge>
-            </header>
-            {selected.notes ? (
-              <div className="meeting-process-notes">
-                <span>Bespreeknotitie</span>
-                <p>{selected.notes}</p>
-              </div>
-            ) : null}
-            <div className="meeting-process-controls">
-              {context.topic ? (
-                <label>
-                  <span>Topicstatus</span>
-                  <select
-                    value={context.topic.status}
-                    disabled={frozen}
-                    onChange={(event) =>
-                      changeTopicStatus(
-                        context.topic!.id,
-                        event.target.value as TopicStatus,
-                      )
-                    }
-                  >
-                    <option>Open</option>
-                    <option>Afgesloten</option>
-                    <option>Geannuleerd</option>
-                  </select>
-                </label>
-              ) : null}
-              {!frozen ? (
-                <Button
-                  variant="tertiary"
-                  onClick={() => onEditAgenda(selected)}
-                >
-                  Notitie of bespreekstatus
-                </Button>
-              ) : null}
+        <>
+          <div className="meeting-focus-toolbar" aria-label="Vergaderbediening">
+            <div>
+              <span>Huidig punt</span>
+              <strong>
+                {selectedIndex + 1} / {model.agenda.length}
+              </strong>
             </div>
-            {selected.objectType === "Project" ||
-            selected.objectType === "Topic" ? (
-              <ConversationComposer
-                contextType={selected.objectType}
-                contextId={selected.objectId!}
-                contextLabel={selected.title}
-                meetingId={model.meeting.id}
-                disabled={frozen}
-                onSaved={(message) => onMessage(`${message} · back-up nodig`)}
-              />
-            ) : (
-              <div className="meeting-process-relink" role="alert">
-                <strong>
-                  Dit historisch agendapunt mist een geldige bron.
-                </strong>
-                <p>
-                  Koppel het eerst aan een project of topic om bijdragen toe te
-                  voegen.
-                </p>
-                {!frozen ? (
-                  <Button onClick={() => onEditAgenda(selected)}>
-                    Bron koppelen
+            <div>
+              {!focusMode ? (
+                <>
+                  <Button
+                    variant="tertiary"
+                    aria-pressed={agendaOpen}
+                    onClick={() => setAgendaOpen((current) => !current)}
+                  >
+                    Agenda {agendaOpen ? "verbergen" : "tonen"}
                   </Button>
+                  <Button
+                    variant="tertiary"
+                    aria-pressed={contextOpen}
+                    onClick={() => setContextOpen((current) => !current)}
+                  >
+                    Context {contextOpen ? "verbergen" : "tonen"}
+                  </Button>
+                </>
+              ) : null}
+              <Button
+                variant="tertiary"
+                disabled={selectedIndex <= 0}
+                onClick={() => selectRelative(-1)}
+              >
+                Vorig punt
+              </Button>
+              <Button
+                variant="tertiary"
+                disabled={selectedIndex >= model.agenda.length - 1}
+                onClick={() => selectRelative(1)}
+              >
+                Volgend punt
+              </Button>
+              <Button
+                variant={focusMode ? "secondary" : "tertiary"}
+                aria-pressed={focusMode}
+                onClick={() => setFocusMode((current) => !current)}
+              >
+                {focusMode ? "Overzicht tonen" : "Focusmodus"}
+              </Button>
+            </div>
+          </div>
+          <div
+            className={`meeting-process-grid${agendaOpen ? "" : " meeting-process-grid--agenda-closed"}${contextOpen ? "" : " meeting-process-grid--context-closed"}`}
+          >
+            <SidePanel
+              className="meeting-process-agenda"
+              title="Agenda"
+              summary={`${model.agenda.length} punten`}
+              open={agendaOpen}
+              onOpenChange={setAgendaOpen}
+              ariaLabel="Agenda tijdens overleg"
+            >
+              <nav aria-label="Agenda tijdens overleg">
+                {model.agendaGroups.map((group) => (
+                  <section
+                    key={group.id}
+                    className={group.legacy ? "is-legacy" : ""}
+                  >
+                    <header>
+                      <small>
+                        {group.chapter
+                          ? `${group.chapter.code} · ${group.chapter.title}`
+                          : "Zonder hoofdstuk"}
+                      </small>
+                      <strong>
+                        {group.cluster
+                          ? `${group.cluster.code} · ${group.cluster.title}`
+                          : "Zonder cluster"}
+                      </strong>
+                      <span>{group.label}</span>
+                    </header>
+                    {group.items.map((item) => (
+                      <button
+                        key={item.id}
+                        className={selected.id === item.id ? "is-active" : ""}
+                        onClick={() => setSelectedId(item.id)}
+                      >
+                        <span>{item.order}</span>
+                        <strong>{item.title}</strong>
+                        <small>{item.discussionStatus}</small>
+                      </button>
+                    ))}
+                  </section>
+                ))}
+              </nav>
+            </SidePanel>
+
+            <main className="meeting-process-discussion">
+              <header>
+                <div>
+                  <span>
+                    Punt {selectedIndex + 1} van {model.agenda.length}
+                  </span>
+                  <h2>{selected.title}</h2>
+                  <p>
+                    {selected.reason ||
+                      "Geen afzonderlijke aanleiding opgegeven."}
+                  </p>
+                </div>
+                <Badge
+                  tone={
+                    selected.discussionStatus === "Besproken"
+                      ? "success"
+                      : selected.discussionStatus === "Doorgeschoven"
+                        ? "warning"
+                        : "neutral"
+                  }
+                >
+                  {selected.discussionStatus}
+                </Badge>
+              </header>
+              {selected.notes ? (
+                <div className="meeting-process-notes">
+                  <span>Bespreeknotitie</span>
+                  <p>{selected.notes}</p>
+                </div>
+              ) : null}
+              <div className="meeting-process-controls">
+                {context.topic ? (
+                  <label>
+                    <span>Topicstatus</span>
+                    <select
+                      value={context.topic.status}
+                      disabled={frozen}
+                      onChange={(event) =>
+                        changeTopicStatus(
+                          context.topic!.id,
+                          event.target.value as TopicStatus,
+                        )
+                      }
+                    >
+                      <option>Open</option>
+                      <option>Afgesloten</option>
+                      <option>Geannuleerd</option>
+                    </select>
+                  </label>
+                ) : null}
+                {!frozen ? (
+                  <div>
+                    {selected.objectType === "Project" ||
+                    selected.objectType === "Topic" ? (
+                      <Button
+                        onClick={markDiscussed}
+                        disabled={selected.discussionStatus === "Besproken"}
+                      >
+                        Punt besproken
+                      </Button>
+                    ) : null}
+                    <Button
+                      variant="tertiary"
+                      onClick={() => onEditAgenda(selected)}
+                    >
+                      Notitie of status
+                    </Button>
+                  </div>
                 ) : null}
               </div>
-            )}
-          </main>
+              {selected.objectType === "Project" ||
+              selected.objectType === "Topic" ? (
+                <ConversationComposer
+                  contextType={selected.objectType}
+                  contextId={selected.objectId!}
+                  contextLabel={selected.title}
+                  meetingId={model.meeting.id}
+                  disabled={frozen}
+                  defaultOpen
+                  onSaved={(message) => onMessage(`${message} · back-up nodig`)}
+                />
+              ) : (
+                <div className="meeting-process-relink" role="alert">
+                  <strong>
+                    Dit historisch agendapunt mist een geldige bron.
+                  </strong>
+                  <p>
+                    Koppel het eerst aan een project of topic om bijdragen toe
+                    te voegen.
+                  </p>
+                  {!frozen ? (
+                    <Button onClick={() => onEditAgenda(selected)}>
+                      Bron koppelen
+                    </Button>
+                  ) : null}
+                </div>
+              )}
+            </main>
 
-          <aside className="meeting-process-context">
-            <header>
-              <span>Contextjournaal</span>
-              <h2>
-                {context.topic?.title ??
-                  context.project?.title ??
-                  selected.title}
-              </h2>
-              <p>
-                {context.chapter?.title ?? "Zonder hoofdstuk"} ·{" "}
-                {context.cluster?.title ?? "Zonder cluster"}
-              </p>
-            </header>
-            <section className="meeting-process-current">
-              <span>Actuele stand</span>
-              <p>{context.currentUpdate?.text ?? "Nog geen actuele stand."}</p>
-            </section>
-            <ConversationFeed
-              updates={[...context.updates, ...context.decisions]}
-              actions={context.actions}
-              currentMeetingId={model.meeting.id}
-              {...(!frozen ? { onEditAction } : {})}
-            />
-            {context.meetings.length ? (
-              <section className="meeting-process-history">
-                <span>Eerder en later besproken</span>
-                {context.meetings.slice(0, 5).map((meeting) => (
-                  <Link key={meeting.id} to={`/meetings/${meeting.id}`}>
-                    {formatLocalDate(meeting.date)} · {meeting.title}
-                  </Link>
-                ))}
-              </section>
-            ) : null}
-          </aside>
-        </div>
+            <SidePanel
+              className="meeting-process-context"
+              title="Contextjournaal"
+              summary={context.topic?.code ?? context.project?.code ?? "Bron"}
+              open={contextOpen}
+              onOpenChange={setContextOpen}
+              ariaLabel="Context tijdens overleg"
+            >
+              <header className="meeting-process-context__record">
+                <span>Contextjournaal</span>
+                <h2>
+                  {context.topic?.title ??
+                    context.project?.title ??
+                    selected.title}
+                </h2>
+                <p>
+                  {context.chapter?.title ?? "Zonder hoofdstuk"} ·{" "}
+                  {context.cluster?.title ?? "Zonder cluster"}
+                </p>
+              </header>
+              <Collapsible
+                className="meeting-process-current"
+                title="Actuele stand"
+                summary={context.currentUpdate ? "Bijgewerkt" : "Nog leeg"}
+                defaultOpen
+              >
+                <p>
+                  {context.currentUpdate?.text ?? "Nog geen actuele stand."}
+                </p>
+              </Collapsible>
+              <Collapsible
+                title="Journaal"
+                summary={`${context.updates.length + context.decisions.length + context.actions.length} bijdragen`}
+              >
+                <ConversationFeed
+                  updates={[...context.updates, ...context.decisions]}
+                  actions={context.actions}
+                  currentMeetingId={model.meeting.id}
+                  {...(!frozen ? { onEditAction } : {})}
+                />
+                {context.meetings.length ? (
+                  <section className="meeting-process-history">
+                    <span>Eerder en later besproken</span>
+                    {context.meetings.slice(0, 5).map((meeting) => (
+                      <Link key={meeting.id} to={`/meetings/${meeting.id}`}>
+                        {formatLocalDate(meeting.date)} · {meeting.title}
+                      </Link>
+                    ))}
+                  </section>
+                ) : null}
+              </Collapsible>
+            </SidePanel>
+          </div>
+        </>
       ) : (
         <EmptyState
           title="Geen agenda om te verwerken"

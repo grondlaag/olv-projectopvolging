@@ -47,7 +47,10 @@ describe("project en topic inplannen voor overleg", () => {
     render(<RouterProvider router={router} />)
 
     fireEvent.click(
-      await screen.findByRole("button", {
+      await screen.findByRole("button", { name: "Projectacties" }),
+    )
+    fireEvent.click(
+      screen.getByRole("button", {
         name: "Project bespreken op overleg",
       }),
     )
@@ -91,6 +94,7 @@ describe("project en topic inplannen voor overleg", () => {
     expect(
       await screen.findByRole("heading", { name: "Toegang spoed" }),
     ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Topicacties" }))
     fireEvent.click(
       screen.getByRole("button", { name: "Bespreken op overleg" }),
     )

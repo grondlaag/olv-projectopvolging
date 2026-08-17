@@ -41,7 +41,7 @@ describe("portfolio- en projectnavigatie", () => {
         name: "Beleidsproject energie",
       }),
     ).toBeInTheDocument()
-    expect(screen.getByText("Zonder cluster")).toBeInTheDocument()
+    expect(screen.getAllByText("Zonder cluster").length).toBeGreaterThan(0)
     router.dispose()
   })
 })

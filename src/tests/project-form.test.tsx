@@ -227,10 +227,11 @@ describe("projectformulier met inline beheer", () => {
     fireEvent.click(
       await screen.findByRole(
         "button",
-        { name: "Project bewerken" },
+        { name: "Projectacties" },
         { timeout: 10_000 },
       ),
     )
+    fireEvent.click(screen.getByRole("button", { name: "Project bewerken" }))
     expect(await screen.findByLabelText(/Projectomvang/)).toHaveValue("L")
     fireEvent.change(screen.getByLabelText("Titel"), {
       target: { value: "Renovatie met behouden omvang" },

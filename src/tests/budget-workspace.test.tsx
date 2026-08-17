@@ -167,11 +167,19 @@ describe("budgetwerkruimte", () => {
         { timeout: 15_000 },
       ),
     ).toBeInTheDocument()
+    fireEvent.click(screen.getByText("Filters", { exact: true }))
     fireEvent.change(screen.getByLabelText("Projectfilter"), {
       target: { value: testIds.projectOne },
     })
     expect(window.location.hash).toContain(`project=${testIds.projectOne}`)
+    fireEvent.click(screen.getByText(/H1 · Gebouw en ruimte/))
+    fireEvent.click(
+      screen
+        .getAllByText("Zorgcampus", { exact: true })
+        .find((element) => element.closest("summary"))!,
+    )
     expect(screen.getByRole("cell", { name: /PRJ-001/ })).toBeVisible()
+    fireEvent.click(screen.getByText("Andere groepering"))
     fireEvent.change(screen.getByLabelText("Groepeer per"), {
       target: { value: "project" },
     })

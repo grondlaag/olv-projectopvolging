@@ -8,7 +8,10 @@ import {
 import { useAppStore } from "../../app/state/app-store"
 import {
   Button,
+  Collapsible,
   EmptyState,
+  FilterPanel,
+  KpiStrip,
   PageHeader,
   SavedViewsControl,
 } from "../../design-system/components"
@@ -43,6 +46,27 @@ function factualTypeTotal(records: readonly BudgetRecord[], type: BudgetType) {
   return records
     .filter((record) => record.type === type && record.status !== "Geannuleerd")
     .reduce((total, record) => total + record.amountCents, 0)
+}
+
+function formatPortfolioAmount(amountCents: number) {
+  return amountCents === 0 ? "—" : formatEuroCents(amountCents)
+}
+
+function FinancialTypeSummary({
+  records,
+}: {
+  records: readonly BudgetRecord[]
+}) {
+  return (
+    <dl className="budget-type-summary">
+      {overviewTypes.map((type) => (
+        <div key={type}>
+          <dt>{type === "Goedgekeurd budget" ? "Budget" : type}</dt>
+          <dd>{formatPortfolioAmount(factualTypeTotal(records, type))}</dd>
+        </div>
+      ))}
+    </dl>
+  )
 }
 
 export function BudgetPage() {
@@ -155,6 +179,66 @@ export function BudgetPage() {
     setSearchParameters(parameters, { replace: true })
   }
 
+  const allPortfolioRecords = session.state.records.budgets.filter(
+    (record) => record.audit.active,
+  )
+  const activeFilters = [
+    ...(filters.chapterId
+      ? [
+          {
+            id: "chapter",
+            label: `Hoofdstuk: ${session.state.indices.chapterById.get(filters.chapterId)?.title ?? "Onbekend"}`,
+            onRemove: () => updateFilter("chapterId", ""),
+          },
+        ]
+      : []),
+    ...(filters.clusterId
+      ? [
+          {
+            id: "cluster",
+            label: `Cluster: ${session.state.indices.clusterById.get(filters.clusterId)?.title ?? "Onbekend"}`,
+            onRemove: () => updateFilter("clusterId", ""),
+          },
+        ]
+      : []),
+    ...(filters.projectId
+      ? [
+          {
+            id: "project",
+            label: `Project: ${session.state.indices.projectById.get(filters.projectId)?.code ?? "Onbekend"}`,
+            onRemove: () => updateFilter("projectId", ""),
+          },
+        ]
+      : []),
+    ...(filters.projectStatus
+      ? [
+          {
+            id: "project-status",
+            label: `Projectstatus: ${filters.projectStatus}`,
+            onRemove: () => updateFilter("projectStatus", ""),
+          },
+        ]
+      : []),
+    ...(filters.budgetStatus
+      ? [
+          {
+            id: "budget-status",
+            label: `Budgetstatus: ${filters.budgetStatus}`,
+            onRemove: () => updateFilter("budgetStatus", ""),
+          },
+        ]
+      : []),
+    ...(filters.category
+      ? [
+          {
+            id: "category",
+            label: `Categorie: ${filters.category}`,
+            onRemove: () => updateFilter("category", ""),
+          },
+        ]
+      : []),
+  ]
+
   return (
     <div className="budget-page">
       <PageHeader
@@ -163,39 +247,25 @@ export function BudgetPage() {
         description={`Directe financiële feiten uit ${session.fileName}.`}
       />
 
-      <section
+      <KpiStrip
         className="budget-portfolio-kpis"
-        aria-label="Portfoliokerncijfers"
-      >
-        {["Totaal goedgekeurd", "Totale prognose", "Totale afwijking"].map(
-          (label) => (
-            <div key={label} title={BUDGET_AGGREGATION_RULE_REQUIRED}>
-              <span>{label}</span>
-              <strong>—</strong>
-            </div>
+        ariaLabel="Financiële portefeuilletotalen"
+        items={overviewTypes.map((type) => ({
+          id: type,
+          label: type === "Goedgekeurd budget" ? "Budget" : type,
+          value: formatPortfolioAmount(
+            factualTypeTotal(allPortfolioRecords, type),
           ),
-        )}
-        <div>
-          <span>Budgetitems</span>
-          <strong>{model.portfolioSummary.recordCount}</strong>
-        </div>
-        <div>
-          <span>Netto meer/minwerk</span>
-          <strong>
-            {formatEuroCents(model.portfolioSummary.changeOrderImpactCents)}
-          </strong>
-        </div>
-      </section>
+          supportingText: "alle projecten",
+        }))}
+      />
 
-      <aside className="budget-rule-note">
-        <strong>Kerncijfers wachten op een besliste rekenregel.</strong>
-        <span>
-          De feitelijke budgetregels hieronder blijven volledig zichtbaar en
-          worden niet tot een onbetrouwbare prognose samengevoegd.
-        </span>
-      </aside>
-
-      <section className="budget-filter-bar" aria-label="Budgetfilters">
+      <FilterPanel
+        className="budget-filter-bar"
+        activeFilters={activeFilters}
+        onClear={resetFilters}
+        actions={<SavedViewsControl page="budget" />}
+      >
         <label>
           <span>Hoofdstuk</span>
           <select
@@ -296,11 +366,19 @@ export function BudgetPage() {
             ))}
           </select>
         </label>
-        <Button variant="tertiary" onClick={resetFilters}>
-          Filters wissen
-        </Button>
-        <SavedViewsControl page="budget" />
-      </section>
+      </FilterPanel>
+
+      <Collapsible
+        className="budget-rule-note"
+        title="Over deze totalen"
+        summary="Niet-geannuleerde bedragen per exact feitstype"
+      >
+        <p title={BUDGET_AGGREGATION_RULE_REQUIRED}>
+          Budget, raming, contract, factuur en betaling zijn rechtstreekse
+          typesommen. Prognose, resterend budget en afwijking blijven bewust
+          onberekend tot hun businessregel is beslist.
+        </p>
+      </Collapsible>
 
       <section className="budget-section">
         <div className="budget-section__heading">
@@ -319,95 +397,102 @@ export function BudgetPage() {
               ),
             }))
             .filter((group) => group.rows.length)
-            .map(({ chapter, rows }) => (
-              <details open key={chapter.id} className="budget-chapter">
-                <summary>
-                  <strong>
-                    {chapter.code} · {chapter.title}
-                  </strong>
-                  <span>{rows.length} projecten</span>
-                </summary>
-                {[
-                  ...new Set(
-                    rows.map((row) => row.cluster?.id ?? "without-cluster"),
-                  ),
-                ].map((clusterId) => {
-                  const clusterRows = rows.filter(
-                    (row) =>
-                      (row.cluster?.id ?? "without-cluster") === clusterId,
-                  )
-                  const clusterLabel =
-                    clusterRows[0]?.cluster?.title ?? "Zonder cluster"
-                  const clusterRecords = clusterRows.flatMap(
-                    (row) => row.records,
-                  )
-                  return (
-                    <details open key={clusterId} className="budget-cluster">
-                      <summary>
-                        <strong>{clusterLabel}</strong>
-                        <span>
-                          {overviewTypes
-                            .map(
-                              (type) =>
-                                `${type.replace("Goedgekeurd budget", "Budget")}: ${formatEuroCents(factualTypeTotal(clusterRecords, type))}`,
-                            )
-                            .join(" · ")}
-                        </span>
-                      </summary>
-                      <div className="budget-table-wrap">
-                        <table className="budget-table budget-table--portfolio">
-                          <thead>
-                            <tr>
-                              <th>Project</th>
-                              {overviewTypes.map((type) => (
-                                <th key={type}>
-                                  {type === "Goedgekeurd budget"
-                                    ? "Budget"
-                                    : type}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {clusterRows.map((row) => (
-                              <tr key={row.project.id}>
-                                <td>
-                                  <Link
-                                    to={`/projects/${row.project.id}/budget`}
-                                  >
-                                    <strong>{row.project.code}</strong> ·{" "}
-                                    {row.project.title}
-                                  </Link>
-                                </td>
+            .map(({ chapter, rows }) => {
+              const chapterRecords = rows.flatMap((row) => row.records)
+              return (
+                <Collapsible
+                  key={chapter.id}
+                  className="budget-chapter"
+                  title={`${chapter.code} · ${chapter.title}`}
+                  summary={
+                    <span className="budget-tree-summary">
+                      <span>{rows.length} projecten</span>
+                      <FinancialTypeSummary records={chapterRecords} />
+                    </span>
+                  }
+                >
+                  {[
+                    ...new Set(
+                      rows.map((row) => row.cluster?.id ?? "without-cluster"),
+                    ),
+                  ].map((clusterId) => {
+                    const clusterRows = rows.filter(
+                      (row) =>
+                        (row.cluster?.id ?? "without-cluster") === clusterId,
+                    )
+                    const clusterLabel =
+                      clusterRows[0]?.cluster?.title ?? "Zonder cluster"
+                    const clusterRecords = clusterRows.flatMap(
+                      (row) => row.records,
+                    )
+                    return (
+                      <Collapsible
+                        key={clusterId}
+                        className="budget-cluster"
+                        title={clusterLabel}
+                        summary={
+                          <span className="budget-tree-summary">
+                            <span>{clusterRows.length} projecten</span>
+                            <FinancialTypeSummary records={clusterRecords} />
+                          </span>
+                        }
+                      >
+                        <div className="budget-table-wrap">
+                          <table className="budget-table budget-table--portfolio">
+                            <thead>
+                              <tr>
+                                <th>Project</th>
                                 {overviewTypes.map((type) => (
-                                  <td
-                                    className="budget-table__amount"
-                                    key={type}
-                                  >
-                                    {formatEuroCents(
-                                      factualTypeTotal(row.records, type),
-                                    )}
-                                  </td>
+                                  <th key={type}>
+                                    {type === "Goedgekeurd budget"
+                                      ? "Budget"
+                                      : type}
+                                  </th>
                                 ))}
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </details>
-                  )
-                })}
-              </details>
-            ))}
+                            </thead>
+                            <tbody>
+                              {clusterRows.map((row) => (
+                                <tr key={row.project.id}>
+                                  <td>
+                                    <Link
+                                      to={`/projects/${row.project.id}/budget`}
+                                    >
+                                      <strong>{row.project.code}</strong> ·{" "}
+                                      {row.project.title}
+                                    </Link>
+                                  </td>
+                                  {overviewTypes.map((type) => (
+                                    <td
+                                      className="budget-table__amount"
+                                      key={type}
+                                    >
+                                      {formatPortfolioAmount(
+                                        factualTypeTotal(row.records, type),
+                                      )}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </Collapsible>
+                    )
+                  })}
+                </Collapsible>
+              )
+            })}
         </div>
       </section>
 
-      <section className="budget-section">
-        <div className="budget-section__heading">
-          <div>
-            <span>Verdiepende ledgeranalyse</span>
-            <h2>Andere groepering</h2>
-          </div>
+      <Collapsible
+        className="budget-section budget-analysis"
+        eyebrow="Verdiepende ledgeranalyse"
+        title="Andere groepering"
+        summary={`${model.groups.length} groepen`}
+      >
+        <div className="budget-analysis__toolbar">
           <label className="budget-grouping">
             <span>Groepeer per</span>
             <select
@@ -472,36 +557,45 @@ export function BudgetPage() {
             description="Pas de filters aan of voeg een budgetitem toe vanuit een project."
           />
         )}
-      </section>
+      </Collapsible>
 
-      <div className="budget-exceptions">
-        <section>
-          <h2>Projecten boven budget</h2>
-          <p>Nog niet beschikbaar zolang de prognoseregel niet is beslist.</p>
-        </section>
-        <section>
-          <h2>Grootste afwijkingen</h2>
-          <p>Nog niet beschikbaar zolang de afwijkingsregel niet is beslist.</p>
-        </section>
-        <section>
-          <h2>Projecten zonder niet-geannuleerd ramingrecord</h2>
-          {model.projectsWithoutEstimateRecord.length ? (
-            <ul>
-              {model.projectsWithoutEstimateRecord
-                .slice(0, 10)
-                .map((project) => (
-                  <li key={project.id}>
-                    <Link to={`/projects/${project.id}/budget`}>
-                      {project.code} · {project.title}
-                    </Link>
-                  </li>
-                ))}
-            </ul>
-          ) : (
-            <p>Elk geselecteerd project heeft minstens één ramingrecord.</p>
-          )}
-        </section>
-      </div>
+      <Collapsible
+        className="budget-exceptions"
+        eyebrow="Financiële signalen"
+        title="Uitzonderingen"
+        summary={`${model.projectsWithoutEstimateRecord.length} zonder ramingrecord`}
+      >
+        <div className="budget-exceptions__content">
+          <section>
+            <h2>Projecten boven budget</h2>
+            <p>Nog niet beschikbaar zolang de prognoseregel niet is beslist.</p>
+          </section>
+          <section>
+            <h2>Grootste afwijkingen</h2>
+            <p>
+              Nog niet beschikbaar zolang de afwijkingsregel niet is beslist.
+            </p>
+          </section>
+          <section>
+            <h2>Projecten zonder niet-geannuleerd ramingrecord</h2>
+            {model.projectsWithoutEstimateRecord.length ? (
+              <ul>
+                {model.projectsWithoutEstimateRecord
+                  .slice(0, 10)
+                  .map((project) => (
+                    <li key={project.id}>
+                      <Link to={`/projects/${project.id}/budget`}>
+                        {project.code} · {project.title}
+                      </Link>
+                    </li>
+                  ))}
+              </ul>
+            ) : (
+              <p>Elk geselecteerd project heeft minstens één ramingrecord.</p>
+            )}
+          </section>
+        </div>
+      </Collapsible>
     </div>
   )
 }

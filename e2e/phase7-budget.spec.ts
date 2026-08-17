@@ -107,9 +107,7 @@ test("fase-7-hoofdflow beheert budget, correctiehistorie en JSON-roundtrip lokaa
     .getByRole("navigation", { name: "Projectdossierweergave" })
     .getByRole("link", { name: /^Topics/ })
     .click()
-  await expect(
-    page.getByRole("heading", { name: "Budgetimpact" }),
-  ).toBeVisible()
+  await page.getByText("Budgetimpact", { exact: true }).click()
   await expect(page.getByText("2 gekoppelde records")).toBeVisible()
   await page.getByRole("link", { name: "Bekijk budgetitems" }).click()
   await expect(page.getByText("E2E topicgekoppeld meerwerk")).toBeVisible()
@@ -122,8 +120,14 @@ test("fase-7-hoofdflow beheert budget, correctiehistorie en JSON-roundtrip lokaa
     page.getByRole("heading", { name: "Budget", exact: true }),
   ).toBeVisible()
   await page
+    .getByRole("region", { name: "Filters" })
+    .getByText("Filters", { exact: true })
+    .click()
+  await page
     .getByLabel("Projectfilter")
     .selectOption({ label: "PRJ-001 · Synthetisch renovatieproject" })
+  await page.getByText("H1 · Gebouw en ruimte", { exact: true }).click()
+  await page.locator("summary").filter({ hasText: "Zorgcampus" }).click()
   await expect(
     page.getByRole("link", {
       name: "PRJ-001 · Synthetisch renovatieproject",

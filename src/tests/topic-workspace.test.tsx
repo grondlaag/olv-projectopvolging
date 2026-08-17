@@ -50,6 +50,11 @@ describe("topicwerkruimte", () => {
     const composer = screen.getByRole("form", {
       name: /Bijdrage toevoegen aan PRJ-001/,
     })
+    fireEvent.click(
+      within(composer).getByRole("button", {
+        name: "+ Actuele stand toevoegen",
+      }),
+    )
     fireEvent.change(
       within(composer).getByPlaceholderText(/Wat is er gewijzigd/),
       { target: { value: "De werfzone is klaar voor ingebruikname." } },
@@ -124,6 +129,7 @@ describe("topicwerkruimte", () => {
     ).toBe(testIds.actorOne)
     expect(useAppStore.getState().dirty).toBe(true)
 
+    fireEvent.click(screen.getByRole("button", { name: "+ Bijdrage" }))
     panel = screen.getByRole("form", { name: /Bijdrage toevoegen aan/ })
     fireEvent.change(
       within(panel).getByPlaceholderText(/Wat is er gewijzigd/),
@@ -184,6 +190,7 @@ describe("topicwerkruimte", () => {
     expect(
       await screen.findByRole("heading", { name: "Toegang spoed" }),
     ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "+ Bijdrage" }))
     const panel = screen.getByRole("form", { name: /Bijdrage toevoegen aan/ })
     expect(within(panel).getByLabelText("Auteur")).toHaveValue("")
     fireEvent.change(
@@ -263,6 +270,7 @@ describe("topicwerkruimte", () => {
     expect(
       await screen.findByRole("heading", { name: "Toegang spoed" }),
     ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Topicacties" }))
     fireEvent.click(screen.getByRole("button", { name: "+ Timing" }))
     const panel = screen.getByRole("dialog", { name: "Timing toevoegen" })
     fireEvent.change(within(panel).getByLabelText("Startdatum"), {
@@ -292,6 +300,7 @@ describe("topicwerkruimte", () => {
     expect(
       screen.getByText("Timing opgeslagen in de lokale sessie · back-up nodig"),
     ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Topicacties" }))
     expect(
       screen.getByRole("button", { name: "Timing bewerken" }),
     ).toBeInTheDocument()
@@ -307,9 +316,8 @@ describe("topicwerkruimte", () => {
     const router = createAppRouter()
     render(<RouterProvider router={router} />)
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Topic bewerken" }),
-    )
+    fireEvent.click(await screen.findByRole("button", { name: "Topicacties" }))
+    fireEvent.click(screen.getByRole("button", { name: "Topic bewerken" }))
     const panel = screen.getByRole("dialog", { name: "Topic bewerken" })
     fireEvent.change(within(panel).getByLabelText("Titel"), {
       target: { value: "Toegang spoed herwerkt" },

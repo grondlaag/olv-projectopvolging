@@ -16,6 +16,7 @@ import {
   Button,
   EmptyState,
   ErrorState,
+  SidePanel,
 } from "../../design-system/components"
 import type {
   Cluster,
@@ -52,6 +53,7 @@ function ProjectOverview({
   onSaved,
 }: ProjectOverviewProps) {
   const session = useAppStore((state) => state.session)!
+  const [metadataOpen, setMetadataOpen] = useState(false)
   const overview = useMemo(
     () => buildProjectOverview(session.state, project.id, todayAsLocalDate()),
     [project.id, session],
@@ -142,20 +144,18 @@ function ProjectOverview({
               De levenscyclusstatus in de dossierkop blijft een apart
               bestuurbaar veld.
             </p>
-            <details className="project-status-moment" open={!currentUpdate}>
-              <summary>
-                {currentUpdate
-                  ? "Nieuw statusmoment vastleggen"
-                  : "Eerste statusmoment vastleggen"}
-              </summary>
-              <ConversationComposer
-                contextType="Project"
-                contextId={project.id}
-                contextLabel={`${project.code} · ${project.title}`}
-                compact
-                onSaved={onSaved}
-              />
-            </details>
+            <ConversationComposer
+              contextType="Project"
+              contextId={project.id}
+              contextLabel={`${project.code} · ${project.title}`}
+              compact
+              launcherLabel={
+                currentUpdate
+                  ? "+ Statusmoment toevoegen"
+                  : "+ Actuele stand toevoegen"
+              }
+              onSaved={onSaved}
+            />
           </section>
 
           <section className="project-readonly__section project-attention">
@@ -542,8 +542,14 @@ function ProjectOverview({
           </section>
         </main>
 
-        <aside className="project-readonly__metadata">
-          <h2>Projectgegevens</h2>
+        <SidePanel
+          className="project-readonly__metadata"
+          title="Projectgegevens"
+          summary={cluster?.title ?? "Zonder cluster"}
+          open={metadataOpen}
+          onOpenChange={setMetadataOpen}
+          ariaLabel="Projectmetadata"
+        >
           <dl>
             <div>
               <dt>Cluster</dt>
@@ -586,7 +592,7 @@ function ProjectOverview({
               </dd>
             </div>
           </dl>
-        </aside>
+        </SidePanel>
       </div>
     </div>
   )

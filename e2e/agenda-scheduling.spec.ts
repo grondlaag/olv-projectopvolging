@@ -46,6 +46,7 @@ test("project en topic worden vanuit hun dossier op een overlegagenda geplaatst"
     })
     .click()
 
+  await page.getByRole("button", { name: "Projectacties" }).click()
   await page
     .getByRole("button", { name: "Project bespreken op overleg" })
     .click()
@@ -65,6 +66,7 @@ test("project en topic worden vanuit hun dossier op een overlegagenda geplaatst"
   await page
     .getByRole("button", { name: /TOP-001 Tijdelijke toegang openen/ })
     .click()
+  await page.getByRole("button", { name: "Topicacties" }).click()
   await page
     .getByRole("button", { name: "Bespreken op overleg", exact: true })
     .click()
@@ -72,6 +74,10 @@ test("project en topic worden vanuit hun dossier op een overlegagenda geplaatst"
   await panel.getByRole("radio", { name: /Projectoverleg agenda/ }).check()
   await panel.getByRole("button", { name: "Op agenda plaatsen" }).click()
 
+  await page
+    .getByLabel("Topiccontext")
+    .getByText("Overleg", { exact: true })
+    .click()
   await expect(page.getByText("1 keer ingepland")).toBeVisible()
   await page
     .getByRole("link", { name: "Projectoverleg agenda", exact: true })

@@ -24,15 +24,6 @@
 }
 
 .project-dossier-header__summary > div {
-  display: grid;
-  align-content: center;
-  gap: var(--space-1);
-  min-height: 4.5rem;
-  padding: var(--space-3) var(--space-4);
-  border-right: var(--border-thin);
-}
-
-.project-dossier-header__summary > div:last-child {
   border-right: 0;
 }
 
@@ -91,22 +82,10 @@
   .project-dossier-header__summary {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-
-  .project-dossier-header__summary > div:nth-child(3) {
-    border-right: 0;
-  }
 }
 
 @media (max-width: 48rem) {
   .project-dossier-header__summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .project-dossier-header__summary > div:nth-child(3) {
-    border-right: var(--border-thin);
-  }
-
-  .project-dossier-header__summary > div:nth-child(even) {
-    border-right: 0;
   }
 }

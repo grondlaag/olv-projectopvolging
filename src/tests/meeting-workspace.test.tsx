@@ -134,7 +134,10 @@ describe("overlegwerkruimte", () => {
     const view = render(<RouterProvider router={router} />)
 
     fireEvent.click(
-      await screen.findByRole("button", { name: "Vervolgoverleg maken" }),
+      await screen.findByRole("button", { name: "Overlegacties" }),
+    )
+    fireEvent.click(
+      screen.getByRole("button", { name: "Vervolgoverleg maken" }),
     )
     expect(
       await screen.findByRole("heading", { name: "Vervolgoverleg maken" }),
@@ -216,6 +219,18 @@ describe("overlegwerkruimte", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Verwerken/ }))
     expect(window.location.hash).toContain("modus=process")
     fireEvent.click(screen.getByLabelText(/Anna/))
+    fireEvent.click(screen.getByRole("button", { name: "Focusmodus" }))
+    expect(
+      screen.getByRole("button", { name: "Overzicht tonen" }),
+    ).toHaveAttribute("aria-pressed", "true")
+    fireEvent.click(screen.getByRole("button", { name: "Overzicht tonen" }))
+    fireEvent.click(screen.getByRole("button", { name: "Punt besproken" }))
+    expect(
+      useAppStore
+        .getState()
+        .session?.state.indices.agendaItemsByMeeting.get(created.record.id)?.[0]
+        ?.discussionStatus,
+    ).toBe("Besproken")
     fireEvent.change(screen.getByLabelText("Topicstatus"), {
       target: { value: "Afgesloten" },
     })

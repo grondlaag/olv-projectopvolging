@@ -20,6 +20,8 @@ import {
   EmptyState,
   ErrorState,
   FavoriteButton,
+  KpiStrip,
+  OverflowMenu,
   PageHeader,
 } from "../../design-system/components"
 import { useEscapeKey } from "../../design-system/patterns"
@@ -572,17 +574,6 @@ export function MeetingDetailPage() {
         description={`${formatLocalDate(meeting.date)} · ${model.scopeLabel}`}
         actions={
           <>
-            <FavoriteButton
-              route={`/meetings/${meeting.id}`}
-              label={meeting.title}
-              kind="Overleg"
-            />
-            <Button
-              variant="secondary"
-              onClick={() => navigate(`/meetings/new?vervolgVan=${meeting.id}`)}
-            >
-              Vervolgoverleg maken
-            </Button>
             {!frozen ? (
               <Button
                 onClick={() =>
@@ -599,6 +590,21 @@ export function MeetingDetailPage() {
             ) : (
               <Badge tone="success">Historisch vastgelegd</Badge>
             )}
+            <OverflowMenu label="Overlegacties">
+              <Button
+                variant="tertiary"
+                onClick={() =>
+                  navigate(`/meetings/new?vervolgVan=${meeting.id}`)
+                }
+              >
+                Vervolgoverleg maken
+              </Button>
+              <FavoriteButton
+                route={`/meetings/${meeting.id}`}
+                label={meeting.title}
+                kind="Overleg"
+              />
+            </OverflowMenu>
           </>
         }
       />
@@ -624,28 +630,35 @@ export function MeetingDetailPage() {
         </div>
       ) : null}
 
-      <div className="meeting-summary" aria-label="Overlegkern">
-        <div>
-          <span>Status</span>
-          <Badge tone={frozen ? "success" : "info"}>{meeting.status}</Badge>
-        </div>
-        <div>
-          <span>Scope</span>
-          <strong>{meeting.scopeType}</strong>
-        </div>
-        <div>
-          <span>Voorzitter</span>
-          <strong>{model.chair?.displayName ?? "—"}</strong>
-        </div>
-        <div>
-          <span>Verslaggever</span>
-          <strong>{model.reporter?.displayName ?? "—"}</strong>
-        </div>
-        <div>
-          <span>Volgend overleg</span>
-          <strong>{formatLocalDate(meeting.nextMeetingDate)}</strong>
-        </div>
-      </div>
+      <KpiStrip
+        className="meeting-summary"
+        ariaLabel="Overlegkern"
+        items={[
+          {
+            id: "status",
+            label: "Status",
+            value: (
+              <Badge tone={frozen ? "success" : "info"}>{meeting.status}</Badge>
+            ),
+          },
+          { id: "scope", label: "Scope", value: meeting.scopeType },
+          {
+            id: "chair",
+            label: "Voorzitter",
+            value: model.chair?.displayName ?? "—",
+          },
+          {
+            id: "reporter",
+            label: "Verslaggever",
+            value: model.reporter?.displayName ?? "—",
+          },
+          {
+            id: "next",
+            label: "Volgend overleg",
+            value: formatLocalDate(meeting.nextMeetingDate),
+          },
+        ]}
+      />
 
       <nav className="meeting-mode-nav" aria-label="Overlegmodus">
         <button

@@ -17,9 +17,13 @@ import { useAppStore } from "../../app/state/app-store"
 import {
   Badge,
   Button,
+  Collapsible,
   EmptyState,
   FavoriteButton,
+  FilterPanel,
+  OverflowMenu,
   SearchableSelect,
+  SidePanel,
 } from "../../design-system/components"
 import { useEscapeKey } from "../../design-system/patterns"
 import {
@@ -332,6 +336,7 @@ export function TopicWorkspace({
   >()
   const panel = searchParameters.get("nieuw") === "1" ? "new" : selectedPanel
   const [statusMessage, setStatusMessage] = useState("")
+  const [composerOpen, setComposerOpen] = useState(false)
   const deferredSearch = useDeferredValue(filters.search)
 
   const items = useMemo(
@@ -409,6 +414,7 @@ export function TopicWorkspace({
 
   function selectTopic(topic: Topic) {
     setPanel(undefined)
+    setComposerOpen(false)
     navigate(`${basePath}/topics/${topic.id}`)
   }
 
@@ -462,6 +468,39 @@ export function TopicWorkspace({
     }
   }
 
+  const activeTopicFilters = [
+    ...(filters.status
+      ? [
+          {
+            id: "status",
+            label: `Status: ${filters.status}`,
+            onRemove: () =>
+              setFilters((current) => ({ ...current, status: "" })),
+          },
+        ]
+      : []),
+    ...(filters.priority
+      ? [
+          {
+            id: "priority",
+            label: `Prioriteit: ${filters.priority}`,
+            onRemove: () =>
+              setFilters((current) => ({ ...current, priority: "" })),
+          },
+        ]
+      : []),
+    ...(filters.ownerActorId
+      ? [
+          {
+            id: "owner",
+            label: `Eigenaar: ${session.state.indices.actorById.get(filters.ownerActorId as UUID)?.displayName ?? "Onbekend"}`,
+            onRemove: () =>
+              setFilters((current) => ({ ...current, ownerActorId: "" })),
+          },
+        ]
+      : []),
+  ]
+
   return (
     <section
       className={`topic-workspace ${panel === "new" || panel === "edit" || panel === "timing" ? "topic-workspace--panel" : ""}`}
@@ -477,57 +516,64 @@ export function TopicWorkspace({
             </div>
             <Button onClick={openNewTopic}>+ Nieuw topic</Button>
           </header>
-          <div className="topic-list__filters">
+          <label className="topic-list__search">
+            <span>Zoeken</span>
+            <input
+              type="search"
+              value={filters.search}
+              placeholder="Code, titel of context"
+              onChange={(event) =>
+                setFilters((current) => ({
+                  ...current,
+                  search: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <FilterPanel
+            className="topic-list__filters"
+            activeFilters={activeTopicFilters}
+            onClear={() =>
+              setFilters((current) => ({
+                ...defaultTopicFilters,
+                search: current.search,
+              }))
+            }
+          >
             <label>
-              <span>Zoeken</span>
-              <input
-                type="search"
-                value={filters.search}
-                placeholder="Code, titel of context"
+              <span>Status</span>
+              <select
+                value={filters.status}
                 onChange={(event) =>
                   setFilters((current) => ({
                     ...current,
-                    search: event.target.value,
+                    status: event.target.value as TopicFilters["status"],
                   }))
                 }
-              />
+              >
+                <option value="">Alle</option>
+                {topicStatuses.map((status) => (
+                  <option key={status}>{status}</option>
+                ))}
+              </select>
             </label>
-            <div>
-              <label>
-                <span>Status</span>
-                <select
-                  value={filters.status}
-                  onChange={(event) =>
-                    setFilters((current) => ({
-                      ...current,
-                      status: event.target.value as TopicFilters["status"],
-                    }))
-                  }
-                >
-                  <option value="">Alle</option>
-                  {topicStatuses.map((status) => (
-                    <option key={status}>{status}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span>Prioriteit</span>
-                <select
-                  value={filters.priority}
-                  onChange={(event) =>
-                    setFilters((current) => ({
-                      ...current,
-                      priority: event.target.value as TopicFilters["priority"],
-                    }))
-                  }
-                >
-                  <option value="">Alle</option>
-                  {priorities.map((priority) => (
-                    <option key={priority}>{priority}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
+            <label>
+              <span>Prioriteit</span>
+              <select
+                value={filters.priority}
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    priority: event.target.value as TopicFilters["priority"],
+                  }))
+                }
+              >
+                <option value="">Alle</option>
+                {priorities.map((priority) => (
+                  <option key={priority}>{priority}</option>
+                ))}
+              </select>
+            </label>
             <label>
               <span>Eigenaar</span>
               <select
@@ -547,7 +593,7 @@ export function TopicWorkspace({
                 ))}
               </select>
             </label>
-          </div>
+          </FilterPanel>
 
           <div className="topic-list__records">
             {filteredItems.length ? (
@@ -618,25 +664,36 @@ export function TopicWorkspace({
                 </div>
               </div>
               <div className="topic-detail__actions">
-                <FavoriteButton
-                  route={`${basePath}/topics/${selected.topic.id}`}
-                  label={`${selected.topic.code} · ${selected.topic.title}`}
-                  kind="Topic"
-                />
-                <Button variant="secondary" onClick={() => setPanel("edit")}>
-                  Topic bewerken
+                <Button onClick={() => setComposerOpen(true)}>
+                  + Bijdrage
                 </Button>
-                <Button variant="secondary" onClick={() => setPanel("meeting")}>
-                  Bespreken op overleg
-                </Button>
-                {selected.topic.projectId ? (
-                  <Button variant="tertiary" onClick={() => setPanel("timing")}>
-                    {selected.planning ? "Timing bewerken" : "+ Timing"}
+                <OverflowMenu label="Topicacties">
+                  <Button variant="tertiary" onClick={() => setPanel("edit")}>
+                    Topic bewerken
                   </Button>
-                ) : null}
-                <Button variant="tertiary" onClick={archiveSelectedTopic}>
-                  Topic verwijderen
-                </Button>
+                  <Button
+                    variant="tertiary"
+                    onClick={() => setPanel("meeting")}
+                  >
+                    Bespreken op overleg
+                  </Button>
+                  {selected.topic.projectId ? (
+                    <Button
+                      variant="tertiary"
+                      onClick={() => setPanel("timing")}
+                    >
+                      {selected.planning ? "Timing bewerken" : "+ Timing"}
+                    </Button>
+                  ) : null}
+                  <FavoriteButton
+                    route={`${basePath}/topics/${selected.topic.id}`}
+                    label={`${selected.topic.code} · ${selected.topic.title}`}
+                    kind="Topic"
+                  />
+                  <Button variant="danger" onClick={archiveSelectedTopic}>
+                    Topic verwijderen
+                  </Button>
+                </OverflowMenu>
               </div>
             </header>
 
@@ -693,6 +750,8 @@ export function TopicWorkspace({
               contextType="Topic"
               contextId={selected.topic.id}
               contextLabel={`${selected.topic.code} · ${selected.topic.title}`}
+              open={composerOpen}
+              onOpenChange={setComposerOpen}
               onSaved={(message) =>
                 setStatusMessage(`${message} · back-up nodig`)
               }
@@ -746,9 +805,17 @@ export function TopicWorkspace({
         )}
 
         {selected ? (
-          <aside className="topic-metadata" aria-label="Topiccontext">
-            <section>
-              <h3>Opvolging</h3>
+          <SidePanel
+            className="topic-metadata"
+            title="Context"
+            summary={selected.topic.code}
+            ariaLabel="Topiccontext"
+          >
+            <Collapsible
+              title="Opvolging"
+              summary={`${selected.topic.status} · ${selected.topic.priority}`}
+              defaultOpen
+            >
               <dl>
                 <div>
                   <dt>Status</dt>
@@ -788,10 +855,12 @@ export function TopicWorkspace({
                   </Button>
                 )}
               </div>
-            </section>
+            </Collapsible>
 
-            <section>
-              <h3>Overleg</h3>
+            <Collapsible
+              title="Overleg"
+              summary={`${agendaScheduling?.scheduledMeetings.length ?? 0} ingepland`}
+            >
               <strong>
                 {agendaScheduling?.scheduledMeetings.length ?? 0} keer ingepland
               </strong>
@@ -816,10 +885,16 @@ export function TopicWorkspace({
                   ? "Nog een overleg kiezen"
                   : "Overleg kiezen"}
               </Button>
-            </section>
+            </Collapsible>
 
-            <section>
-              <h3>Planning</h3>
+            <Collapsible
+              title="Planning"
+              summary={
+                selected.planning
+                  ? formatLocalDate(selected.planning.plannedEndDate)
+                  : "Geen timing"
+              }
+            >
               {selected.planning ? (
                 <dl>
                   <div>
@@ -842,10 +917,12 @@ export function TopicWorkspace({
                     : "Een clustertopic heeft geen projectplanning."}
                 </p>
               )}
-            </section>
+            </Collapsible>
 
-            <section>
-              <h3>Budgetimpact</h3>
+            <Collapsible
+              title="Budgetimpact"
+              summary={`${budgetSummary.recordCount} records`}
+            >
               <strong>{budgetSummary.recordCount} gekoppelde records</strong>
               <p>
                 {budgetSummary.recordCount
@@ -859,8 +936,8 @@ export function TopicWorkspace({
                   Bekijk budgetitems
                 </Link>
               ) : null}
-            </section>
-          </aside>
+            </Collapsible>
+          </SidePanel>
         ) : null}
       </div>
 

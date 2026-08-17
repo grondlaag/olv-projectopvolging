@@ -400,7 +400,7 @@ export function ProjectPlanningPage() {
         project={model.project}
         activeTab="planning"
         actions={
-          <div className="planning-actions">
+          <>
             <Link
               className="planning-source-link"
               to={`/projects/${model.project.id}/topics`}
@@ -416,10 +416,12 @@ export function ProjectPlanningPage() {
             >
               + Beslissing
             </Link>
-            <Button onClick={() => setPanel("dependency")}>
-              + Afhankelijkheid
-            </Button>
-          </div>
+          </>
+        }
+        primaryAction={
+          <Button onClick={() => setPanel("dependency")}>
+            + Afhankelijkheid
+          </Button>
         }
       />
       {statusMessage ? (

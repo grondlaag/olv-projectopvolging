@@ -43,6 +43,10 @@ Pure domein- en applicationlogica:
 - Outlook-HTML en geldige PDF-bytes voor agenda en verslag;
 - instellingen, duplicaten en veilige deactivatie;
 - normalized indices en selectors.
+- progressive-disclosurecomponenten: gesloten standaardtoestand, zichtbare
+  filterchips, toegankelijke composer, KPI-semantiek, overflow en zijpanelen;
+- directe overlegbediening voor focusmodus en `Punt besproken` via de bestaande
+  agenda-service.
 
 ### Integratie
 
@@ -213,6 +217,9 @@ Voor release:
 7. controleer 1920, 1440, 1280, 1024 en 768 px;
 8. controleer toetsenbord, focus, labels, lege states en Nederlandstalige fouten;
 9. controleer dat DevTools Network geen projectdata verzendt.
+10. controleer dat budgetgroepen, topiccontext en overlegzijpanelen zonder
+    contextverlies openen en sluiten, en dat focusmodus het centrale punt
+    dominant maakt.
 
 Nieuwe gerichte regressies controleren conceptverslagopbouw zonder huidige
 actor, brongebonden actie-/beslissingslagen, XS-XXL/VTE-samenvatting,

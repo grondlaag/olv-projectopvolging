@@ -111,6 +111,10 @@ test("fase-8-hoofdflow verwerkt overleg en bewaart een historisch verslag via JS
     .getByPlaceholder(/Welke beslissing/)
     .fill("De technische toegangsvariant is definitief goedgekeurd.")
   await composer.getByRole("button", { name: "Beslissing opslaan" }).click()
+  await page
+    .getByLabel("Context tijdens overleg")
+    .getByText("Journaal", { exact: true })
+    .click()
   await expect(
     page
       .getByText("De technische toegangsvariant is definitief goedgekeurd.")
@@ -126,10 +130,17 @@ test("fase-8-hoofdflow verwerkt overleg en bewaart een historisch verslag via JS
   await expect(
     page.getByText("Werfzone toegang afbakenen").first(),
   ).toBeVisible()
+  await page.getByRole("button", { name: "Focusmodus" }).click()
+  await expect(
+    page.getByRole("button", { name: "Overzicht tonen" }),
+  ).toBeVisible()
+  await expect(page.locator("aside.meeting-process-agenda")).toBeHidden()
+  await expect(page.locator("aside.meeting-process-context")).toBeHidden()
   await page.screenshot({
     path: "test-results/phase8-meeting-processing.png",
     fullPage: true,
   })
+  await page.getByRole("button", { name: "Overzicht tonen" }).click()
 
   await page.getByRole("button", { name: "Conceptverslag opbouwen" }).click()
   await expect(
@@ -172,11 +183,14 @@ test("fase-8-hoofdflow verwerkt overleg en bewaart een historisch verslag via JS
       name: "PRJ-001 Synthetisch renovatieproject openen",
     })
     .click()
-  await expect(page.getByText("Fase 8 werfoverleg")).toBeVisible()
+  await expect(
+    page.getByRole("link", { name: "Overleg Fase 8 werfoverleg" }),
+  ).toBeVisible()
   await page.getByRole("link", { name: /^Topics/ }).click()
   await page
     .getByRole("button", { name: /TOP-001 Tijdelijke toegang openen/ })
     .click()
+  await page.getByRole("button", { name: "+ Bijdrage" }).click()
   panel = page.getByRole("form", { name: /Bijdrage toevoegen aan/ })
   await panel
     .getByPlaceholder(/Wat is er gewijzigd/)

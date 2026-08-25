@@ -14,6 +14,7 @@ import { useAppStore } from "../../app/state/app-store"
 import type { UUID } from "../../domain"
 import { Badge } from "./badge"
 import { Button } from "./button"
+import { Icon } from "./icon"
 import "./shell.css"
 
 interface QuickCreateItem {
@@ -330,6 +331,7 @@ export function AppHeader() {
             }}
           />
           <Button variant="tertiary" type="submit">
+            <Icon name="search" />
             Zoeken
           </Button>
         </div>
@@ -394,7 +396,7 @@ export function AppHeader() {
             aria-haspopup="menu"
             onClick={() => setQuickCreateOpen((open) => !open)}
           >
-            + Nieuw
+            <Icon name="plus" />+ Nieuw
           </Button>
           {quickCreateOpen ? (
             <div className="app-header__quick-menu" role="menu">
@@ -447,6 +449,7 @@ export function AppHeader() {
           aria-label="JSON openen"
           onClick={() => setImportPanelOpen(true)}
         >
+          <Icon name="open" />
           Openen
         </Button>
         <Button
@@ -454,6 +457,7 @@ export function AppHeader() {
           onClick={() => void saveDataFile()}
           disabled={!session || saving || session.hasBlockingIssues}
         >
+          <Icon name="download" />
           {saving ? "Downloaden…" : "Back-up downloaden"}
         </Button>
       </div>

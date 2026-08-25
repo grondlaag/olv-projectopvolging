@@ -20,6 +20,8 @@ import {
   Badge,
   Button,
   EmptyState,
+  FilterPanel,
+  KpiStrip,
   PageHeader,
   SavedViewsControl,
   TableDisplayControl,
@@ -373,10 +375,86 @@ export function ActionsPage() {
       "status",
       "prioriteit",
       "timing",
+      "scope",
     ])
       parameters.delete(key)
     setSearchParameters(parameters, { replace: true })
   }
+
+  const activeFilters = [
+    ...(filters.search
+      ? [
+          {
+            id: "search",
+            label: `Zoeken: ${filters.search}`,
+            onRemove: () => updateFilter("search", ""),
+          },
+        ]
+      : []),
+    ...(filters.ownerActorId
+      ? [
+          {
+            id: "owner",
+            label: `Eigenaar: ${session.state.indices.actorById.get(filters.ownerActorId as UUID)?.displayName ?? "Onbekend"}`,
+            onRemove: () => updateFilter("ownerActorId", ""),
+          },
+        ]
+      : []),
+    ...(filters.projectId
+      ? [
+          {
+            id: "project",
+            label: `Project: ${session.state.indices.projectById.get(filters.projectId as UUID)?.code ?? "Onbekend"}`,
+            onRemove: () => updateFilter("projectId", ""),
+          },
+        ]
+      : []),
+    ...(filters.clusterId
+      ? [
+          {
+            id: "cluster",
+            label: `Cluster: ${session.state.indices.clusterById.get(filters.clusterId as UUID)?.title ?? "Onbekend"}`,
+            onRemove: () => updateFilter("clusterId", ""),
+          },
+        ]
+      : []),
+    ...(filters.status
+      ? [
+          {
+            id: "status",
+            label: `Status: ${filters.status}`,
+            onRemove: () => updateFilter("status", ""),
+          },
+        ]
+      : []),
+    ...(filters.priority
+      ? [
+          {
+            id: "priority",
+            label: `Prioriteit: ${filters.priority}`,
+            onRemove: () => updateFilter("priority", ""),
+          },
+        ]
+      : []),
+    ...(filters.dateScope
+      ? [
+          {
+            id: "timing",
+            label: `Timing: ${filters.dateScope}`,
+            onRemove: () => updateFilter("dateScope", ""),
+          },
+        ]
+      : []),
+    ...(operationalView !== "open"
+      ? [
+          {
+            id: "scope",
+            label: `Selectie: ${operationalView}`,
+            onRemove: () => selectOperationalView("open"),
+          },
+        ]
+      : []),
+  ]
 
   function openAction(actionId: UUID) {
     const next = new URLSearchParams(searchParameters)
@@ -464,7 +542,7 @@ export function ActionsPage() {
   }
 
   return (
-    <div className="actions-page">
+    <div className="actions-page workspace-page">
       <PageHeader
         eyebrow="Opvolging"
         title="Acties"
@@ -472,37 +550,40 @@ export function ActionsPage() {
         actions={<Badge tone="info">{visible.length} zichtbaar</Badge>}
       />
 
-      <nav className="actions-quick-views" aria-label="Actieweergave">
-        {(
-          [
-            ["mine", "Mijn acties"],
-            ["open", "Alle open acties"],
-            ["overdue", "Achterstallig"],
-            ["week", "Deze week"],
-            ["waiting", "Wacht op beslissing"],
-            ["all", "Alles"],
-          ] as const
-        ).map(([value, label]) => (
-          <Button
-            key={value}
-            variant={operationalView === value ? "secondary" : "tertiary"}
-            onClick={() => selectOperationalView(value)}
-          >
-            {label}
-          </Button>
-        ))}
-        <Button
-          variant={view === "owner" ? "secondary" : "tertiary"}
-          onClick={() => {
-            const parameters = new URLSearchParams(searchParameters)
-            parameters.set("groep", "eigenaar")
-            parameters.delete("scope")
-            setSearchParameters(parameters, { replace: true })
-          }}
-        >
-          Per persoon
-        </Button>
-      </nav>
+      <KpiStrip
+        ariaLabel="Actieoverzicht"
+        items={[
+          {
+            id: "visible",
+            label: "Zichtbare acties",
+            value: visible.length,
+            supportingText: `van ${items.length} acties`,
+          },
+          {
+            id: "open",
+            label: "Open",
+            value: items.filter((item) => isActionOpen(item.action)).length,
+            supportingText: "alle contexten",
+          },
+          {
+            id: "overdue",
+            label: "Achterstallig",
+            value: items.filter((item) =>
+              isActionOverdue(item.action, todayAsLocalDate()),
+            ).length,
+            supportingText: "aandacht vereist",
+            tone: "attention",
+          },
+          {
+            id: "waiting",
+            label: "Wacht op beslissing",
+            value: items.filter(
+              (item) => item.action.status === "Wacht op beslissing",
+            ).length,
+            supportingText: "open besluitvorming",
+          },
+        ]}
+      />
 
       {statusMessage ? (
         <p className="actions-status-message" role="status">
@@ -510,8 +591,38 @@ export function ActionsPage() {
         </p>
       ) : null}
 
-      <section className="actions-filterbar" aria-label="Actiefilters">
-        <label className="actions-filterbar__search">
+      <FilterPanel
+        activeFilters={activeFilters}
+        onClear={resetFilters}
+        actions={
+          <>
+            <SavedViewsControl page="actions" />
+            <TableDisplayControl table="actions" columns={actionTableColumns} />
+          </>
+        }
+      >
+        <fieldset className="filter-panel__scope">
+          <legend>Snelle selecties</legend>
+          {(
+            [
+              ["mine", "Mijn acties"],
+              ["open", "Alle open acties"],
+              ["overdue", "Achterstallig"],
+              ["week", "Deze week"],
+              ["waiting", "Wacht op beslissing"],
+              ["all", "Alles"],
+            ] as const
+          ).map(([value, label]) => (
+            <Button
+              key={value}
+              variant={operationalView === value ? "secondary" : "tertiary"}
+              onClick={() => selectOperationalView(value)}
+            >
+              {label}
+            </Button>
+          ))}
+        </fieldset>
+        <label>
           <span>Zoeken</span>
           <input
             type="search"
@@ -617,7 +728,7 @@ export function ActionsPage() {
             <option value="waitingDecision">Wacht op beslissing</option>
           </select>
         </label>
-      </section>
+      </FilterPanel>
 
       <div className="actions-toolbar">
         <fieldset>
@@ -635,13 +746,6 @@ export function ActionsPage() {
             Per eigenaar
           </Button>
         </fieldset>
-        {Object.values(filters).some(Boolean) ? (
-          <Button variant="tertiary" onClick={resetFilters}>
-            Filters wissen
-          </Button>
-        ) : null}
-        <SavedViewsControl page="actions" />
-        <TableDisplayControl table="actions" columns={actionTableColumns} />
       </div>
 
       {visibleSelectedIds.size ? (

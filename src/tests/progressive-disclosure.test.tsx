@@ -6,6 +6,9 @@ import {
   KpiStrip,
   OverflowMenu,
   SidePanel,
+  ViewBar,
+  WorkspaceGrid,
+  WorkspacePage,
 } from "../design-system/components"
 
 describe("progressive disclosure componenten", () => {
@@ -82,5 +85,34 @@ describe("progressive disclosure componenten", () => {
     expect(togglePanel).toHaveBeenCalledWith(true)
     fireEvent.click(screen.getByRole("button", { name: "Meer acties" }))
     expect(screen.getByRole("button", { name: "Bewerken" })).toBeVisible()
+  })
+
+  it("bouwt elke pagina op uit dezelfde werkruimte-regio's", () => {
+    render(
+      <WorkspacePage data-testid="workspace">
+        <ViewBar
+          primary={<strong>Portefeuille</strong>}
+          actions={<button type="button">Nieuwe weergave</button>}
+        >
+          <span>2 filters actief</span>
+        </ViewBar>
+        <WorkspaceGrid
+          navigation={<nav aria-label="Lokale navigatie">Hoofdstukken</nav>}
+          inspector={<section aria-label="Inspector">Details</section>}
+        >
+          <main>Resultaten</main>
+        </WorkspaceGrid>
+      </WorkspacePage>,
+    )
+
+    expect(screen.getByTestId("workspace")).toHaveClass("workspace-page")
+    expect(
+      screen.getByRole("region", { name: "Weergave en filters" }),
+    ).toBeVisible()
+    expect(
+      screen.getByRole("navigation", { name: "Lokale navigatie" }),
+    ).toBeVisible()
+    expect(screen.getByRole("region", { name: "Inspector" })).toBeVisible()
+    expect(screen.getByRole("main")).toHaveTextContent("Resultaten")
   })
 })

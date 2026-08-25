@@ -5,6 +5,7 @@ import {
   Button,
   EmptyState,
   ErrorState,
+  KpiStrip,
   PageHeader,
 } from "../../design-system/components"
 import type { UUID } from "../../domain"
@@ -62,22 +63,32 @@ export function ClusterTopicsPage() {
         title={cluster.title}
         description="Clustercontext · projectoverstijgende topics"
       />
-      <div className="cluster-topics-page__summary">
-        <div>
-          <span>Hoofdstuk</span>
-          <strong>{chapter?.title ?? "—"}</strong>
-        </div>
-        <div>
-          <span>Status</span>
-          <Badge tone={cluster.status === "Active" ? "success" : "neutral"}>
-            {cluster.status === "Active" ? "Actief" : "Inactief"}
-          </Badge>
-        </div>
-        <div>
-          <span>Topics</span>
-          <strong>{topics.length}</strong>
-        </div>
-      </div>
+      <KpiStrip
+        ariaLabel="Clustersamenvatting"
+        items={[
+          {
+            id: "chapter",
+            label: "Hoofdstuk",
+            value: chapter?.title ?? "—",
+            supportingText: chapter?.code,
+          },
+          {
+            id: "status",
+            label: "Status",
+            value: (
+              <Badge tone={cluster.status === "Active" ? "success" : "neutral"}>
+                {cluster.status === "Active" ? "Actief" : "Inactief"}
+              </Badge>
+            ),
+          },
+          {
+            id: "topics",
+            label: "Topics",
+            value: topics.length,
+            supportingText: "clusterbreed",
+          },
+        ]}
+      />
       {cluster.description ? (
         <p className="cluster-topics-page__description">
           {cluster.description}

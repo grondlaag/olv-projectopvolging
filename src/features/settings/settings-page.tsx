@@ -16,6 +16,7 @@ import {
   Badge,
   Button,
   EmptyState,
+  KpiStrip,
   PageHeader,
   SearchableSelect,
 } from "../../design-system/components"
@@ -701,7 +702,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="settings-page">
+    <div className="settings-page workspace-page">
       <PageHeader
         eyebrow="Beheer"
         title="Instellingen"
@@ -712,29 +713,37 @@ export function SettingsPage() {
           </Badge>
         }
       />
-      <div className="settings-summary" aria-label="Beheersamenvatting">
-        <span>
-          <strong>{chapters.filter((item) => item.audit.active).length}</strong>{" "}
-          hoofdstukken
-        </span>
-        <span>
-          <strong>{clusters.filter((item) => item.audit.active).length}</strong>{" "}
-          clusters
-        </span>
-        <span>
-          <strong>{actors.filter((item) => item.active).length}</strong> actieve
-          actoren
-        </span>
-        <span>
-          <strong>
-            {
-              session.state.records.choiceLists.filter((item) => item.active)
-                .length
-            }
-          </strong>{" "}
-          keuzewaarden
-        </span>
-      </div>
+      <KpiStrip
+        ariaLabel="Beheersamenvatting"
+        items={[
+          {
+            id: "chapters",
+            label: "Hoofdstukken",
+            value: chapters.filter((item) => item.audit.active).length,
+            supportingText: "actief",
+          },
+          {
+            id: "clusters",
+            label: "Clusters",
+            value: clusters.filter((item) => item.audit.active).length,
+            supportingText: "actief",
+          },
+          {
+            id: "actors",
+            label: "Actoren",
+            value: actors.filter((item) => item.active).length,
+            supportingText: "actief",
+          },
+          {
+            id: "choices",
+            label: "Keuzewaarden",
+            value: session.state.records.choiceLists.filter(
+              (item) => item.active,
+            ).length,
+            supportingText: "beschikbaar",
+          },
+        ]}
+      />
       <div
         className="settings-tabs"
         role="tablist"

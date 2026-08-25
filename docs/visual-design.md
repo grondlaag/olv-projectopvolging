@@ -66,39 +66,36 @@ zichtbaar. Er is per werkvlak maximaal één dominante primaire actie.
 
 ## Kleuren
 
-Centrale tokens:
+Centrale Grondlaag-tokens:
 
 ```css
---color-brand-deep: #004c3f;
---color-brand-primary: #006b5a;
---color-brand-muted: #5fa8a6;
---color-brand-soft: #dcedec;
---color-brand-pale: #eff6f5;
+--color-paper: #f6f4ef;
+--color-panel: #ece9e2;
+--color-elevated: #fffdf9;
+--color-accent: #f2d96b;
+--color-accent-soft: #f7edb0;
 
---color-ink-strong: #18302c;
---color-ink: #334a46;
---color-ink-muted: #6b7f7b;
---color-ink-subtle: #8d9d99;
+--color-ink-strong: #171714;
+--color-ink: #2b2b2b;
+--color-ink-muted: #6a6a64;
+--color-ink-subtle: #8a877f;
 
---color-surface: #ffffff;
---color-surface-soft: #f6f8f7;
---color-surface-muted: #eef2f1;
---color-surface-warm: #f6f3ee;
+--color-border: #d6d2c8;
+--color-border-strong: #b8b3a8;
 
---color-border: #d7e0de;
---color-border-strong: #aabbb7;
-
---color-success: #397a58;
---color-success-soft: #e5f0e8;
---color-warning: #a46f22;
---color-warning-soft: #f7eedc;
---color-danger: #a14a43;
---color-danger-soft: #f6e7e5;
---color-info: #467a87;
---color-info-soft: #e4eef1;
+--color-success: #456b50;
+--color-warning: #8a6324;
+--color-danger: #934b43;
+--color-info: #4d6972;
 ```
 
-Controleer WCAG 2.1 AA.
+Het Grondlaag-geel markeert de primaire actie, huidige selectie en functionele
+focus. Het is geen algemene decoratiekleur. Bestaande `brand`-aliassen wijzen
+centraal naar dit neutrale contract zodat feature-CSS tijdens gefaseerde
+migratie coherent blijft.
+
+Controleer WCAG 2.1 AA. Zwarte tekst op geel is verplicht; witte tekst op geel
+is niet toegestaan.
 
 Status nooit alleen door kleur.
 
@@ -108,12 +105,13 @@ Voorkeur:
 
 ```css
 Inter,
-"Source Sans 3",
 system-ui,
-"Segoe UI",
-Arial,
 sans-serif
 ```
+
+Compacte metadata, codes, badges en toetsen gebruiken de lokale monostack
+`IBM Plex Mono`, `SFMono-Regular`, Consolas, monospace. Externe font-CDN's zijn
+niet vereist.
 
 Richtwaarden:
 
@@ -171,6 +169,35 @@ Navigatie:
 
 Geen plan-pin.
 
+De shell volgt het Grondlaag-werkbankmodel:
+
+- papierkleur als canvas en verhoogd wit voor de compacte header;
+- een vaste beige navigatiekolom op desktop;
+- een lokaal SVG-icoon plus zichtbaar label per bestemming;
+- een gele actieve bestemming met zwarte tekst en een harde, subtiele offset;
+- recente dossiers onder de primaire navigatie en Instellingen vast onderaan;
+- op tablet een smalle iconenrail en op mobiel een horizontale navigatiestrook.
+
+Elke route gebruikt dezelfde basisopbouw: `WorkspacePage` voor de
+contentbreedte, optioneel `ViewBar` voor weergave/filteracties en
+`WorkspaceGrid` voor navigatie, hoofdinhoud en inspector. Features mogen deze
+primitieven uitbreiden, maar maken geen afwijkende paginashell.
+
+Hoofdwerkruimtes volgen steeds dezelfde verticale logica:
+
+1. `PageHeader` met context en primaire actie;
+2. één `KpiStrip` met feitelijke kerncijfers;
+3. indien van toepassing één standaard ingeklapte `FilterPanel`;
+4. aanvullende uitleg of weergavebediening;
+5. de primaire tabel, boom, tijdslijn of dossierinhoud.
+
+Een feature bouwt geen eigen filterkaart of KPI-tegels. Zoeken, snelle
+selecties, detailfilters, opgeslagen weergaven en actieve filterchips leven
+binnen dezelfde `FilterPanel`. Actieve filters blijven buiten de ingeklapte
+inhoud zichtbaar en afzonderlijk verwijderbaar. `KpiStrip` gebruikt overal
+dezelfde label-, waarde- en ondersteunende-teksthiërarchie; kleur is alleen een
+aanvullend semantisch signaal.
+
 ## Header
 
 Compact.
@@ -205,9 +232,9 @@ drawermaat en laat het hoofdformulier zichtbaar. Geen modalstapeling.
 
 Alleen bij echte groepering.
 
-- radius 4–8 px;
+- radius 4–6 px;
 - dunne border;
-- nauwelijks shadow;
+- een harde offset-shadow alleen voor verhoogde werkpanelen;
 - geen floating card wall.
 
 ## Tabellen
@@ -216,7 +243,7 @@ Alleen bij echte groepering.
 - rustige rijhoogte;
 - subtiele horizontale scheiding;
 - hover;
-- selectie met zachte blauwgroene achtergrond;
+- selectie met een zachte gele achtergrond en expliciet tekst-/focuscontrast;
 - resizebare kolommen waar nuttig;
 - bedragen rechts;
 - virtualisatie bij grote data.
@@ -242,16 +269,16 @@ Niet elke metadatawaarde als pill.
 
 ### Primair
 
-- brand primary;
-- witte tekst;
+- Grondlaag-geel;
+- zwarte tekst en zwarte border;
 - beperkte radius;
 - duidelijke focus.
 
 ### Secundair
 
-- lichte achtergrond;
-- border;
-- brand text.
+- verhoogd wit;
+- neutrale border;
+- zwarte tekst.
 
 ### Tertiair
 

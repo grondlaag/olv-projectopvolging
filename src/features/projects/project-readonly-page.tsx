@@ -16,6 +16,7 @@ import {
   Button,
   EmptyState,
   ErrorState,
+  FilterPanel,
   SidePanel,
 } from "../../design-system/components"
 import type {
@@ -630,27 +631,42 @@ export function LegacyProjectJournal({ project }: ProjectJournalProps) {
         </div>
         <strong>{filteredEntries.length}</strong>
       </header>
-      <fieldset className="project-journal__filters">
-        <legend>Journaalfilter</legend>
-        {(
-          [
-            ["all", "Alles"],
-            ["updates", "Updates"],
-            ["decisions", "Beslissingen"],
-            ["topics", "Topics"],
-          ] as const
-        ).map(([value, label]) => (
-          <label key={value}>
-            <input
-              type="radio"
-              name="journal-filter"
-              checked={filter === value}
-              onChange={() => setFilter(value)}
-            />
-            <span>{label}</span>
-          </label>
-        ))}
-      </fieldset>
+      <FilterPanel
+        activeFilters={
+          filter === "all"
+            ? []
+            : [
+                {
+                  id: "journal",
+                  label: `Journaal: ${filter}`,
+                  onRemove: () => setFilter("all"),
+                },
+              ]
+        }
+        onClear={() => setFilter("all")}
+      >
+        <fieldset className="filter-panel__scope">
+          <legend>Journaalfilter</legend>
+          {(
+            [
+              ["all", "Alles"],
+              ["updates", "Updates"],
+              ["decisions", "Beslissingen"],
+              ["topics", "Topics"],
+            ] as const
+          ).map(([value, label]) => (
+            <label key={value}>
+              <input
+                type="radio"
+                name="journal-filter"
+                checked={filter === value}
+                onChange={() => setFilter(value)}
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </fieldset>
+      </FilterPanel>
       {filteredEntries.length ? (
         <ol className="project-journal__timeline">
           {filteredEntries.map((entry) => {
@@ -771,26 +787,42 @@ function GroupedProjectJournal({
         </div>
         <strong>{total}</strong>
       </header>
-      <fieldset className="project-journal__filters">
-        <legend>Toon</legend>
-        {(
-          [
-            ["active", "Open topics"],
-            ["attention", "Aandacht nodig"],
-            ["all", "Alle topics"],
-          ] as const
-        ).map(([value, label]) => (
-          <label key={value}>
-            <input
-              type="radio"
-              name="journal-group-filter"
-              checked={filter === value}
-              onChange={() => setFilter(value)}
-            />
-            <span>{label}</span>
-          </label>
-        ))}
-      </fieldset>
+      <FilterPanel
+        activeFilters={
+          filter === "active"
+            ? []
+            : [
+                {
+                  id: "journal-groups",
+                  label:
+                    filter === "attention" ? "Aandacht nodig" : "Alle topics",
+                  onRemove: () => setFilter("active"),
+                },
+              ]
+        }
+        onClear={() => setFilter("active")}
+      >
+        <fieldset className="filter-panel__scope">
+          <legend>Toon</legend>
+          {(
+            [
+              ["active", "Open topics"],
+              ["attention", "Aandacht nodig"],
+              ["all", "Alle topics"],
+            ] as const
+          ).map(([value, label]) => (
+            <label key={value}>
+              <input
+                type="radio"
+                name="journal-group-filter"
+                checked={filter === value}
+                onChange={() => setFilter(value)}
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </fieldset>
+      </FilterPanel>
       {visibleGroups.length ? (
         <div className="project-journal__groups">
           {visibleGroups.map((group, index) => {

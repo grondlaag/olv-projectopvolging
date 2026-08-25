@@ -10,6 +10,8 @@ import {
   Badge,
   Button,
   EmptyState,
+  FilterPanel,
+  KpiStrip,
   PageHeader,
   SavedViewsControl,
   TableDisplayControl,
@@ -123,8 +125,65 @@ export function MeetingsPage() {
     setSearchParameters(parameters, { replace: true })
   }
 
+  const activeFilters = [
+    ...(filters.search
+      ? [
+          {
+            id: "search",
+            label: `Zoeken: ${filters.search}`,
+            onRemove: () => setFilter("search", ""),
+          },
+        ]
+      : []),
+    ...(filters.type
+      ? [
+          {
+            id: "type",
+            label: `Type: ${filters.type}`,
+            onRemove: () => setFilter("type", ""),
+          },
+        ]
+      : []),
+    ...(filters.scopeType
+      ? [
+          {
+            id: "scope",
+            label: `Scope: ${filters.scopeType}`,
+            onRemove: () => setFilter("scopeType", ""),
+          },
+        ]
+      : []),
+    ...(filters.status
+      ? [
+          {
+            id: "status",
+            label: `Status: ${filters.status}`,
+            onRemove: () => setFilter("status", ""),
+          },
+        ]
+      : []),
+    ...(filters.dateFrom
+      ? [
+          {
+            id: "from",
+            label: `Vanaf: ${formatLocalDate(filters.dateFrom)}`,
+            onRemove: () => setFilter("dateFrom", ""),
+          },
+        ]
+      : []),
+    ...(filters.dateTo
+      ? [
+          {
+            id: "to",
+            label: `Tot: ${formatLocalDate(filters.dateTo)}`,
+            onRemove: () => setFilter("dateTo", ""),
+          },
+        ]
+      : []),
+  ]
+
   return (
-    <div className="meetings-page">
+    <div className="meetings-page workspace-page">
       <PageHeader
         eyebrow="Samenwerking"
         title="Overleg"
@@ -136,8 +195,58 @@ export function MeetingsPage() {
         }
       />
 
-      <section className="meeting-filters" aria-label="Overlegfilters">
-        <label className="meeting-filters__search">
+      <KpiStrip
+        ariaLabel="Overlegoverzicht"
+        items={[
+          {
+            id: "visible",
+            label: "Zichtbare overlegmomenten",
+            value: filtered.length,
+            supportingText: `van ${items.length} overlegmomenten`,
+          },
+          {
+            id: "agenda",
+            label: "Agendapunten",
+            value: filtered.reduce(
+              (total, item) => total + item.agendaCount,
+              0,
+            ),
+            supportingText: "binnen huidige selectie",
+          },
+          {
+            id: "reports",
+            label: "Verslagen",
+            value: filtered.reduce(
+              (total, item) => total + item.reportCount,
+              0,
+            ),
+            supportingText: "vastgelegde versies",
+          },
+          {
+            id: "drafts",
+            label: "Niet definitief",
+            value: filtered.filter(
+              (item) => item.meeting.status !== "Definitief",
+            ).length,
+            supportingText: "nog in opvolging",
+          },
+        ]}
+      />
+
+      <FilterPanel
+        activeFilters={activeFilters}
+        onClear={resetFilters}
+        actions={
+          <>
+            <SavedViewsControl page="meetings" />
+            <TableDisplayControl
+              table="meetings"
+              columns={meetingTableColumns}
+            />
+          </>
+        }
+      >
+        <label>
           <span>Zoeken</span>
           <input
             type="search"
@@ -208,18 +317,7 @@ export function MeetingsPage() {
             onChange={(event) => setFilter("dateTo", event.target.value)}
           />
         </label>
-      </section>
-
-      <div className="meeting-list-meta">
-        <strong>{filtered.length} overlegmomenten</strong>
-        {Object.values(filters).some(Boolean) ? (
-          <Button variant="tertiary" onClick={resetFilters}>
-            Filters wissen
-          </Button>
-        ) : null}
-        <SavedViewsControl page="meetings" />
-        <TableDisplayControl table="meetings" columns={meetingTableColumns} />
-      </div>
+      </FilterPanel>
 
       {filtered.length ? (
         <div className="meeting-table-wrap">

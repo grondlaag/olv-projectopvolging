@@ -240,7 +240,7 @@ export function BudgetPage() {
   ]
 
   return (
-    <div className="budget-page">
+    <div className="budget-page workspace-page">
       <PageHeader
         eyebrow="Financieel portfolio"
         title="Budget"
@@ -248,7 +248,6 @@ export function BudgetPage() {
       />
 
       <KpiStrip
-        className="budget-portfolio-kpis"
         ariaLabel="Financiële portefeuilletotalen"
         items={overviewTypes.map((type) => ({
           id: type,
@@ -261,7 +260,6 @@ export function BudgetPage() {
       />
 
       <FilterPanel
-        className="budget-filter-bar"
         activeFilters={activeFilters}
         onClear={resetFilters}
         actions={<SavedViewsControl page="budget" />}

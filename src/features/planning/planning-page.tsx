@@ -10,10 +10,17 @@ import { useAppStore } from "../../app/state/app-store"
 import {
   Button,
   EmptyState,
+  FilterPanel,
+  KpiStrip,
   PageHeader,
   SavedViewsControl,
 } from "../../design-system/components"
-import { planningStatuses, projectSizes, projectSizeFte } from "../../domain"
+import {
+  planningStatuses,
+  projectSizes,
+  projectSizeFte,
+  type UUID,
+} from "../../domain"
 import { formatLocalDate, todayAsLocalDate } from "../../utils"
 import { PlanningGantt, type PlanningDisplayRow } from "./planning-gantt"
 import "./planning.css"
@@ -192,6 +199,72 @@ export function PlanningPage() {
       parameters.delete(key)
     setSearchParameters(parameters, { replace: true })
   }
+  const activeFilters = [
+    ...(filters.chapterId
+      ? [
+          {
+            id: "chapter",
+            label: `Hoofdstuk: ${session.state.indices.chapterById.get(filters.chapterId as UUID)?.title ?? "Onbekend"}`,
+            onRemove: () =>
+              patchFilters({ chapterId: "", clusterId: "", projectId: "" }),
+          },
+        ]
+      : []),
+    ...(filters.clusterId
+      ? [
+          {
+            id: "cluster",
+            label: `Cluster: ${session.state.indices.clusterById.get(filters.clusterId as UUID)?.title ?? "Onbekend"}`,
+            onRemove: () => patchFilters({ clusterId: "", projectId: "" }),
+          },
+        ]
+      : []),
+    ...(filters.projectId
+      ? [
+          {
+            id: "project",
+            label: `Project: ${session.state.indices.projectById.get(filters.projectId as UUID)?.code ?? "Onbekend"}`,
+            onRemove: () => patchFilters({ projectId: "" }),
+          },
+        ]
+      : []),
+    ...(filters.status
+      ? [
+          {
+            id: "status",
+            label: `Planningstatus: ${filters.status}`,
+            onRemove: () => patchFilters({ status: "" }),
+          },
+        ]
+      : []),
+    ...(filters.ownerActorId
+      ? [
+          {
+            id: "owner",
+            label: `Eigenaar: ${session.state.indices.actorById.get(filters.ownerActorId as UUID)?.displayName ?? "Onbekend"}`,
+            onRemove: () => patchFilters({ ownerActorId: "" }),
+          },
+        ]
+      : []),
+    ...(filters.riskOnly
+      ? [
+          {
+            id: "risk",
+            label: "Alleen risico",
+            onRemove: () => patchFilters({ riskOnly: false }),
+          },
+        ]
+      : []),
+    ...(filters.delayedOnly
+      ? [
+          {
+            id: "delayed",
+            label: "Alleen over tijd",
+            onRemove: () => patchFilters({ delayedOnly: false }),
+          },
+        ]
+      : []),
+  ]
   function selectZoom(value: PlanningZoom) {
     const parameters = new URLSearchParams(searchParameters)
     if (value === "quarter") parameters.delete("zoom")
@@ -211,7 +284,7 @@ export function PlanningPage() {
   }
 
   return (
-    <div className="planning-page">
+    <div className="planning-page workspace-page">
       <PageHeader
         eyebrow="Tijd"
         title="Planning"
@@ -222,69 +295,50 @@ export function PlanningPage() {
           </span>
         }
       />
-      <section
-        className="planning-summary"
-        aria-label="Samenvatting portfolioplanning"
+      <KpiStrip
+        ariaLabel="Samenvatting portfolioplanning"
+        items={[
+          {
+            id: "coverage",
+            label: "Planningdekking",
+            value: `${summary.projectsWithPlanning} van ${summary.totalProjects} projecten`,
+            supportingText: `${summary.projectsWithoutPlanning} zonder planning`,
+          },
+          {
+            id: "items",
+            label: "Planningitems",
+            value: summary.planningItemCount,
+            supportingText: `${summary.milestoneCount} mijlpalen`,
+          },
+          {
+            id: "attention",
+            label: "Aandacht",
+            value: summary.attentionItemCount,
+            supportingText: "risico, vertraagd of over tijd",
+            tone: summary.attentionItemCount ? "attention" : "neutral",
+          },
+          {
+            id: "period",
+            label: "Zichtbare periode",
+            value:
+              summary.earliestDate && summary.latestDate
+                ? `${formatLocalDate(summary.earliestDate)} – ${formatLocalDate(summary.latestDate)}`
+                : "Nog geen datums",
+            supportingText: "volgens de huidige filters",
+          },
+          {
+            id: "resources",
+            label: "Indicatieve resourcevraag",
+            value: `${summary.indicativeFte.toLocaleString("nl-BE")} VTE`,
+            supportingText: `${summary.unscaledProjectCount} nog niet ingeschaald`,
+          },
+        ]}
+      />
+      <FilterPanel
+        activeFilters={activeFilters}
+        onClear={resetFilters}
+        actions={<SavedViewsControl page="planning" />}
       >
-        <div>
-          <span>Planningdekking</span>
-          <strong>
-            {summary.projectsWithPlanning} van {summary.totalProjects} projecten
-          </strong>
-          <small>{summary.projectsWithoutPlanning} zonder planning</small>
-        </div>
-        <div>
-          <span>Planningitems</span>
-          <strong>{summary.planningItemCount}</strong>
-          <small>{summary.milestoneCount} mijlpalen</small>
-        </div>
-        <div>
-          <span>Aandacht</span>
-          <strong>{summary.attentionItemCount}</strong>
-          <small>risico, vertraagd of over tijd</small>
-        </div>
-        <div>
-          <span>Zichtbare periode</span>
-          <strong>
-            {summary.earliestDate && summary.latestDate
-              ? `${formatLocalDate(summary.earliestDate)} – ${formatLocalDate(summary.latestDate)}`
-              : "Nog geen datums"}
-          </strong>
-          <small>volgens de huidige filters</small>
-        </div>
-        <div>
-          <span>Indicatieve resourcevraag</span>
-          <strong>{summary.indicativeFte.toLocaleString("nl-BE")} VTE</strong>
-          <small>
-            {summary.unscaledProjectCount} projecten nog niet ingeschaald
-          </small>
-        </div>
-      </section>
-      <section
-        className="planning-resources"
-        aria-labelledby="planning-resources-title"
-      >
-        <div>
-          <span>Resourcemanagement</span>
-          <h2 id="planning-resources-title">Projectomvang in portefeuille</h2>
-          <p>
-            Indicatieve gelijktijdige vraag op basis van de gekozen
-            XS–XXL-omvang; geen personeelsplanning.
-          </p>
-        </div>
-        <div className="planning-resources__scale">
-          {projectSizes.map((size) => (
-            <div key={size}>
-              <span>{size}</span>
-              <strong>{summary.sizeCounts[size]}</strong>
-              <small>
-                {projectSizeFte[size].toLocaleString("nl-BE")} VTE/project
-              </small>
-            </div>
-          ))}
-        </div>
-      </section>
-      <section className="planning-filters" aria-label="Planningfilters">
         <label>
           <span>Hoofdstuk</span>
           <select
@@ -369,7 +423,7 @@ export function PlanningPage() {
             ))}
           </select>
         </label>
-        <label className="planning-filter-check">
+        <label className="filter-panel__check">
           <input
             type="checkbox"
             checked={filters.riskOnly}
@@ -379,7 +433,7 @@ export function PlanningPage() {
           />
           <span>Alleen risico</span>
         </label>
-        <label className="planning-filter-check">
+        <label className="filter-panel__check">
           <input
             type="checkbox"
             checked={filters.delayedOnly}
@@ -389,10 +443,30 @@ export function PlanningPage() {
           />
           <span>Alleen over tijd</span>
         </label>
-        <Button variant="tertiary" onClick={resetFilters}>
-          Filters wissen
-        </Button>
-        <SavedViewsControl page="planning" />
+      </FilterPanel>
+      <section
+        className="planning-resources"
+        aria-labelledby="planning-resources-title"
+      >
+        <div>
+          <span>Resourcemanagement</span>
+          <h2 id="planning-resources-title">Projectomvang in portefeuille</h2>
+          <p>
+            Indicatieve gelijktijdige vraag op basis van de gekozen
+            XS–XXL-omvang; geen personeelsplanning.
+          </p>
+        </div>
+        <div className="planning-resources__scale">
+          {projectSizes.map((size) => (
+            <div key={size}>
+              <span>{size}</span>
+              <strong>{summary.sizeCounts[size]}</strong>
+              <small>
+                {projectSizeFte[size].toLocaleString("nl-BE")} VTE/project
+              </small>
+            </div>
+          ))}
+        </div>
       </section>
       {model.length ? (
         <>

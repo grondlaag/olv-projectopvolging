@@ -6,6 +6,12 @@
   padding: 28px 32px 64px;
 }
 
+.meetings-page.workspace-page {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
 .meeting-breadcrumb {
   display: flex;
   gap: 8px;

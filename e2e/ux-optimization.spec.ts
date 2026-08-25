@@ -32,13 +32,16 @@ test("geoptimaliseerde werkflow blijft compact en contextvast", async ({
     .getByRole("navigation", { name: "Hoofdnavigatie" })
     .getByRole("link", { name: "Portfolio" })
     .click()
-  await expect(page.getByLabel("Status")).toHaveCount(0)
+  await expect(page.getByLabel("Status")).not.toBeVisible()
+  await page
+    .getByRole("region", { name: "Filters" })
+    .getByText("Filters", { exact: true })
+    .click()
+  await expect(page.getByLabel("Status")).toBeVisible()
   await page.getByRole("button", { name: "Zonder cluster" }).click()
   await expect(
     page.getByRole("button", { name: "Zonder cluster verwijderen" }),
   ).toBeVisible()
-  await page.getByRole("button", { name: /Filters \(1\)/ }).click()
-  await expect(page.getByLabel("Status")).toBeVisible()
   await page.screenshot({
     path: "test-results/ux-portfolio.png",
     fullPage: true,

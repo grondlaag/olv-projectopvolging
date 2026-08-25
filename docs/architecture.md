@@ -49,6 +49,14 @@ state en bestaande commandhandlers. De componenten maken zelf geen
 domeinrecords, voeren geen aggregaties uit en worden niet in JSON of IndexedDB
 bewaard. Daardoor blijft inklappen een zuivere weergavekeuze.
 
+De route-onafhankelijke werkruimtebasis wordt centraal aangeboden via
+`WorkspacePage`, `ViewBar` en `WorkspaceGrid`. Deze componenten standaardiseren
+contentbreedte, filter-/weergavebediening en optionele navigatie- en
+inspectorkolommen. Ze bevatten uitsluitend layout en semantische regio's;
+features behouden hun eigen applicatie- en domeinlogica. De lokale
+design-tokens volgen het Grondlaag-contract zonder runtime-afhankelijkheid op
+een andere repository.
+
 Belangrijke features:
 
 - dashboard en portfolio;

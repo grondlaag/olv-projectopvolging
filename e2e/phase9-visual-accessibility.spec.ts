@@ -154,6 +154,19 @@ test("fase 9 productiepreview blijft rustig, responsive en toetsenbordbruikbaar"
         name: surface.heading,
       }),
     ).toBeVisible()
+    if (
+      ["portfolio", "actions", "planning", "budget", "meetings"].includes(
+        surface.name,
+      )
+    ) {
+      await expect(page.locator(".kpi-strip")).toBeVisible()
+      const filterRegion = page.getByRole("region", { name: "Filters" })
+      await expect(filterRegion).toBeVisible()
+      await expect(filterRegion.locator("details")).not.toHaveAttribute(
+        "open",
+        "",
+      )
+    }
     await assertAccessibleSurface(page)
     await page.screenshot({
       path: `test-results/phase9-visual-${surface.width}-${surface.name}.png`,

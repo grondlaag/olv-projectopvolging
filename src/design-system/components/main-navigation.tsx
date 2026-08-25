@@ -3,16 +3,16 @@ import {
   toggleFavoriteWorkspaceLink,
   useWorkspacePreferences,
 } from "../../app/preferences/workspace-preferences"
+import { Icon, type IconName } from "./icon"
 import "./shell.css"
 
 const navigationItems = [
-  { to: "/dashboard", label: "Dashboard", marker: "D" },
-  { to: "/portfolio", label: "Portfolio", marker: "P" },
-  { to: "/actions", label: "Acties", marker: "A" },
-  { to: "/planning", label: "Planning", marker: "PL" },
-  { to: "/budget", label: "Budget", marker: "B" },
-  { to: "/meetings", label: "Overleg", marker: "O" },
-  { to: "/settings", label: "Instellingen", marker: "I" },
+  { to: "/dashboard", label: "Dashboard", icon: "dashboard" },
+  { to: "/portfolio", label: "Portfolio", icon: "portfolio" },
+  { to: "/actions", label: "Acties", icon: "actions" },
+  { to: "/planning", label: "Planning", icon: "planning" },
+  { to: "/budget", label: "Budget", icon: "budget" },
+  { to: "/meetings", label: "Overleg", icon: "meetings" },
 ] as const
 
 export function MainNavigation() {
@@ -35,7 +35,7 @@ export function MainNavigation() {
                 }
                 to={item.to}
               >
-                <span aria-hidden="true">{item.marker}</span>
+                <Icon name={item.icon as IconName} />
                 {item.label}
               </NavLink>
             </li>
@@ -71,6 +71,17 @@ export function MainNavigation() {
           </ul>
         </nav>
       ) : null}
+      <nav className="main-navigation__settings" aria-label="Beheer">
+        <NavLink
+          className={({ isActive }) =>
+            `main-navigation__link${isActive ? " main-navigation__link--active" : ""}`
+          }
+          to="/settings"
+        >
+          <Icon name="settings" />
+          Instellingen
+        </NavLink>
+      </nav>
     </aside>
   )
 }

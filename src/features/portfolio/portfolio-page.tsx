@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react"
+import { useDeferredValue, useEffect, useMemo } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import {
   buildPortfolioRows,
@@ -14,6 +14,8 @@ import {
   Badge,
   Button,
   EmptyState,
+  FilterPanel,
+  KpiStrip,
   PageHeader,
 } from "../../design-system/components"
 import type { UUID } from "../../domain"
@@ -74,7 +76,7 @@ interface FilterSelectProps {
 
 function FilterSelect({ label, value, options, onChange }: FilterSelectProps) {
   return (
-    <label className="portfolio-filter">
+    <label>
       <span>{label}</span>
       <select value={value} onChange={(event) => onChange(event.target.value)}>
         <option value="">Alle</option>
@@ -95,8 +97,6 @@ export function PortfolioPage() {
   const setFilters = useAppStore((state) => state.setPortfolioFilters)
   const setImportPanelOpen = useAppStore((state) => state.setImportPanelOpen)
   const [searchParameters, setSearchParameters] = useSearchParams()
-  const [filtersOpen, setFiltersOpen] = useState(false)
-
   const parameterString = searchParameters.toString()
   useEffect(() => {
     setFilters(filtersFromParameters(new URLSearchParams(parameterString)))
@@ -158,6 +158,33 @@ export function PortfolioPage() {
     setSearchParameters(parametersFromFilters(next), { replace: true })
   }
 
+  const activeFilters = [
+    ...(filters.search
+      ? [
+          {
+            id: "search",
+            label: `Zoeken: ${filters.search}`,
+            onRemove: () => updateFilters({ search: "" }),
+          },
+        ]
+      : []),
+    ...(filters.scope !== defaultPortfolioFilters.scope
+      ? [
+          {
+            id: "scope",
+            label: `Projecten: ${filters.scope === "closed" ? "Gesloten" : "Alles"}`,
+            onRemove: () =>
+              updateFilters({ scope: defaultPortfolioFilters.scope }),
+          },
+        ]
+      : []),
+    ...activeFilterEntries.map((entry) => ({
+      id: entry.key,
+      label: entry.label,
+      onRemove: () => updateFilters({ [entry.key]: "" }),
+    })),
+  ]
+
   if (!session) {
     return (
       <div className="portfolio-page">
@@ -182,16 +209,13 @@ export function PortfolioPage() {
   }
 
   return (
-    <div className="portfolio-page">
+    <div className="portfolio-page workspace-page">
       <PageHeader
         eyebrow="Projectstructuur"
         title="Portfolio"
         description="Hoofdstuk → cluster → project. Klik één keer op een projectregel om het dossier te openen."
         actions={
           <div className="portfolio-page__actions">
-            <span className="portfolio-page__result-count">
-              <strong>{filteredRows.length}</strong> van {rows.length} projecten
-            </span>
             <Button onClick={() => navigate("/projects/new")}>
               + Nieuw project
             </Button>
@@ -199,196 +223,182 @@ export function PortfolioPage() {
         }
       />
 
-      <section className="portfolio-filters" aria-label="Portfoliofilters">
-        <div className="portfolio-presets" aria-label="Snelle selecties">
-          <span>Snelle selecties</span>
-          <button
-            type="button"
-            disabled={!currentActorId}
-            onClick={() =>
-              updateFilters({
-                ...defaultPortfolioFilters,
-                coordinatorActorId: currentActorId ?? "",
-              })
-            }
-          >
-            Mijn projecten
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              updateFilters({
-                ...defaultPortfolioFilters,
-                clusterId: "without-cluster",
-              })
-            }
-          >
-            Zonder cluster
-          </button>
-          <button
-            type="button"
-            onClick={() => updateFilters(defaultPortfolioFilters)}
-          >
-            Alle open projecten
-          </button>
-        </div>
-        <div className="portfolio-filters__primary">
-          <label className="portfolio-filter portfolio-filter--search">
-            <span>Zoekterm</span>
-            <input
-              type="search"
-              value={filters.search}
-              placeholder="Code, titel, site of coördinator"
-              onChange={(event) =>
-                updateFilters({ search: event.target.value })
+      <KpiStrip
+        ariaLabel="Portfolio-overzicht"
+        items={[
+          {
+            id: "visible",
+            label: "Zichtbare projecten",
+            value: filteredRows.length,
+            supportingText: `van ${rows.length} projecten`,
+          },
+          {
+            id: "chapters",
+            label: "Hoofdstukken",
+            value: session.state.records.chapters.filter(
+              (chapter) => chapter.audit.active,
+            ).length,
+            supportingText: "in de portefeuille",
+          },
+          {
+            id: "clusters",
+            label: "Clusters",
+            value: session.state.records.clusters.filter(
+              (cluster) => cluster.audit.active,
+            ).length,
+            supportingText: "actieve structuur",
+          },
+          {
+            id: "selection",
+            label: "Actieve filters",
+            value: activeFilters.length,
+            supportingText: activeFilters.length
+              ? "selectie toegepast"
+              : "volledige selectie",
+          },
+        ]}
+      />
+
+      <FilterPanel
+        activeFilters={activeFilters}
+        onClear={() => updateFilters(defaultPortfolioFilters)}
+        actions={
+          <div className="filter-panel__presets" aria-label="Snelle selecties">
+            <span>Snelle selecties</span>
+            <Button
+              variant="tertiary"
+              disabled={!currentActorId}
+              onClick={() =>
+                updateFilters({
+                  ...defaultPortfolioFilters,
+                  coordinatorActorId: currentActorId ?? "",
+                })
               }
-            />
-          </label>
-          <fieldset className="portfolio-scope">
-            <legend>Projecten</legend>
-            {(
-              [
-                ["open", "Open"],
-                ["closed", "Gesloten"],
-                ["all", "Alles"],
-              ] as const
-            ).map(([value, label]) => (
-              <label key={value}>
-                <input
-                  type="radio"
-                  name="portfolio-scope"
-                  value={value}
-                  checked={filters.scope === value}
-                  onChange={() => updateFilters({ scope: value })}
-                />
-                <span>{label}</span>
-              </label>
-            ))}
-          </fieldset>
-          <Button
-            variant="secondary"
-            aria-expanded={filtersOpen}
-            onClick={() => setFiltersOpen((open) => !open)}
-          >
-            Filters
-            {activeFilterEntries.length
-              ? " (" + activeFilterEntries.length + ")"
-              : ""}
-          </Button>
-          {filters.search ||
-          filters.scope !== defaultPortfolioFilters.scope ||
-          activeFilterEntries.length ? (
+            >
+              Mijn projecten
+            </Button>
+            <Button
+              variant="tertiary"
+              onClick={() =>
+                updateFilters({
+                  ...defaultPortfolioFilters,
+                  clusterId: "without-cluster",
+                })
+              }
+            >
+              Zonder cluster
+            </Button>
             <Button
               variant="tertiary"
               onClick={() => updateFilters(defaultPortfolioFilters)}
             >
-              Wissen
+              Alle open projecten
             </Button>
-          ) : null}
-        </div>
-
-        {activeFilterEntries.length ? (
-          <div className="portfolio-filter-chips" aria-label="Actieve filters">
-            {activeFilterEntries.map((entry) => (
-              <button
-                type="button"
-                key={entry.key}
-                onClick={() => updateFilters({ [entry.key]: "" })}
-                aria-label={entry.label + " verwijderen"}
-              >
-                {entry.label} <span aria-hidden="true">×</span>
-              </button>
-            ))}
           </div>
-        ) : null}
-
-        {filtersOpen ? (
-          <div className="portfolio-filters__grid">
-            <FilterSelect
-              label="Hoofdstuk"
-              value={filters.chapterId}
-              options={filterOptions.chapters.map((item) => ({
-                value: item.id,
-                label: item.title,
-              }))}
-              onChange={(chapterId) =>
-                updateFilters({ chapterId, clusterId: "" })
-              }
-            />
-            <FilterSelect
-              label="Cluster"
-              value={filters.clusterId}
-              options={[
-                { value: "without-cluster", label: "Zonder cluster" },
-                ...filterOptions.clusters
-                  .filter(
-                    (item) =>
-                      !filters.chapterId ||
-                      item.chapterId === filters.chapterId,
-                  )
-                  .map((item) => ({ value: item.id, label: item.title })),
-              ]}
-              onChange={(clusterId) => updateFilters({ clusterId })}
-            />
-            <FilterSelect
-              label="Status"
-              value={filters.status}
-              options={filterOptions.statuses.map((value) => ({
-                value,
-                label: value,
-              }))}
-              onChange={(status) => updateFilters({ status })}
-            />
-            <FilterSelect
-              label="Fase"
-              value={filters.phase}
-              options={filterOptions.phases.map((value) => ({
-                value,
-                label: value,
-              }))}
-              onChange={(phase) => updateFilters({ phase })}
-            />
-            <FilterSelect
-              label="Site"
-              value={filters.site}
-              options={filterOptions.sites.map((value) => ({
-                value,
-                label: value,
-              }))}
-              onChange={(site) => updateFilters({ site })}
-            />
-            <FilterSelect
-              label="Locatie"
-              value={filters.location}
-              options={filterOptions.locations.map((value) => ({
-                value,
-                label: value,
-              }))}
-              onChange={(location) => updateFilters({ location })}
-            />
-            <FilterSelect
-              label="Afdeling"
-              value={filters.department}
-              options={filterOptions.departments.map((value) => ({
-                value,
-                label: value,
-              }))}
-              onChange={(department) => updateFilters({ department })}
-            />
-            <FilterSelect
-              label="Projectcoördinator"
-              value={filters.coordinatorActorId}
-              options={filterOptions.coordinators.map((item) => ({
-                value: item.id,
-                label: item.displayName,
-              }))}
-              onChange={(coordinatorActorId) =>
-                updateFilters({ coordinatorActorId })
-              }
-            />
-          </div>
-        ) : null}
-      </section>
+        }
+      >
+        <label>
+          <span>Zoekterm</span>
+          <input
+            type="search"
+            value={filters.search}
+            placeholder="Code, titel, site of coördinator"
+            onChange={(event) => updateFilters({ search: event.target.value })}
+          />
+        </label>
+        <label>
+          <span>Projecten</span>
+          <select
+            value={filters.scope}
+            onChange={(event) =>
+              updateFilters({ scope: event.target.value as PortfolioScope })
+            }
+          >
+            <option value="open">Open</option>
+            <option value="closed">Gesloten</option>
+            <option value="all">Alles</option>
+          </select>
+        </label>
+        <FilterSelect
+          label="Hoofdstuk"
+          value={filters.chapterId}
+          options={filterOptions.chapters.map((item) => ({
+            value: item.id,
+            label: item.title,
+          }))}
+          onChange={(chapterId) => updateFilters({ chapterId, clusterId: "" })}
+        />
+        <FilterSelect
+          label="Cluster"
+          value={filters.clusterId}
+          options={[
+            { value: "without-cluster", label: "Zonder cluster" },
+            ...filterOptions.clusters
+              .filter(
+                (item) =>
+                  !filters.chapterId || item.chapterId === filters.chapterId,
+              )
+              .map((item) => ({ value: item.id, label: item.title })),
+          ]}
+          onChange={(clusterId) => updateFilters({ clusterId })}
+        />
+        <FilterSelect
+          label="Status"
+          value={filters.status}
+          options={filterOptions.statuses.map((value) => ({
+            value,
+            label: value,
+          }))}
+          onChange={(status) => updateFilters({ status })}
+        />
+        <FilterSelect
+          label="Fase"
+          value={filters.phase}
+          options={filterOptions.phases.map((value) => ({
+            value,
+            label: value,
+          }))}
+          onChange={(phase) => updateFilters({ phase })}
+        />
+        <FilterSelect
+          label="Site"
+          value={filters.site}
+          options={filterOptions.sites.map((value) => ({
+            value,
+            label: value,
+          }))}
+          onChange={(site) => updateFilters({ site })}
+        />
+        <FilterSelect
+          label="Locatie"
+          value={filters.location}
+          options={filterOptions.locations.map((value) => ({
+            value,
+            label: value,
+          }))}
+          onChange={(location) => updateFilters({ location })}
+        />
+        <FilterSelect
+          label="Afdeling"
+          value={filters.department}
+          options={filterOptions.departments.map((value) => ({
+            value,
+            label: value,
+          }))}
+          onChange={(department) => updateFilters({ department })}
+        />
+        <FilterSelect
+          label="Projectcoördinator"
+          value={filters.coordinatorActorId}
+          options={filterOptions.coordinators.map((item) => ({
+            value: item.id,
+            label: item.displayName,
+          }))}
+          onChange={(coordinatorActorId) =>
+            updateFilters({ coordinatorActorId })
+          }
+        />
+      </FilterPanel>
 
       {groups.length ? (
         <div className="portfolio-tree">

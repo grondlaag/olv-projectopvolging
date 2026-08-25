@@ -102,7 +102,12 @@ export function FilterPanel({
       {activeFilters.length ? (
         <div className="filter-panel__chips" aria-label="Actieve filters">
           {activeFilters.map((filter) => (
-            <button key={filter.id} type="button" onClick={filter.onRemove}>
+            <button
+              key={filter.id}
+              type="button"
+              aria-label={`${filter.label} verwijderen`}
+              onClick={filter.onRemove}
+            >
               <span>{filter.label}</span>
               <span aria-hidden="true">{"\u00d7"}</span>
               <span className="sr-only">filter verwijderen</span>
@@ -180,7 +185,11 @@ export function KpiStrip({
   className?: string
 }) {
   return (
-    <dl className={`kpi-strip ${className}`.trim()} aria-label={ariaLabel}>
+    <dl
+      className={`kpi-strip ${className}`.trim()}
+      aria-label={ariaLabel}
+      role="region"
+    >
       {items.map((item) => (
         <div key={item.id} data-tone={item.tone ?? "neutral"}>
           <dt>{item.label}</dt>

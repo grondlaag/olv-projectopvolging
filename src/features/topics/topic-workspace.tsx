@@ -469,6 +469,16 @@ export function TopicWorkspace({
   }
 
   const activeTopicFilters = [
+    ...(filters.search
+      ? [
+          {
+            id: "search",
+            label: `Zoeken: ${filters.search}`,
+            onRemove: () =>
+              setFilters((current) => ({ ...current, search: "" })),
+          },
+        ]
+      : []),
     ...(filters.status
       ? [
           {
@@ -516,30 +526,24 @@ export function TopicWorkspace({
             </div>
             <Button onClick={openNewTopic}>+ Nieuw topic</Button>
           </header>
-          <label className="topic-list__search">
-            <span>Zoeken</span>
-            <input
-              type="search"
-              value={filters.search}
-              placeholder="Code, titel of context"
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  search: event.target.value,
-                }))
-              }
-            />
-          </label>
           <FilterPanel
-            className="topic-list__filters"
             activeFilters={activeTopicFilters}
-            onClear={() =>
-              setFilters((current) => ({
-                ...defaultTopicFilters,
-                search: current.search,
-              }))
-            }
+            onClear={() => setFilters(defaultTopicFilters)}
           >
+            <label>
+              <span>Zoeken</span>
+              <input
+                type="search"
+                value={filters.search}
+                placeholder="Code, titel of context"
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    search: event.target.value,
+                  }))
+                }
+              />
+            </label>
             <label>
               <span>Status</span>
               <select

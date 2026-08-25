@@ -7,6 +7,7 @@ import {
   Badge,
   Button,
   EmptyState,
+  KpiStrip,
   PageHeader,
 } from "../../design-system/components"
 import { formatLocalDate, todayAsLocalDate } from "../../utils"
@@ -76,16 +77,37 @@ export function DashboardPage() {
     session.state.indices.actorById.get(actorId)?.displayName ??
     "Onbekende actor"
   const kpis = [
-    [model.kpis.activeProjects, "Actieve projecten"],
-    [
-      model.kpis.openTopics,
-      `Open topics · ${model.kpis.criticalTopics} kritiek`,
-    ],
-    [model.kpis.openActions, "Open acties"],
-    [model.kpis.overdueActions, "Achterstallige acties"],
-    [model.kpis.upcomingActions, "Acties komende 14 dagen"],
-    [model.kpis.upcomingMilestones, "Mijlpalen komende 30 dagen"],
-  ] as const
+    {
+      id: "projects",
+      value: model.kpis.activeProjects,
+      label: "Actieve projecten",
+    },
+    {
+      id: "topics",
+      value: model.kpis.openTopics,
+      label: "Open topics",
+      supportingText: `${model.kpis.criticalTopics} kritiek`,
+    },
+    { id: "actions", value: model.kpis.openActions, label: "Open acties" },
+    {
+      id: "overdue",
+      value: model.kpis.overdueActions,
+      label: "Achterstallige acties",
+      tone: model.kpis.overdueActions
+        ? ("attention" as const)
+        : ("neutral" as const),
+    },
+    {
+      id: "upcoming-actions",
+      value: model.kpis.upcomingActions,
+      label: "Acties komende 14 dagen",
+    },
+    {
+      id: "milestones",
+      value: model.kpis.upcomingMilestones,
+      label: "Mijlpalen komende 30 dagen",
+    },
+  ]
 
   function updateStatus(action: Action, status: ActionStatus) {
     const latest = useAppStore.getState().session?.state
@@ -111,7 +133,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="dashboard-page">
+    <div className="dashboard-page workspace-page">
       <PageHeader
         eyebrow="Portefeuilleoverzicht"
         title="Dashboard"
@@ -119,14 +141,7 @@ export function DashboardPage() {
         actions={<Badge tone="success">Schema {session.schemaVersion}</Badge>}
       />
 
-      <section className="dashboard-kpis" aria-label="Kerncijfers">
-        {kpis.map(([value, label]) => (
-          <div className="dashboard-kpi" key={label}>
-            <strong>{value}</strong>
-            <span>{label}</span>
-          </div>
-        ))}
-      </section>
+      <KpiStrip items={kpis} />
 
       {statusMessage ? (
         <p className="dashboard-status" role="status">

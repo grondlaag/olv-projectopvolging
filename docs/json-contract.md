@@ -100,6 +100,12 @@ kolommapping.
 | `choiceLists` | ChoiceList | — |
 | `log` | LogEntry | optioneel bronobject |
 
+Voor `projectClusterHistory` moeten project en cluster altijd blijven bestaan.
+Een afgesloten koppeling mag naar een cluster in een voormalig hoofdstuk van
+het project verwijzen. Alleen een open koppeling moet overeenkomen met de
+huidige `clusterId` en het huidige hoofdstuk van het project. Daardoor blijft
+historiek geldig wanneer een project tussen hoofdstukken migreert.
+
 ## Validatie bij openen
 
 De grens valideert in vaste volgorde:
@@ -173,6 +179,14 @@ agenda-items behouden hun bestaande recordvorm. Optionele `Evidence`-records met
 `type` `DecisionRequest` of `JournalRelation` dragen aanvullende journalmetadata
 als JSON in `description`. Ongeldige metadata wordt bij de projectie genegeerd
 en verandert de bronrecords niet.
+
+Ook `MeetingLink` en `JournalHistory` gebruiken deze bestaande
+`Evidence`-collectie. Een entryspecifieke `MeetingLink` verwijst in metadata naar
+`meetingId`, `agendaItemId` en `meetingDate`; het bestaande topicgebonden
+`AgendaItem` blijft het agendapunt. Overlegverwerking maakt dus geen aparte
+notitie of verslaginvoer. Er ontstaat geen `entries`- of
+`meetingLinks`-collectie en dus geen tweede source of truth. Zie
+[ADR-014](decisions/ADR-014-continuous-project-journal.md).
 
 De huidige ondersteunde schemawaarde is `1.0.0`. Een onbekende versie wordt
 geblokkeerd; er is geen opportunistische repair. Een toekomstige wijziging moet:

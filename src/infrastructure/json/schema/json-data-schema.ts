@@ -8,12 +8,17 @@ import {
   budgetTypes,
   meetingScopeTypes,
   meetingStatuses,
+  milestoneStatuses,
   objectTypes,
+  phaseIntensities,
   planningKinds,
   planningStatuses,
   priorities,
   projectStatuses,
   projectSizes,
+  projectPlanningStatuses,
+  resourceTypes,
+  allocationModes,
   recordStatuses,
   reportStatuses,
   topicStatuses,
@@ -86,6 +91,7 @@ const projectSchema = z
     actualEndDate: localDateSchema.optional(),
     progressPercent: z.number().min(0).max(100).optional(),
     size: z.enum(projectSizes).optional(),
+    planningStatus: z.enum(projectPlanningStatuses).optional(),
     currentUpdateId: uuidSchema.optional(),
     documentsUrl: z.string().optional(),
   })
@@ -212,6 +218,61 @@ const planningDependencySchema = z
     predecessorPlanningId: uuidSchema,
     successorPlanningId: uuidSchema,
     type: z.literal("FinishToStart"),
+  })
+  .strict()
+
+const projectPhaseSchema = z
+  .object({
+    ...audited,
+    projectId: uuidSchema,
+    name: z.string(),
+    startDate: localDateSchema,
+    endDate: localDateSchema,
+    status: z.enum(planningStatuses),
+    progressPercent: z.number().min(0).max(100),
+    ownerActorId: uuidSchema.optional(),
+    intensity: z.enum(phaseIntensities),
+    dependsOnPhaseId: uuidSchema.optional(),
+    order: z.number().safe().int(),
+  })
+  .strict()
+
+const milestoneSchema = z
+  .object({
+    ...audited,
+    projectId: uuidSchema,
+    phaseId: uuidSchema.optional(),
+    name: z.string(),
+    date: localDateSchema,
+    status: z.enum(milestoneStatuses),
+    ownerActorId: uuidSchema.optional(),
+  })
+  .strict()
+
+const resourceSchema = z
+  .object({
+    ...audited,
+    type: z.enum(resourceTypes),
+    name: z.string(),
+    actorId: uuidSchema.optional(),
+    role: z.string().optional(),
+    capacityFte: z.number().min(0),
+    projectAvailabilityFte: z.number().min(0),
+  })
+  .strict()
+
+const resourceAssignmentSchema = z
+  .object({
+    ...audited,
+    projectId: uuidSchema,
+    phaseId: uuidSchema.optional(),
+    resourceType: z.enum(resourceTypes),
+    resourceId: uuidSchema.optional(),
+    roleId: uuidSchema.optional(),
+    startDate: localDateSchema,
+    endDate: localDateSchema,
+    allocation: z.number().min(0),
+    allocationMode: z.enum(allocationModes),
   })
   .strict()
 
@@ -362,6 +423,10 @@ export const domainCollectionsSchema = z
     evidence: z.array(evidenceSchema),
     planning: z.array(planningSchema),
     planningDependencies: z.array(planningDependencySchema),
+    projectPhases: z.array(projectPhaseSchema),
+    milestones: z.array(milestoneSchema),
+    resources: z.array(resourceSchema),
+    resourceAssignments: z.array(resourceAssignmentSchema),
     budgets: z.array(budgetSchema),
     budgetMutations: z.array(budgetMutationSchema),
     meetings: z.array(meetingSchema),

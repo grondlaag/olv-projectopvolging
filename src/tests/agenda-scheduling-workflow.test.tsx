@@ -32,7 +32,7 @@ function sessionWithPlannedMeeting() {
   return { ...session, state: normalizeDomainState(records) }
 }
 
-describe("project en topic inplannen voor overleg", () => {
+describe("journaalitems inplannen voor overleg", () => {
   beforeEach(() => {
     useAppStore.getState().reset()
     useAppStore.setState({
@@ -41,83 +41,40 @@ describe("project en topic inplannen voor overleg", () => {
     })
   })
 
-  it("plaatst een project vanuit het dossier op een geldige overlegagenda", async () => {
-    window.location.hash = `#/projects/${testIds.projectOne}`
+  it("koppelt een entry via Eigenschappen aan een overlegcontext", async () => {
+    window.location.hash = `#/projects/${testIds.projectOne}/journal`
     const router = createAppRouter()
     render(<RouterProvider router={router} />)
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: "Projectacties" }),
-    )
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Project bespreken op overleg",
-      }),
-    )
-    const panel = screen.getByRole("dialog", {
-      name: "Bespreken op overleg",
+    const editButton = await screen.findByRole("button", {
+      name: /Inhoud van Topicactie bewerken/,
     })
-    fireEvent.click(
-      within(panel).getByRole("radio", { name: /Projectoverleg januari/ }),
-    )
-    fireEvent.change(
-      within(panel).getByLabelText("Reden of gewenste bespreking"),
-      { target: { value: "Bespreek de actuele projectrisico's." } },
-    )
-    fireEvent.click(
-      within(panel).getByRole("button", { name: "Op agenda plaatsen" }),
-    )
-
-    await waitFor(() =>
-      expect(
-        useAppStore
-          .getState()
-          .session?.state.indices.agendaItemsByObject.get(
-            `Project:${testIds.projectOne}`,
-          ),
-      ).toHaveLength(1),
-    )
-    expect(
-      screen.getByText(
-        "Ingepland voor overleg in de lokale sessie · back-up nodig",
-      ),
-    ).toBeInTheDocument()
-    expect(useAppStore.getState().dirty).toBe(true)
-    router.dispose()
-  })
-
-  it("plaatst een topic vanuit de topicwerkruimte op de overlegagenda", async () => {
-    window.location.hash = `#/projects/${testIds.projectOne}/topics/${testIds.topicCritical}`
-    const router = createAppRouter()
-    render(<RouterProvider router={router} />)
-
-    expect(
-      await screen.findByRole("heading", { name: "Toegang spoed" }),
-    ).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Topicacties" }))
-    fireEvent.click(
-      screen.getByRole("button", { name: "Bespreken op overleg" }),
-    )
-    const panel = screen.getByRole("dialog", {
-      name: "Bespreken op overleg",
+    fireEvent.click(editButton.closest(".journal-entry") as HTMLElement)
+    const panel = screen.getByRole("complementary", {
+      name: "Entry-eigenschappen",
     })
-    fireEvent.click(
-      within(panel).getByRole("radio", { name: /Projectoverleg januari/ }),
-    )
-    fireEvent.click(
-      within(panel).getByRole("button", { name: "Op agenda plaatsen" }),
-    )
+    fireEvent.change(within(panel).getByLabelText("Vergadering kiezen"), {
+      target: { value: meetingId },
+    })
+    fireEvent.click(within(panel).getByRole("button", { name: "+ Voeg toe" }))
 
-    await waitFor(() =>
+    await waitFor(() => {
+      const state = useAppStore.getState().session!.state
       expect(
-        useAppStore
-          .getState()
-          .session?.state.indices.agendaItemsByObject.get(
-            `Topic:${testIds.topicCritical}`,
-          )?.[0],
-      ).toMatchObject({ meetingId, discussionStatus: "Te bespreken" }),
-    )
-    expect(await screen.findByText("1 keer ingepland")).toBeInTheDocument()
+        state.records.evidence.some(
+          (evidence) =>
+            evidence.type === "MeetingLink" &&
+            evidence.objectType === "Action" &&
+            evidence.objectId === "60000000-0000-4000-8000-000000000002",
+        ),
+      ).toBe(true)
+      expect(
+        state.indices.agendaItemsByObject.get(`Topic:${testIds.topicCritical}`),
+      ).toHaveLength(1)
+    })
+    expect(
+      within(panel).getByText("Projectoverleg januari"),
+    ).toBeInTheDocument()
     expect(useAppStore.getState().dirty).toBe(true)
     router.dispose()
   })

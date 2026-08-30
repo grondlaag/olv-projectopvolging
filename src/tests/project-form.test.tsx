@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it } from "vitest"
 import { createAppRouter } from "../app/routing"
 import { useAppStore } from "../app/state/app-store"
 import { normalizeDomainState } from "../application/services"
+import type { LocalDate, UUID } from "../domain"
 import { createPortfolioTestSession, testIds } from "./test-data"
 
 describe("projectformulier met inline beheer", () => {
@@ -107,9 +108,7 @@ describe("projectformulier met inline beheer", () => {
         { timeout: 5_000 },
       ),
     ).toBeInTheDocument()
-    expect(
-      screen.getByText("Bewaard in lokale sessie · back-up nodig"),
-    ).toBeInTheDocument()
+    expect(screen.getByText("Back-up nodig")).toBeInTheDocument()
     expect(useAppStore.getState().dirty).toBe(true)
     expect(useAppStore.getState().session?.state.records.projects).toHaveLength(
       4,
@@ -205,6 +204,68 @@ describe("projectformulier met inline beheer", () => {
         .session?.state.records.clusters.find((item) => item.code === "CL-NEW")
       expect(project?.chapterId).toBe(chapter?.id)
       expect(project?.clusterId).toBe(cluster?.id)
+    })
+    router.dispose()
+  })
+
+  it("migreert een bestaand project via het formulier naar een ander hoofdstuk en cluster", async () => {
+    const session = createPortfolioTestSession()
+    const records = structuredClone(session.state.records)
+    const project = records.projects.find(
+      (item) => item.id === testIds.projectOne,
+    )!
+    const otherChapter = {
+      ...records.chapters[0]!,
+      id: "b1000000-0000-4000-8000-000000000001" as UUID,
+      code: "H-MIG",
+      title: "Migratiehoofdstuk",
+    }
+    const otherCluster = {
+      ...records.clusters[0]!,
+      id: "b2000000-0000-4000-8000-000000000001" as UUID,
+      chapterId: otherChapter.id,
+      code: "CL-MIG",
+      title: "Migratiecluster",
+    }
+    records.chapters.push(otherChapter)
+    records.clusters.push(otherCluster)
+    records.projectClusterHistory.push({
+      id: "b3000000-0000-4000-8000-000000000001" as UUID,
+      projectId: project.id,
+      clusterId: project.clusterId!,
+      validFrom: "2026-01-10" as LocalDate,
+      audit: structuredClone(project.audit),
+    })
+    useAppStore.setState({
+      session: { ...session, state: normalizeDomainState(records) },
+      loadedFileName: "portfolio-test.json",
+    })
+    window.location.hash = `#/projects/${project.id}/edit`
+    const router = createAppRouter()
+    render(<RouterProvider router={router} />)
+
+    fireEvent.change(await screen.findByLabelText("Hoofdstuk"), {
+      target: { value: otherChapter.id },
+    })
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Cluster/)).toHaveValue(""),
+    )
+    fireEvent.change(screen.getByLabelText(/Cluster/), {
+      target: { value: otherCluster.id },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Wijzigingen opslaan" }))
+
+    await waitFor(() => {
+      const state = useAppStore.getState().session!.state
+      expect(state.indices.projectById.get(project.id)).toMatchObject({
+        chapterId: otherChapter.id,
+        clusterId: otherCluster.id,
+      })
+      const history =
+        state.indices.projectClusterHistoryByProject.get(project.id) ?? []
+      expect(history).toHaveLength(2)
+      expect(history[0]?.validTo).toBeDefined()
+      expect(history[1]).toMatchObject({ clusterId: otherCluster.id })
     })
     router.dispose()
   })

@@ -1,11 +1,12 @@
 import type {
   Action,
-  ActionHistory,
   AuditFields,
   DateTime,
   Evidence,
   LocalDate,
+  Priority,
   Topic,
+  TopicStatus,
   Update,
   UUID,
 } from "../../domain"
@@ -36,10 +37,37 @@ export interface JournalMutationResult<T = unknown> {
   message: string
 }
 
+export interface JournalEntryEditInput {
+  content: string
+  status?: Action["status"]
+  ownerActorId?: UUID
+  dueDate?: LocalDate
+  priority?: Priority
+  requestedFromIds?: readonly UUID[]
+  decisionRequestStatus?: DecisionRequestPayload["status"]
+}
+
+interface MeetingLinkPayload {
+  projectId: UUID
+  meetingId: UUID
+  agendaItemId: UUID
+  meetingDate: LocalDate
+  status: "discussed"
+  createdAt: string
+}
+
+export interface JournalTopicEditInput {
+  title: string
+  status: TopicStatus
+  ownerActorId?: UUID
+  priority: Priority
+}
+
 export interface ParsedJournalCommand {
   name:
     | "update"
     | "action"
+    | "decision_request"
     | "decision"
     | "topic"
     | "plan"
@@ -52,8 +80,14 @@ export interface ParsedJournalCommand {
 }
 
 export const journalCommands = [
+  { command: "/update", description: "Schrijf een gewone update" },
   { command: "/actie", description: "Maak een open actie" },
   { command: "/besluit", description: "Leg een beslissing vast" },
+  { command: "/beslissing", description: "Leg een beslissing vast" },
+  {
+    command: "/beslissing-nodig",
+    description: "Voeg een open beslissingsvraag toe",
+  },
   { command: "/topic", description: "Maak een nieuw topic" },
   { command: "/plan", description: "Plan dit topic" },
   { command: "/sluit", description: "Sluit dit topic" },
@@ -87,16 +121,22 @@ function activeActorId(state: NormalizedDomainState): UUID {
 }
 
 function nextTopicCode(state: NormalizedDomainState, projectId: UUID): string {
-  const used = new Set(
-    (state.indices.topicsByProject.get(projectId) ?? []).map(
-      (topic) => topic.code,
-    ),
+  const projectTopics = state.records.topics.filter(
+    (topic) => topic.projectId === projectId,
   )
-  let sequence = used.size + 1
-  let code = `TOP-${String(sequence).padStart(3, "0")}`
+  const used = new Set(projectTopics.map((topic) => topic.code))
+  let sequence =
+    Math.max(
+      0,
+      ...projectTopics.map((topic) => {
+        const match = /(?:TOP|T)-(\d+)$/i.exec(topic.code)
+        return match ? Number(match[1]) : topic.order
+      }),
+    ) + 1
+  let code = `T-${String(sequence).padStart(3, "0")}`
   while (used.has(code)) {
     sequence += 1
-    code = `TOP-${String(sequence).padStart(3, "0")}`
+    code = `T-${String(sequence).padStart(3, "0")}`
   }
   return code
 }
@@ -132,8 +172,11 @@ export function parseJournalCommand(value: string): ParsedJournalCommand {
   const [rawCommand = "", ...argumentsList] = text.split(/\s+/)
   const content = argumentsList.join(" ").trim()
   const names: Record<string, ParsedJournalCommand["name"]> = {
+    "/update": "update",
     "/actie": "action",
     "/besluit": "decision",
+    "/beslissing": "decision",
+    "/beslissing-nodig": "decision_request",
     "/topic": "topic",
     "/plan": "plan",
     "/sluit": "close",
@@ -170,6 +213,28 @@ function relationEvidence(
   }
 }
 
+function historyEvidence(
+  objectType: "Topic" | "Update" | "Action" | "Evidence",
+  objectId: UUID,
+  event: string,
+  details: Record<string, unknown>,
+  now: Date,
+  actorId: UUID,
+  createUuid: () => UUID,
+): Evidence {
+  return {
+    id: createUuid(),
+    objectType,
+    objectId,
+    type: "JournalHistory",
+    title: event,
+    description: JSON.stringify({ event, ...details }),
+    date: todayAsLocalDate(now) as LocalDate,
+    authorActorId: actorId,
+    audit: auditFields(now, actorId),
+  }
+}
+
 export class ProjectJournalService {
   private readonly topicService = new TopicManagementService()
   private readonly updateService = new UpdateManagementService()
@@ -192,6 +257,18 @@ export class ProjectJournalService {
     }
     const now = options.now ?? new Date()
     const actorId = activeActorId(state)
+    if (type === "decision_request") {
+      return this.addDecisionRequest(
+        state,
+        topic.projectId,
+        "Topic",
+        topic.id,
+        text,
+        [],
+        undefined,
+        options,
+      )
+    }
     if (type === "action") {
       const result = this.actionService.createAction(
         state,
@@ -244,6 +321,7 @@ export class ProjectJournalService {
     if (
       command.name === "update" ||
       command.name === "action" ||
+      command.name === "decision_request" ||
       command.name === "decision"
     ) {
       return this.addEntry(
@@ -332,6 +410,112 @@ export class ProjectJournalService {
     throw new Error("Selecteer eerst een entry om die te verplaatsen.")
   }
 
+  executeMeetingComposer(
+    state: NormalizedDomainState,
+    agendaItemId: UUID,
+    rawValue: string,
+    options: JournalMutationOptions = {},
+  ): JournalMutationResult {
+    const agendaItem = state.indices.agendaItemById.get(agendaItemId)
+    if (!agendaItem?.audit.active) throw new Error("Agendapunt niet gevonden.")
+    const meeting = state.indices.meetingById.get(agendaItem.meetingId)
+    if (!meeting?.audit.active) throw new Error("Overleg niet gevonden.")
+    if (agendaItem.objectType !== "Topic" || !agendaItem.objectId) {
+      throw new Error(
+        "Koppel dit agendapunt aan een projecttopic om journaalbijdragen toe te voegen.",
+      )
+    }
+    const topic = state.indices.topicById.get(agendaItem.objectId)
+    if (!topic?.projectId || !topic.audit.active) {
+      throw new Error("Het gekoppelde projecttopic bestaat niet meer.")
+    }
+    const command = parseJournalCommand(rawValue)
+    if (
+      command.name !== "update" &&
+      command.name !== "action" &&
+      command.name !== "decision" &&
+      command.name !== "decision_request"
+    ) {
+      throw new Error(
+        "Gebruik hier /update, /actie, /besluit of /beslissing-nodig.",
+      )
+    }
+
+    const now = options.now ?? new Date()
+    const actorId = activeActorId(state)
+    const created = this.addEntry(
+      state,
+      topic.id,
+      command.name,
+      command.content,
+      options,
+    )
+    const record = created.record as Update | Action | Evidence | undefined
+    if (!record) throw new Error("De bijdrage kon niet worden aangemaakt.")
+    const records = cloneDomainCollections(created.state.records)
+    const updateIndex = records.updates.findIndex(
+      (item) => item.id === record.id,
+    )
+    const actionIndex = records.actions.findIndex(
+      (item) => item.id === record.id,
+    )
+    const evidenceIndex = records.evidence.findIndex(
+      (item) => item.id === record.id,
+    )
+    let objectType: "Update" | "Action" | "Evidence"
+    if (updateIndex >= 0) {
+      records.updates[updateIndex] = {
+        ...records.updates[updateIndex]!,
+        meetingId: meeting.id,
+        date: meeting.date,
+      }
+      objectType = "Update"
+    } else if (actionIndex >= 0) {
+      records.actions[actionIndex] = {
+        ...records.actions[actionIndex]!,
+        sourceMeetingId: meeting.id,
+      }
+      objectType = "Action"
+    } else if (evidenceIndex >= 0) {
+      records.evidence[evidenceIndex] = {
+        ...records.evidence[evidenceIndex]!,
+        date: meeting.date,
+      }
+      objectType = "Evidence"
+    } else {
+      throw new Error("De aangemaakte bijdrage kon niet worden gekoppeld.")
+    }
+
+    const payload: MeetingLinkPayload = {
+      projectId: topic.projectId,
+      meetingId: meeting.id,
+      agendaItemId: agendaItem.id,
+      meetingDate: meeting.date,
+      status: "discussed",
+      createdAt: now.toISOString(),
+    }
+    records.evidence.push({
+      id: (options.createUuid ?? defaultUuid)(),
+      objectType,
+      objectId: record.id,
+      type: "MeetingLink",
+      title: `Besproken in ${meeting.title}`,
+      description: JSON.stringify(payload),
+      date: meeting.date,
+      authorActorId: actorId,
+      audit: auditFields(now, actorId),
+    })
+    const nextState = normalizeDomainState(records)
+    return {
+      state: nextState,
+      record:
+        nextState.indices.updateById.get(record.id) ??
+        nextState.indices.actionById.get(record.id) ??
+        nextState.records.evidence.find((item) => item.id === record.id),
+      message: created.message,
+    }
+  }
+
   createTopic(
     state: NormalizedDomainState,
     projectId: UUID,
@@ -361,6 +545,297 @@ export class ProjectJournalService {
     }
   }
 
+  editTopic(
+    state: NormalizedDomainState,
+    topicId: UUID,
+    input: JournalTopicEditInput,
+    options: JournalMutationOptions = {},
+  ): JournalMutationResult<Topic> {
+    const existing = state.indices.topicById.get(topicId)
+    if (!existing?.audit.active) throw new Error("Topic niet gevonden.")
+    const now = options.now ?? new Date()
+    const actorId = activeActorId(state)
+    const createUuid = options.createUuid ?? defaultUuid
+    let result = this.topicService.updateTopic(
+      state,
+      topicId,
+      {
+        parentType: existing.parentType,
+        ...(existing.projectId ? { projectId: existing.projectId } : {}),
+        ...(existing.clusterId ? { clusterId: existing.clusterId } : {}),
+        code: existing.code,
+        title: input.title,
+        context: existing.context || input.title,
+        ...(input.ownerActorId ? { ownerActorId: input.ownerActorId } : {}),
+        priority: input.priority,
+      },
+      options,
+    )
+    if (result.record.status !== input.status) {
+      result = this.topicService.setTopicStatus(
+        result.state,
+        topicId,
+        input.status,
+        options,
+      )
+    }
+    const changes = {
+      ...(existing.title !== result.record.title
+        ? { title: [existing.title, result.record.title] }
+        : {}),
+      ...(existing.status !== result.record.status
+        ? { status: [existing.status, result.record.status] }
+        : {}),
+      ...(existing.ownerActorId !== result.record.ownerActorId
+        ? { owner: [existing.ownerActorId, result.record.ownerActorId] }
+        : {}),
+      ...(existing.priority !== result.record.priority
+        ? { priority: [existing.priority, result.record.priority] }
+        : {}),
+    }
+    if (!Object.keys(changes).length) {
+      return { state, record: existing, message: "Geen wijzigingen" }
+    }
+    const records = cloneDomainCollections(result.state.records)
+    records.evidence.push(
+      historyEvidence(
+        "Topic",
+        topicId,
+        existing.status !== result.record.status
+          ? result.record.status === "Open"
+            ? "topic reopened"
+            : "topic closed"
+          : "edited",
+        { changes },
+        now,
+        actorId,
+        createUuid,
+      ),
+    )
+    return {
+      state: normalizeDomainState(records),
+      record: result.record,
+      message: "Topic opgeslagen",
+    }
+  }
+
+  editEntry(
+    state: NormalizedDomainState,
+    entryId: UUID,
+    input: JournalEntryEditInput,
+    options: JournalMutationOptions = {},
+  ): JournalMutationResult {
+    const content = input.content.trim()
+    if (!content) throw new Error("Inhoud mag niet leeg zijn.")
+    const update = state.indices.updateById.get(entryId)
+    const action = state.indices.actionById.get(entryId)
+    const request = state.records.evidence.find(
+      (item) =>
+        item.id === entryId &&
+        item.type === "DecisionRequest" &&
+        item.audit.active,
+    )
+    const now = options.now ?? new Date()
+    const actorId = activeActorId(state)
+    const createUuid = options.createUuid ?? defaultUuid
+    if (action?.audit.active) {
+      const result = this.actionService.updateAction(
+        state,
+        action.id,
+        {
+          title: content,
+          ...(action.description ? { description: action.description } : {}),
+          ownerActorId: input.ownerActorId ?? action.ownerActorId,
+          ...(input.dueDate ? { deadline: input.dueDate } : {}),
+          status: input.status ?? action.status,
+          priority: input.priority ?? action.priority,
+        },
+        options,
+      )
+      return { ...result, message: "Actie opgeslagen" }
+    }
+    if (update?.audit.active) {
+      const records = cloneDomainCollections(state.records)
+      const index = records.updates.findIndex((item) => item.id === entryId)
+      records.updates[index] = {
+        ...update,
+        text: content,
+        audit: {
+          ...update.audit,
+          updatedAt: now.toISOString() as DateTime,
+          updatedByActorId: actorId,
+        },
+      }
+      records.evidence.push(
+        historyEvidence(
+          "Update",
+          update.id,
+          "edited",
+          {},
+          now,
+          actorId,
+          createUuid,
+        ),
+      )
+      return {
+        state: normalizeDomainState(records),
+        record: records.updates[index],
+        message: "Bijdrage opgeslagen",
+      }
+    }
+    if (request?.description) {
+      const payload = JSON.parse(request.description) as DecisionRequestPayload
+      const records = cloneDomainCollections(state.records)
+      const index = records.evidence.findIndex((item) => item.id === entryId)
+      records.evidence[index] = {
+        ...request,
+        title: content,
+        description: JSON.stringify({
+          ...payload,
+          requestedFromIds: input.requestedFromIds
+            ? [...input.requestedFromIds]
+            : payload.requestedFromIds,
+          ...(input.dueDate ? { dueDate: input.dueDate } : {}),
+          status: input.decisionRequestStatus ?? payload.status,
+        } satisfies DecisionRequestPayload),
+        audit: {
+          ...request.audit,
+          updatedAt: now.toISOString() as DateTime,
+          updatedByActorId: actorId,
+        },
+      }
+      records.evidence.push(
+        historyEvidence(
+          "Evidence",
+          request.id,
+          "edited",
+          {},
+          now,
+          actorId,
+          createUuid,
+        ),
+      )
+      return {
+        state: normalizeDomainState(records),
+        record: records.evidence[index],
+        message: "Beslissingsvraag opgeslagen",
+      }
+    }
+    throw new Error("Entry niet gevonden.")
+  }
+
+  linkToMeeting(
+    state: NormalizedDomainState,
+    projectId: UUID,
+    topicId: UUID,
+    objectType: "Topic" | "Update" | "Action" | "Evidence",
+    objectId: UUID,
+    meetingId: UUID,
+    options: JournalMutationOptions = {},
+  ): JournalMutationResult<Evidence> {
+    const topic = state.indices.topicById.get(topicId)
+    const meeting = state.indices.meetingById.get(meetingId)
+    if (!topic?.audit.active || topic.projectId !== projectId) {
+      throw new Error("Topic niet gevonden.")
+    }
+    if (!meeting?.audit.active || meeting.status !== "Concept") {
+      throw new Error("Kies een actief conceptoverleg.")
+    }
+    if (
+      !this.meetingService.isAgendaObjectRelevant(
+        state,
+        meetingId,
+        "Topic",
+        topicId,
+      )
+    ) {
+      throw new Error(
+        "Dit overleg valt buiten de projectcontext van het topic.",
+      )
+    }
+    const existingLink = state.records.evidence.find((item) => {
+      if (
+        !item.audit.active ||
+        item.type !== "MeetingLink" ||
+        item.objectType !== objectType ||
+        item.objectId !== objectId ||
+        !item.description
+      ) {
+        return false
+      }
+      try {
+        return (
+          (JSON.parse(item.description) as { meetingId?: UUID }).meetingId ===
+          meetingId
+        )
+      } catch {
+        return false
+      }
+    })
+    if (existingLink) {
+      return {
+        state,
+        record: existingLink,
+        message: "Overleg was al gekoppeld",
+      }
+    }
+    let workingState = state
+    const topicAlreadyScheduled = (
+      state.indices.agendaItemsByObject.get(`Topic:${topicId}`) ?? []
+    ).some((item) => item.audit.active && item.meetingId === meetingId)
+    if (!topicAlreadyScheduled) {
+      workingState = this.meetingService.saveAgendaItem(
+        state,
+        meetingId,
+        {
+          title: `${topic.code} ${topic.title}`,
+          reason: "Gekoppeld vanuit projectjournaal",
+          objectType: "Topic",
+          objectId: topicId,
+          discussionStatus: "Te bespreken",
+        },
+        undefined,
+        options,
+      ).state
+    }
+    const now = options.now ?? new Date()
+    const actorId = activeActorId(workingState)
+    const link: Evidence = {
+      id: (options.createUuid ?? defaultUuid)(),
+      objectType,
+      objectId,
+      type: "MeetingLink",
+      title: meeting.title,
+      description: JSON.stringify({
+        projectId,
+        meetingId,
+        status: "scheduled",
+        createdAt: now.toISOString(),
+      }),
+      date: todayAsLocalDate(now) as LocalDate,
+      authorActorId: actorId,
+      audit: auditFields(now, actorId),
+    }
+    const records = cloneDomainCollections(workingState.records)
+    records.evidence.push(link)
+    records.evidence.push(
+      historyEvidence(
+        objectType,
+        objectId,
+        "meeting linked",
+        { meetingId },
+        now,
+        actorId,
+        options.createUuid ?? defaultUuid,
+      ),
+    )
+    return {
+      state: normalizeDomainState(records),
+      record: link,
+      message: `Gekoppeld aan ${meeting.title}`,
+    }
+  }
+
   convertEntry(
     state: NormalizedDomainState,
     entryId: UUID,
@@ -369,14 +844,23 @@ export class ProjectJournalService {
   ): JournalMutationResult {
     const update = state.indices.updateById.get(entryId)
     const action = state.indices.actionById.get(entryId)
+    const request = state.records.evidence.find(
+      (item) =>
+        item.id === entryId &&
+        item.type === "DecisionRequest" &&
+        item.audit.active,
+    )
     const activeUpdate = update?.audit.active ? update : undefined
     const activeAction = action?.audit.active ? action : undefined
-    if (!activeUpdate && !activeAction) throw new Error("Entry niet gevonden.")
+    if (!activeUpdate && !activeAction && !request)
+      throw new Error("Entry niet gevonden.")
     const currentType: JournalEntryType = activeAction
       ? "action"
-      : activeUpdate?.type === "Beslissing"
-        ? "decision"
-        : "update"
+      : request
+        ? "decision_request"
+        : activeUpdate?.type === "Beslissing"
+          ? "decision"
+          : "update"
     if (currentType === targetType)
       return { state, message: "Type ongewijzigd" }
     const now = options.now ?? new Date()
@@ -384,6 +868,7 @@ export class ProjectJournalService {
     const actorId = activeActorId(state)
     const createUuid = options.createUuid ?? defaultUuid
     const records = cloneDomainCollections(state.records)
+
     if (
       activeUpdate &&
       (targetType === "update" || targetType === "decision")
@@ -398,100 +883,203 @@ export class ProjectJournalService {
           updatedByActorId: actorId,
         },
       }
-    } else if (targetType === "action") {
-      const source = activeUpdate!
-      const existingIndex = records.actions.findIndex(
-        (item) => item.id === entryId,
-      )
-      const previous =
-        existingIndex >= 0 ? records.actions[existingIndex] : undefined
-      const converted: Action = {
-        id: entryId,
-        objectType: source.objectType === "Topic" ? "Topic" : "Project",
-        objectId: source.objectId,
-        code: previous?.code ?? nextActionCode(state),
-        title: source.text,
-        ownerActorId: previous?.ownerActorId ?? actorId,
-        ...(previous?.deadline ? { deadline: previous.deadline } : {}),
-        status:
-          previous?.status === "Afgerond"
-            ? "Open"
-            : (previous?.status ?? "Open"),
-        priority: previous?.priority ?? "Normaal",
-        audit: {
-          ...source.audit,
-          updatedAt: timestamp,
-          updatedByActorId: actorId,
-          active: true,
-        },
-      }
-      if (existingIndex >= 0) records.actions[existingIndex] = converted
-      else records.actions.push(converted)
-      const updateIndex = records.updates.findIndex(
-        (item) => item.id === entryId,
-      )
-      records.updates[updateIndex] = {
-        ...source,
-        audit: {
-          ...source.audit,
-          updatedAt: timestamp,
-          updatedByActorId: actorId,
-          active: false,
-        },
-      }
     } else {
-      const source = activeAction!
-      const existingIndex = records.updates.findIndex(
-        (item) => item.id === entryId,
-      )
-      const converted: Update = {
-        id: entryId,
-        objectType: source.objectType,
-        objectId: source.objectId,
-        type:
-          targetType === "decision"
-            ? ("Beslissing" as const)
-            : ("Update" as const),
-        date: todayAsLocalDate(now) as LocalDate,
-        authorActorId: source.audit.createdByActorId ?? actorId,
-        text: source.title,
-        audit: {
-          ...source.audit,
-          updatedAt: timestamp,
-          updatedByActorId: actorId,
-          active: true,
-        },
+      const requestParent = request
+        ? request.objectType === "Topic"
+          ? { objectType: "Topic" as const, objectId: request.objectId }
+          : request.objectType === "Update"
+            ? state.indices.updateById.get(request.objectId)
+            : request.objectType === "Action"
+              ? state.indices.actionById.get(request.objectId)
+              : undefined
+        : undefined
+      const objectType =
+        activeUpdate?.objectType ??
+        activeAction?.objectType ??
+        requestParent?.objectType
+      const objectId =
+        activeUpdate?.objectId ??
+        activeAction?.objectId ??
+        requestParent?.objectId
+      if (
+        !objectId ||
+        (objectType !== "Project" &&
+          objectType !== "Cluster" &&
+          objectType !== "Topic" &&
+          objectType !== "Meeting")
+      ) {
+        throw new Error("De broncontext van deze entry is niet meer geldig.")
       }
-      if (existingIndex >= 0) records.updates[existingIndex] = converted
-      else records.updates.push(converted)
-      const actionIndex = records.actions.findIndex(
-        (item) => item.id === entryId,
+      const content =
+        activeUpdate?.text ?? activeAction?.title ?? request!.title
+      const sourceAudit =
+        activeUpdate?.audit ?? activeAction?.audit ?? request!.audit
+      const newId = createUuid()
+      let converted: Update | Action | Evidence
+      if (targetType === "action") {
+        const topic =
+          objectType === "Topic"
+            ? state.indices.topicById.get(objectId)
+            : undefined
+        converted = {
+          id: newId,
+          objectType,
+          objectId,
+          code: nextActionCode(state),
+          title: content,
+          ownerActorId:
+            activeAction?.ownerActorId ?? topic?.ownerActorId ?? actorId,
+          ...(activeAction?.deadline
+            ? { deadline: activeAction.deadline }
+            : {}),
+          status: "Open",
+          priority: activeAction?.priority ?? topic?.priority ?? "Normaal",
+          audit: {
+            ...sourceAudit,
+            updatedAt: timestamp,
+            updatedByActorId: actorId,
+            active: true,
+          },
+        } satisfies Action
+        records.actions.push(converted)
+      } else if (targetType === "decision_request") {
+        const projectId =
+          objectType === "Project"
+            ? objectId
+            : objectType === "Topic"
+              ? state.indices.topicById.get(objectId)?.projectId
+              : undefined
+        if (!projectId) throw new Error("Projectcontext niet gevonden.")
+        converted = {
+          id: newId,
+          objectType:
+            objectType === "Topic"
+              ? "Topic"
+              : activeAction
+                ? "Action"
+                : "Update",
+          objectId: objectType === "Topic" ? objectId : entryId,
+          type: "DecisionRequest",
+          title: content,
+          description: JSON.stringify({
+            projectId,
+            requestedFromIds: [],
+            requestedAt: sourceAudit.createdAt,
+            status: "pending",
+          } satisfies DecisionRequestPayload),
+          date: sourceAudit.createdAt.slice(0, 10) as LocalDate,
+          authorActorId: sourceAudit.createdByActorId ?? actorId,
+          audit: {
+            ...sourceAudit,
+            updatedAt: timestamp,
+            updatedByActorId: actorId,
+            active: true,
+          },
+        } satisfies Evidence
+        records.evidence.push(converted)
+      } else {
+        converted = {
+          id: newId,
+          objectType,
+          objectId,
+          type: targetType === "decision" ? "Beslissing" : "Update",
+          date: sourceAudit.createdAt.slice(0, 10) as LocalDate,
+          authorActorId:
+            activeUpdate?.authorActorId ??
+            sourceAudit.createdByActorId ??
+            actorId,
+          text: content,
+          audit: {
+            ...sourceAudit,
+            updatedAt: timestamp,
+            updatedByActorId: actorId,
+            active: true,
+          },
+        } satisfies Update
+        records.updates.push(converted)
+      }
+
+      if (activeUpdate) {
+        const index = records.updates.findIndex(
+          (item) => item.id === activeUpdate.id,
+        )
+        records.updates[index] = {
+          ...activeUpdate,
+          audit: {
+            ...activeUpdate.audit,
+            updatedAt: timestamp,
+            updatedByActorId: actorId,
+            active: false,
+          },
+        }
+      }
+      if (activeAction) {
+        const index = records.actions.findIndex(
+          (item) => item.id === activeAction.id,
+        )
+        records.actions[index] = {
+          ...activeAction,
+          audit: {
+            ...activeAction.audit,
+            updatedAt: timestamp,
+            updatedByActorId: actorId,
+            active: false,
+          },
+        }
+      }
+      if (request) {
+        const index = records.evidence.findIndex(
+          (item) => item.id === request.id,
+        )
+        records.evidence[index] = {
+          ...request,
+          audit: {
+            ...request.audit,
+            updatedAt: timestamp,
+            updatedByActorId: actorId,
+            active: false,
+          },
+        }
+      }
+      records.evidence.push(
+        historyEvidence(
+          targetType === "decision_request"
+            ? "Evidence"
+            : targetType === "action"
+              ? "Action"
+              : "Update",
+          converted.id,
+          "type changed",
+          {
+            previousType: currentType,
+            newType: targetType,
+            sourceEntryId: entryId,
+          },
+          now,
+          actorId,
+          createUuid,
+        ),
       )
-      records.actions[actionIndex] = {
-        ...source,
-        audit: {
-          ...source.audit,
-          updatedAt: timestamp,
-          updatedByActorId: actorId,
-          active: false,
-        },
+      return {
+        state: normalizeDomainState(records),
+        record: converted,
+        message: `Entry gewijzigd naar ${targetType}`,
       }
     }
-    const history: ActionHistory = {
-      id: createUuid(),
-      actionId: entryId,
-      changedAt: timestamp,
-      changedByActorId: actorId,
-      field: "currentType",
-      previousValue: currentType,
-      newValue: targetType,
-      reason: "Inline gewijzigd in projectjournaal",
-      audit: auditFields(now, actorId),
-    }
-    records.actionHistory.push(history)
+    records.evidence.push(
+      historyEvidence(
+        "Update",
+        entryId,
+        "type changed",
+        { previousType: currentType, newType: targetType },
+        now,
+        actorId,
+        createUuid,
+      ),
+    )
     return {
       state: normalizeDomainState(records),
-      record: history,
+      record: records.updates.find((item) => item.id === entryId),
       message: `Entry gewijzigd naar ${targetType}`,
     }
   }

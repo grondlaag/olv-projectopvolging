@@ -14,6 +14,10 @@ export const objectTypes = [
   "Action",
   "Evidence",
   "PlanningEntry",
+  "ProjectPhase",
+  "Milestone",
+  "Resource",
+  "ResourceAssignment",
   "BudgetRecord",
   "Meeting",
   "Report",
@@ -59,6 +63,45 @@ export const projectSizeFte: Readonly<Record<ProjectSize, number>> = {
   XL: 1.5,
   XXL: 2,
 }
+
+export const projectPlanningStatuses = [
+  "Niet gepland",
+  "Op schema",
+  "Aandacht",
+  "Vertraagd",
+  "Afgerond",
+] as const
+export type ProjectPlanningStatus = (typeof projectPlanningStatuses)[number]
+
+export const phaseIntensities = ["Laag", "Normaal", "Hoog", "Piek"] as const
+export type PhaseIntensity = (typeof phaseIntensities)[number]
+export const phaseIntensityFactors: Readonly<Record<PhaseIntensity, number>> = {
+  Laag: 0.5,
+  Normaal: 1,
+  Hoog: 1.5,
+  Piek: 2,
+}
+
+export const milestoneStatuses = [
+  "Gepland",
+  "Behaald",
+  "Gemist",
+  "Geannuleerd",
+] as const
+export type MilestoneStatus = (typeof milestoneStatuses)[number]
+
+export const resourceTypes = [
+  "human",
+  "role",
+  "team",
+  "external_party",
+  "space",
+  "equipment",
+] as const
+export type ResourceType = (typeof resourceTypes)[number]
+
+export const allocationModes = ["fte", "hours", "total", "indicative"] as const
+export type AllocationMode = (typeof allocationModes)[number]
 
 export const topicStatuses = ["Open", "Afgesloten", "Geannuleerd"] as const
 export type TopicStatus = (typeof topicStatuses)[number]
@@ -159,6 +202,8 @@ export const agendaDiscussionStatuses = [
   "Te bespreken",
   "Besproken",
   "Doorgeschoven",
+  "Ter info",
+  "Geannuleerd",
 ] as const
 export type AgendaDiscussionStatus = (typeof agendaDiscussionStatuses)[number]
 

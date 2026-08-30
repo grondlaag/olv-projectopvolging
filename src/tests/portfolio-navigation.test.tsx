@@ -1,13 +1,17 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import { RouterProvider } from "react-router-dom"
-import { describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it } from "vitest"
 import { createAppRouter } from "../app/routing"
 import { useAppStore } from "../app/state/app-store"
 import { createPortfolioTestSession, testIds } from "./test-data"
 
 describe("portfolio- en projectnavigatie", () => {
-  it("opent een project met één klik op de typed projectregel", async () => {
+  beforeEach(() => {
+    useAppStore.getState().reset()
     useAppStore.setState({ session: createPortfolioTestSession() })
+  })
+
+  it("opent een project met één klik op de typed projectregel", async () => {
     window.location.hash = "#/portfolio?weergave=all"
     const router = createAppRouter()
     render(<RouterProvider router={router} />)
@@ -25,12 +29,11 @@ describe("portfolio- en projectnavigatie", () => {
         name: "Renovatie verpleegafdeling",
       }),
     ).toBeInTheDocument()
-    expect(screen.getByText("Open topics")).toBeInTheDocument()
+    expect(screen.getByText("Actieve topics")).toBeInTheDocument()
     router.dispose()
   })
 
   it("opent een geldige project-hashroute rechtstreeks", async () => {
-    useAppStore.setState({ session: createPortfolioTestSession() })
     window.location.hash = `#/projects/${testIds.projectThree}`
     const router = createAppRouter()
     render(<RouterProvider router={router} />)
@@ -41,7 +44,7 @@ describe("portfolio- en projectnavigatie", () => {
         name: "Beleidsproject energie",
       }),
     ).toBeInTheDocument()
-    expect(screen.getAllByText("Zonder cluster").length).toBeGreaterThan(0)
+    expect(screen.getByText("Actieve topics")).toBeInTheDocument()
     router.dispose()
   })
 })

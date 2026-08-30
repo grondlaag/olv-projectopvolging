@@ -27,8 +27,14 @@ worktree is uitgevoerd.
 
 Pure domein- en applicationlogica:
 
-- project- en clusterinvarianten plus clusterhistoriek;
+- project- en clusterinvarianten plus clusterhistoriek, inclusief migratie naar
+  een cluster in een ander hoofdstuk zonder exportblokkering;
 - topics, current update, journaal en beslissingen;
+- vaste topicsortering op aanmaakdatum, oplopende `T-###`-codes en behoud van
+  entrypositie bij typewissel;
+- multiline Markdown en één chronologische stroom met update, actie,
+  beslissingsvraag en beslissing;
+- meerdere entryspecifieke overlegkoppelingen via dezelfde bronrecords;
 - expliciete actieve auteurkeuze, onderscheid tussen auteur en auditactor en
   update-invoer zonder ingestelde huidige actor;
 - acties en append-only historie;
@@ -39,14 +45,17 @@ Pure domein- en applicationlogica:
 - contextueel project/topic op een geldige overlegagenda plaatsen en duplicaten
   blokkeren;
 - verplichte project/topicbron, gegroepeerde agenda en leesbare legacy-punten;
-- universele invoerkaart voor update, beslissing en actie;
+- directe overlegcomposer voor update, actie, beslissing en beslissingsvraag,
+  met dezelfde bronrecords en `meetingId`/`agendaItemId`-context als het
+  Project Journaal;
 - Outlook-HTML en geldige PDF-bytes voor agenda en verslag;
 - instellingen, duplicaten en veilige deactivatie;
 - normalized indices en selectors.
 - progressive-disclosurecomponenten: gesloten standaardtoestand, zichtbare
   filterchips, toegankelijke composer, KPI-semantiek, overflow en zijpanelen;
-- directe overlegbediening voor focusmodus en `Punt besproken` via de bestaande
-  agenda-service.
+- directe overlegbediening voor compacte puntnavigatie, alle vijf
+  bespreekstatussen en een standaard gesloten eigenschappenpaneel via de
+  bestaande agenda- en journaalservices.
 
 ### Integratie
 

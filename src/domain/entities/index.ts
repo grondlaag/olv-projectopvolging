@@ -10,15 +10,20 @@ import type {
   LocalDate,
   MeetingScopeType,
   MeetingStatus,
+  MilestoneStatus,
   ObjectType,
   PlanningDependencyType,
   PlanningKind,
   PlanningStatus,
+  PhaseIntensity,
   Priority,
   ProjectStatus,
   ProjectSize,
+  ProjectPlanningStatus,
   RecordStatus,
   ReportStatus,
+  ResourceType,
+  AllocationMode,
   TopicParentType,
   TopicStatus,
   UUID,
@@ -67,6 +72,7 @@ export interface Project extends AuditedEntity {
   actualEndDate?: LocalDate
   progressPercent?: number
   size?: ProjectSize
+  planningStatus?: ProjectPlanningStatus
   currentUpdateId?: UUID
   documentsUrl?: string
 }
@@ -166,6 +172,49 @@ export interface PlanningDependency extends AuditedEntity {
   predecessorPlanningId: UUID
   successorPlanningId: UUID
   type: PlanningDependencyType
+}
+
+export interface ProjectPhase extends AuditedEntity {
+  projectId: UUID
+  name: string
+  startDate: LocalDate
+  endDate: LocalDate
+  status: PlanningStatus
+  progressPercent: number
+  ownerActorId?: UUID
+  intensity: PhaseIntensity
+  dependsOnPhaseId?: UUID
+  order: number
+}
+
+export interface Milestone extends AuditedEntity {
+  projectId: UUID
+  phaseId?: UUID
+  name: string
+  date: LocalDate
+  status: MilestoneStatus
+  ownerActorId?: UUID
+}
+
+export interface Resource extends AuditedEntity {
+  type: ResourceType
+  name: string
+  actorId?: UUID
+  role?: string
+  capacityFte: number
+  projectAvailabilityFte: number
+}
+
+export interface ResourceAssignment extends AuditedEntity {
+  projectId: UUID
+  phaseId?: UUID
+  resourceType: ResourceType
+  resourceId?: UUID
+  roleId?: UUID
+  startDate: LocalDate
+  endDate: LocalDate
+  allocation: number
+  allocationMode: AllocationMode
 }
 
 export interface BudgetRecord extends AuditedEntity {

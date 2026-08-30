@@ -219,12 +219,12 @@ describe("overlegwerkruimte", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Verwerken/ }))
     expect(window.location.hash).toContain("modus=process")
     fireEvent.click(screen.getByLabelText(/Anna/))
-    fireEvent.click(screen.getByRole("button", { name: "Focusmodus" }))
     expect(
-      screen.getByRole("button", { name: "Overzicht tonen" }),
-    ).toHaveAttribute("aria-pressed", "true")
-    fireEvent.click(screen.getByRole("button", { name: "Overzicht tonen" }))
-    fireEvent.click(screen.getByRole("button", { name: "Punt besproken" }))
+      screen.getByRole("button", { name: "Agenda openen" }),
+    ).toHaveAttribute("aria-pressed", "false")
+    fireEvent.change(screen.getByLabelText("Agendastatus"), {
+      target: { value: "Besproken" },
+    })
     expect(
       useAppStore
         .getState()
@@ -239,36 +239,27 @@ describe("overlegwerkruimte", () => {
         .getState()
         .session?.state.indices.topicById.get(testIds.topicCritical)?.status,
     ).toBe("Afgesloten")
-    const composer = screen.getByRole("form", {
-      name: /Bijdrage toevoegen aan TOP-001/,
+    const composer = screen.getByPlaceholderText("Schrijf verder…")
+    fireEvent.change(composer, {
+      target: { value: "Toegang is technisch gevalideerd." },
     })
-    fireEvent.change(
-      within(composer).getByPlaceholderText(/Wat is er gewijzigd/),
-      {
-        target: { value: "Toegang is technisch gevalideerd." },
-      },
-    )
-    fireEvent.click(
-      within(composer).getByRole("button", { name: "Update opslaan" }),
-    )
+    fireEvent.keyDown(composer, { key: "Enter" })
     expect(
       await screen.findByText("Toegang is technisch gevalideerd."),
     ).toBeInTheDocument()
 
-    fireEvent.click(
-      within(composer).getByRole("button", { name: "Beslissing" }),
-    )
-    fireEvent.change(
-      within(composer).getByPlaceholderText(/Welke beslissing/),
-      {
-        target: { value: "De technische variant is goedgekeurd." },
+    fireEvent.change(composer, {
+      target: {
+        value: "/besluit De technische variant is goedgekeurd.",
       },
-    )
-    fireEvent.click(
-      within(composer).getByRole("button", { name: "Beslissing opslaan" }),
-    )
+    })
+    fireEvent.keyDown(composer, { key: "Enter" })
     expect(
       await screen.findByText("De technische variant is goedgekeurd."),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByText("De technische variant is goedgekeurd."))
+    expect(
+      screen.getByRole("complementary", { name: "Entry-eigenschappen" }),
     ).toBeInTheDocument()
 
     fireEvent.click(

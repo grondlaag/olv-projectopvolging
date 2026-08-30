@@ -305,7 +305,9 @@ De projectcontext heeft overal exact dezelfde vier werkruimtes: **Dashboard**,
 **Journaal**, **Planning** en **Budget**. Dossierheader, KPI-strip,
 tabnavigatie en inhoudsbreedte blijven tussen deze pagina's gelijk. Het Journaal
 is de primaire operationele werkruimte: actieve topics staan open en worden op
-laatste activiteit gesorteerd; gesloten topics staan in één ingeklapte sectie.
+hun oorspronkelijke aanmaakdatum gesorteerd, nieuwste eerst; gesloten topics
+staan in één ingeklapte sectie. Nieuwe activiteit of heropening wijzigt die
+vaste volgorde niet.
 Selectie opent een contextpaneel rechts en stapelt dat paneel onder de inhoud op
 smalle schermen. Inline bediening krijgt voorrang op modals.
 
@@ -351,9 +353,15 @@ altijd zichtbaar; de gebruiker hoeft hiervoor niet eerst naar Instellingen.
 
 ## Journaal
 
-Verticale tijdlijn.
-
-Beslissing krijgt zachte afwijkende achtergrond en label.
+Ieder open topic toont direct één compacte verticale tijdlijn met alle entries
+op `createdAt`, nieuwste eerst. Updates, acties, beslissingsvragen en beslissingen
+worden nooit in afzonderlijke lanes gegroepeerd. Ze delen datumkolom,
+typografie, separators en spacing. Alleen actie, beslissingsvraag en beslissing
+krijgen respectievelijk een zeer licht oranje, amber en groen volbreedteaccent.
+Multiline Markdown blijft als paragrafen, nadruk, lijsten, links, inline code en
+checklists leesbaar. Onder ieder open topic staat een eigen compacte composer.
+Selectie opent rechts het contextuele Properties Panel; mobiel wordt dit een
+bottom sheet.
 
 ## Gantt
 
@@ -409,27 +417,27 @@ de aggregatieguardrail zijn progressive disclosure.
 ## Overleg en verslag
 
 De voorbereiding groepeert brongebonden agendapunten als hoofdstuk → cluster →
-project → topic. De verwerkingsmodus gebruikt op ruime schermen drie kolommen:
-de agenda en selectie links, bespreking met één vaste invoerkaart centraal en
-actuele stand plus bronjournaal rechts. Op smallere schermen stapelen deze
-kolommen. Na save blijft de invoerkaart staan en wordt alleen de invoer
-leeggemaakt.
+project → agendapunt in compacte, inklapbare tekstsecties. De verwerkingsmodus
+toont de bespreking centraal. Agenda en eigenschappen zijn zijpanelen die
+standaard gesloten zijn; het eigenschappenpaneel opent pas na selectie van een
+topic of entry. Op smallere schermen stapelen deze delen. Na save blijft de
+composer staan en wordt alleen de invoer leeggemaakt.
 
-Tijdens verwerking toont een compacte vergaderbalk steeds huidig punt/totaal,
-vorig, volgend en `Punt besproken`. Agenda en context zijn afzonderlijk
-inklapbaar. De focusmodus verbergt beide zijpanelen tijdelijk en centreert het
-actieve agendapunt met de composer; verlaten van focus herstelt de gekozen
-zijpaneeltoestand.
+Tijdens verwerking toont een compacte vergaderbalk steeds vorig, huidig
+punt/totaal, volgend en een dropdownnavigator. De bespreekstatus is een compacte
+select met `Te bespreken`, `Besproken`, `Doorgeschoven`, `Ter info` en
+`Geannuleerd`; bij doorschuiven is de datum van het volgende overleg zichtbaar.
+De composer begint onmiddellijk met `Schrijf verder…` en ondersteunt Markdown,
+slashcommando's, vermeldingen, tags en bijlagelinks zonder typekeuze vooraf.
 
 Agenda en verslag hebben een echte client-side PDF-download met paginanummers.
 `Kopieer voor Outlook` schrijft zowel `text/html` als `text/plain` naar het
 klembord; browserprint blijft aanvullend beschikbaar.
 
-Het projectjournaal is geen ononderbroken tijdlijn. Het groepeert eerst de
-algemene projectopvolging en daarna ieder echt topic. Elke uitklapbare groep
-toont actuele stand, aantallen, de universele invoerkaart, de drie recentste
-bijdragen en pas op verzoek de volledige historiek. Er wordt geen fictief
-"algemeen topic" opgeslagen.
+Het projectjournaal groepeert alleen per echt topic. Binnen een topic blijft de
+volledige historische entryflow ononderbroken en standaard zichtbaar. Er wordt
+geen fictief "algemeen topic" opgeslagen en er zijn geen afzonderlijke
+actie-, beslissing- of historieksecties.
 
 De overlegwerkruimte is tekstgericht en puntsgewijs. Voorbereiding en verwerking
 zijn herkenbare modi binnen hetzelfde dossier; ze openen geen keten van modals.
@@ -452,9 +460,10 @@ een korte bespreekreden meegeven; het dossier blijft achter de drawer zichtbaar.
 Het verslag oogt als een professioneel projectverslag, niet als een spreadsheet:
 
 - duidelijke overlegkop met datum en scope;
-- opeenvolgende secties voor deelnemers, agenda, updates, beslissingen en
-  acties;
-- acties gegroepeerd per verantwoordelijke;
+- dezelfde hoofdstuk-, cluster-, project- en agendapunthiërarchie als de andere
+  overlegmodi;
+- updates, beslissingsvragen, beslissingen en acties direct onder hun
+  agendapunt;
 - ingetogen versie- en statusaanduiding;
 - ruime tekstkolom en behoud van regeleinden in snapshots.
 

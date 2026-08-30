@@ -73,6 +73,9 @@ export function validateDomainIntegrity(
   const actions = new Map(records.actions.map((item) => [item.id, item]))
   const actors = new Map(records.actors.map((item) => [item.id, item]))
   const planning = new Map(records.planning.map((item) => [item.id, item]))
+  const phases = new Map(records.projectPhases.map((item) => [item.id, item]))
+  const milestones = new Map(records.milestones.map((item) => [item.id, item]))
+  const resources = new Map(records.resources.map((item) => [item.id, item]))
   const budgets = new Map(records.budgets.map((item) => [item.id, item]))
   const meetings = new Map(records.meetings.map((item) => [item.id, item]))
   const reports = new Map(records.reports.map((item) => [item.id, item]))
@@ -85,6 +88,10 @@ export function validateDomainIntegrity(
     ["Action", new Set(actions.keys())],
     ["Evidence", new Set(records.evidence.map((item) => item.id))],
     ["PlanningEntry", new Set(planning.keys())],
+    ["ProjectPhase", new Set(phases.keys())],
+    ["Milestone", new Set(milestones.keys())],
+    ["Resource", new Set(resources.keys())],
+    ["ResourceAssignment", new Set(records.resourceAssignments.map((item) => item.id))],
     ["BudgetRecord", new Set(budgets.keys())],
     ["Meeting", new Set(meetings.keys())],
     ["Report", new Set(reports.keys())],
@@ -162,7 +169,7 @@ export function validateDomainIntegrity(
   for (const history of records.projectClusterHistory) {
     const project = projects.get(history.projectId)
     const cluster = clusters.get(history.clusterId)
-    if (!project || !cluster || project.chapterId !== cluster.chapterId) {
+    if (!project || !cluster) {
       add(
         "projectClusterHistory",
         "data.relation.project-cluster-history",
@@ -171,6 +178,19 @@ export function validateDomainIntegrity(
       )
     }
     if (!history.validTo) {
+      if (
+        project &&
+        cluster &&
+        (project.clusterId !== history.clusterId ||
+          project.chapterId !== cluster.chapterId)
+      ) {
+        add(
+          "projectClusterHistory",
+          "data.history.open-cluster-mismatch",
+          "De open clusterhistoriek komt niet overeen met de huidige projectindeling.",
+          history.id,
+        )
+      }
       if (openHistoryByProject.has(history.projectId)) {
         add(
           "projectClusterHistory",
@@ -381,6 +401,71 @@ export function validateDomainIntegrity(
       "data.planning.cycle",
       "Planningafhankelijkheden bevatten een cyclus.",
     )
+  }
+
+  for (const phase of records.projectPhases) {
+    const predecessor = phase.dependsOnPhaseId
+      ? phases.get(phase.dependsOnPhaseId)
+      : undefined
+    if (!projects.has(phase.projectId)) {
+      add("projectPhases", "data.relation.phase-project", "Fase verwijst naar een onbekend project.", phase.id)
+    }
+    if (phase.endDate < phase.startDate) {
+      add("projectPhases", "data.phase.date-order", "De einddatum van de fase ligt vóór de startdatum.", phase.id)
+    }
+    if (phase.progressPercent < 0 || phase.progressPercent > 100) {
+      add("projectPhases", "data.phase.progress", "Fasevoortgang moet tussen 0 en 100 procent liggen.", phase.id)
+    }
+    if (phase.dependsOnPhaseId && (!predecessor || predecessor.projectId !== phase.projectId || predecessor.id === phase.id)) {
+      add("projectPhases", "data.relation.phase-dependency", "Faseafhankelijkheid is ongeldig.", phase.id)
+    }
+    if (!activeActor(phase.ownerActorId)) {
+      add("projectPhases", "data.relation.phase-owner", "Fase-eigenaar bestaat niet of is niet actief.", phase.id)
+    }
+    const seen = new Set<UUID>([phase.id])
+    let cursor = phase.dependsOnPhaseId
+    while (cursor) {
+      if (seen.has(cursor)) {
+        add("projectPhases", "data.phase.cycle", "Faseafhankelijkheden bevatten een cyclus.", phase.id)
+        break
+      }
+      seen.add(cursor)
+      cursor = phases.get(cursor)?.dependsOnPhaseId
+    }
+  }
+
+  for (const milestone of records.milestones) {
+    const phase = milestone.phaseId ? phases.get(milestone.phaseId) : undefined
+    if (!projects.has(milestone.projectId) || (milestone.phaseId && phase?.projectId !== milestone.projectId)) {
+      add("milestones", "data.relation.milestone", "Mijlpaal bevat een verbroken project/faserelatie.", milestone.id)
+    }
+    if (!activeActor(milestone.ownerActorId)) {
+      add("milestones", "data.relation.milestone-owner", "Mijlpaaleigenaar bestaat niet of is niet actief.", milestone.id)
+    }
+  }
+
+  for (const resource of records.resources) {
+    if (resource.actorId && !actors.has(resource.actorId)) {
+      add("resources", "data.relation.resource-actor", "Resource verwijst naar een onbekende actor.", resource.id)
+    }
+    if (resource.capacityFte < 0 || resource.projectAvailabilityFte < 0 || resource.projectAvailabilityFte > resource.capacityFte) {
+      add("resources", "data.resource.capacity", "Projectbeschikbaarheid moet tussen 0 en de totale capaciteit liggen.", resource.id)
+    }
+  }
+
+  for (const assignment of records.resourceAssignments) {
+    const phase = assignment.phaseId ? phases.get(assignment.phaseId) : undefined
+    const resourceId = assignment.resourceId ?? assignment.roleId
+    const resource = resourceId ? resources.get(resourceId) : undefined
+    if (!projects.has(assignment.projectId) || (assignment.phaseId && phase?.projectId !== assignment.projectId)) {
+      add("resourceAssignments", "data.relation.assignment-project", "Resource-inzet bevat een verbroken project/faserelatie.", assignment.id)
+    }
+    if (!resource || (assignment.roleId && resource.type !== "role")) {
+      add("resourceAssignments", "data.relation.assignment-resource", "Resource-inzet verwijst naar een onbekende of ongeldige resource.", assignment.id)
+    }
+    if (assignment.endDate < assignment.startDate || assignment.allocation < 0) {
+      add("resourceAssignments", "data.assignment.range", "Resource-inzet heeft een ongeldige periode of hoeveelheid.", assignment.id)
+    }
   }
 
   for (const budget of records.budgets) {

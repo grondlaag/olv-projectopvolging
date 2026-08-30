@@ -15,7 +15,8 @@ import type { NormalizedDomainState } from "../services/domain-state"
 
 const closedActionStatuses = new Set(["Afgerond", "Geannuleerd"])
 
-export type JournalEntryType = "update" | "action" | "decision"
+export type JournalEntryType =
+  "update" | "action" | "decision_request" | "decision"
 
 export interface JournalEntryView {
   id: UUID
@@ -29,7 +30,8 @@ export interface JournalEntryView {
   dueDate?: LocalDate
   status?: Action["status"]
   priority?: Action["priority"]
-  source: Update | Action
+  meetingLinks: readonly AgendaLinkView[]
+  source: Update | Action | Evidence
 }
 
 export interface DecisionRequestPayload {
@@ -55,8 +57,12 @@ export interface DecisionRequestView {
 }
 
 export interface AgendaLinkView {
-  agendaItem: AgendaItem
+  agendaItem?: AgendaItem
+  evidence?: Evidence
   meeting?: Meeting
+  agendaItemId?: UUID
+  meetingDate?: LocalDate
+  status?: "pending" | "scheduled" | "discussed"
 }
 
 export interface ProjectJournalTopic {
@@ -68,6 +74,7 @@ export interface ProjectJournalTopic {
   history: readonly JournalEntryView[]
   decisionRequests: readonly DecisionRequestView[]
   agendaLinks: readonly AgendaLinkView[]
+  entries: readonly JournalEntryView[]
   lastActivityAt: string
 }
 
@@ -155,6 +162,7 @@ function updateEntry(
     updatedAt: update.audit.updatedAt,
     date: update.date,
     ...(createdBy ? { createdBy } : {}),
+    meetingLinks: agendaLinksForObject(state, "Update", update.id),
     source: update,
   }
 }
@@ -173,14 +181,13 @@ function actionEntry(
     content: action.title,
     createdAt: action.audit.createdAt,
     updatedAt: action.audit.updatedAt,
-    date: (action.completedAt ??
-      action.deadline ??
-      action.audit.updatedAt.slice(0, 10)) as LocalDate,
+    date: action.audit.createdAt.slice(0, 10) as LocalDate,
     ...(createdBy ? { createdBy } : {}),
     ...(owner ? { owner } : {}),
     ...(action.deadline ? { dueDate: action.deadline } : {}),
     status: action.status,
     priority: action.priority,
+    meetingLinks: agendaLinksForObject(state, "Action", action.id),
     source: action,
   }
 }
@@ -188,9 +195,101 @@ function actionEntry(
 function sortEntries(entries: JournalEntryView[]): JournalEntryView[] {
   return entries.sort(
     (left, right) =>
-      right.updatedAt.localeCompare(left.updatedAt) ||
-      right.createdAt.localeCompare(left.createdAt),
+      right.createdAt.localeCompare(left.createdAt) ||
+      right.updatedAt.localeCompare(left.updatedAt),
   )
+}
+
+function agendaLinksForObject(
+  state: NormalizedDomainState,
+  objectType: string,
+  objectId: UUID,
+): AgendaLinkView[] {
+  const agendaLinks = (
+    state.indices.agendaItemsByObject.get(`${objectType}:${objectId}`) ?? []
+  )
+    .filter((item) => item.audit.active)
+    .map((agendaItem) => {
+      const meeting = state.indices.meetingById.get(agendaItem.meetingId)
+      return {
+        agendaItem,
+        ...(meeting ? { meeting } : {}),
+        status:
+          agendaItem.discussionStatus === "Besproken"
+            ? ("discussed" as const)
+            : ("scheduled" as const),
+      }
+    })
+  const evidenceLinks = state.records.evidence.flatMap((evidence) => {
+    if (
+      !evidence.audit.active ||
+      evidence.type !== "MeetingLink" ||
+      evidence.objectType !== objectType ||
+      evidence.objectId !== objectId ||
+      !evidence.description
+    ) {
+      return []
+    }
+    try {
+      const payload = JSON.parse(evidence.description) as {
+        meetingId?: UUID
+        agendaItemId?: UUID
+        meetingDate?: LocalDate
+        status?: "pending" | "scheduled" | "discussed"
+      }
+      if (!payload.meetingId) return []
+      const meeting = state.indices.meetingById.get(payload.meetingId)
+      return [
+        {
+          evidence,
+          ...(meeting ? { meeting } : {}),
+          ...(payload.agendaItemId
+            ? { agendaItemId: payload.agendaItemId }
+            : {}),
+          ...(payload.meetingDate ? { meetingDate: payload.meetingDate } : {}),
+          status: payload.status ?? ("scheduled" as const),
+        },
+      ]
+    } catch {
+      return []
+    }
+  })
+  const seen = new Set<UUID>()
+  return [...evidenceLinks, ...agendaLinks].filter((link) => {
+    const id = link.meeting?.id
+    if (!id || seen.has(id)) return false
+    seen.add(id)
+    return true
+  })
+}
+
+function decisionRequestEntry(
+  state: NormalizedDomainState,
+  request: DecisionRequestView,
+): JournalEntryView {
+  const author = request.evidence.authorActorId
+    ? state.indices.actorById.get(request.evidence.authorActorId)
+    : undefined
+  return {
+    id: request.evidence.id,
+    type: "decision_request",
+    content: request.question,
+    createdAt: request.evidence.audit.createdAt,
+    updatedAt: request.evidence.audit.updatedAt,
+    date: (request.evidence.date ??
+      request.evidence.audit.createdAt.slice(0, 10)) as LocalDate,
+    ...(author ? { createdBy: author } : {}),
+    ...(request.requestedFrom[0] ? { owner: request.requestedFrom[0] } : {}),
+    ...(request.dueDate ? { dueDate: request.dueDate } : {}),
+    status:
+      request.status === "pending"
+        ? "Wacht op beslissing"
+        : request.status === "decided"
+          ? "Afgerond"
+          : "Geannuleerd",
+    meetingLinks: agendaLinksForObject(state, "Evidence", request.evidence.id),
+    source: request.evidence,
+  }
 }
 
 function topicWorkspace(
@@ -211,14 +310,7 @@ function topicWorkspace(
     (request) =>
       request.parentType === "Topic" && request.parentId === topic.id,
   )
-  const agendaLinks = (
-    state.indices.agendaItemsByObject.get(`Topic:${topic.id}`) ?? []
-  )
-    .filter((item) => item.audit.active)
-    .map((agendaItem) => {
-      const meeting = state.indices.meetingById.get(agendaItem.meetingId)
-      return { agendaItem, ...(meeting ? { meeting } : {}) }
-    })
+  const agendaLinks = agendaLinksForObject(state, "Topic", topic.id)
   const openActions = sortEntries(
     actions.filter(
       (entry) => entry.status && !closedActionStatuses.has(entry.status),
@@ -234,13 +326,20 @@ function topicWorkspace(
     ...updates.filter((entry) => entry.type === "update"),
     ...completedActions,
   ])
+  const entries = sortEntries([
+    ...updates,
+    ...actions,
+    ...decisionRequests.map((request) => decisionRequestEntry(state, request)),
+  ])
   const lastActivityAt = [
     topic.audit.updatedAt,
     planning?.audit.updatedAt,
     ...updates.map((entry) => entry.updatedAt),
     ...actions.map((entry) => entry.updatedAt),
     ...decisionRequests.map((request) => request.evidence.audit.updatedAt),
-    ...agendaLinks.map((link) => link.agendaItem.audit.updatedAt),
+    ...agendaLinks.flatMap((link) =>
+      link.agendaItem ? [link.agendaItem.audit.updatedAt] : [],
+    ),
   ]
     .filter((value): value is string => Boolean(value))
     .sort((left, right) => right.localeCompare(left))[0]!
@@ -258,6 +357,7 @@ function topicWorkspace(
     history,
     decisionRequests,
     agendaLinks,
+    entries,
     lastActivityAt,
   }
 }
@@ -273,16 +373,14 @@ export function buildProjectJournalWorkspace(
   const topics = (state.indices.topicsByProject.get(projectId) ?? [])
     .filter((topic) => topic.audit.active)
     .map((topic) => topicWorkspace(state, topic, requests))
-    .sort((left, right) =>
-      right.lastActivityAt.localeCompare(left.lastActivityAt),
+    .sort(
+      (left, right) =>
+        right.topic.audit.createdAt.localeCompare(left.topic.audit.createdAt) ||
+        right.topic.code.localeCompare(left.topic.code, "nl"),
     )
   const topicByEntry = new Map<UUID, Topic>()
   for (const topic of topics) {
-    for (const entry of [
-      ...topic.openActions,
-      ...topic.decisions,
-      ...topic.history,
-    ]) {
+    for (const entry of topic.entries) {
       topicByEntry.set(entry.id, topic.topic)
     }
   }

@@ -189,6 +189,12 @@ vraagt om herkoppeling. Queryfuncties bouwen gegroepeerde agenda- en
 contextjournaalmodellen uit bestaande indices. PDF-opbouw en rich-textkopie
 leven in de client-side bestandsinfrastructuur en muteren geen domeinstate.
 
+De verwerkingsmodus gebruikt dezelfde `ProjectJournalService` en
+`JournalEntryRow` als het Project Journaal. `executeMeetingComposer` maakt het
+gewone topicrecord, zet de bestaande native vergaderingkoppeling en voegt alleen
+een `MeetingLink` met agenda- en datumcontext toe. Het verslag projecteert en
+bevriest dezelfde records; er bestaat geen tweede collectie met overlegnotities.
+
 IndexedDB-snapshot versie 2 bewaart:
 
 - bestandsnaam en schema;
@@ -224,6 +230,12 @@ updates en beslissingen blijven `Update`-records en acties blijven
 `Action`-records. `ProjectJournalService` is het centrale mutatiepunt voor inline
 typewissels, afleidingen, verplaatsingen en beslissingsvragen. Dashboard,
 journaal en planning blijven zo afgeleid van dezelfde domeintoestand.
+
+De concrete projectie- en migratiekeuzes staan in
+[ADR-014](decisions/ADR-014-continuous-project-journal.md). De Journaalvolgorde
+van topics gebruikt `Topic.audit.createdAt`; entryvolgorde gebruikt het
+oorspronkelijke `createdAt`. `updatedAt` verandert nooit stilzwijgend de
+historische positie.
 
 - Elk persistent record krijgt UUID v4.
 - Complexe formulieren muteren pas bij expliciete save.

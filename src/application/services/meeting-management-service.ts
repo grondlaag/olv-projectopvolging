@@ -451,7 +451,43 @@ function reportSnapshots(
       ]
         .filter(Boolean)
         .join("\n"),
-      { objectType: "Action", objectId: action.id },
+      action.objectType === "Project" || action.objectType === "Topic"
+        ? { objectType: action.objectType, objectId: action.objectId }
+        : { objectType: "Action", objectId: action.id },
+    )
+  }
+
+  const decisionRequestIds = state.records.evidence.flatMap((link) => {
+    if (
+      !link.audit.active ||
+      link.type !== "MeetingLink" ||
+      link.objectType !== "Evidence" ||
+      !link.description
+    )
+      return []
+    try {
+      const payload = JSON.parse(link.description) as { meetingId?: UUID }
+      return payload.meetingId === meeting.id ? [link.objectId] : []
+    } catch {
+      return []
+    }
+  })
+  for (const requestId of decisionRequestIds) {
+    const request = state.records.evidence.find(
+      (item) =>
+        item.id === requestId &&
+        item.audit.active &&
+        item.type === "DecisionRequest",
+    )
+    if (!request) continue
+    add(
+      "Beslissingsvragen",
+      "Beslissing nodig",
+      request.title,
+      request.description ?? request.title,
+      request.objectType === "Project" || request.objectType === "Topic"
+        ? { objectType: request.objectType, objectId: request.objectId }
+        : undefined,
     )
   }
   return snapshots
@@ -488,7 +524,7 @@ export class MeetingManagementService {
       ).filter(
         (item) =>
           item.audit.active &&
-          item.discussionStatus !== "Besproken" &&
+          item.discussionStatus === "Doorgeschoven" &&
           (item.objectType === "Project" || item.objectType === "Topic") &&
           Boolean(item.objectId),
       )

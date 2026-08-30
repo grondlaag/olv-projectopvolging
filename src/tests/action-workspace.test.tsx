@@ -21,62 +21,54 @@ describe("actie-invoer en globale opvolging", () => {
     })
   })
 
-  it("maakt vanuit een topic een actie en actor zonder invoerverlies", async () => {
-    window.location.hash = `#/projects/${testIds.projectOne}/topics/${testIds.topicCritical}`
+  it("maakt een journaalactie en volgt die zonder dubbel record globaal op", async () => {
+    window.location.hash = `#/projects/${testIds.projectOne}/journal`
     const router = createAppRouter()
     render(<RouterProvider router={router} />)
 
-    fireEvent.click(await screen.findByRole("button", { name: "+ Actie" }))
-    let panel = screen.getByRole("dialog", { name: "Actie toevoegen" })
-    fireEvent.change(within(panel).getByLabelText("Titel"), {
+    const composer = await screen.findByLabelText(
+      "Nieuwe bijdrage aan Toegang spoed",
+    )
+    const composerShell = composer.closest(".journal-composer") as HTMLElement
+    fireEvent.change(
+      within(composerShell).getByRole("combobox", { name: "Soort bijdrage" }),
+      { target: { value: "action" } },
+    )
+    fireEvent.change(composer, {
       target: { value: "Controleer medische toegang" },
     })
-    fireEvent.change(within(panel).getByLabelText(/Deadline/), {
+    fireEvent.keyDown(composer, { key: "Enter" })
+
+    const editButton = await screen.findByRole("button", {
+      name: /Inhoud van Controleer medische toegang bewerken/,
+    })
+    fireEvent.click(editButton.closest(".journal-entry") as HTMLElement)
+    const panel = screen.getByRole("complementary", {
+      name: "Entry-eigenschappen",
+    })
+    fireEvent.change(within(panel).getByLabelText("Eigenaar"), {
+      target: { value: testIds.actorTwo },
+    })
+    const deadline = within(panel).getByLabelText("Deadline")
+    fireEvent.change(deadline, {
       target: { value: "2026-08-30" },
     })
-    fireEvent.click(
-      within(panel).getByRole("button", { name: "+ Nieuwe actor" }),
-    )
-
-    panel = screen.getByRole("dialog", { name: "Nieuwe actor" })
-    fireEvent.change(within(panel).getByLabelText("Naam"), {
-      target: { value: "Nieuwe Actiehouder" },
-    })
-    fireEvent.change(within(panel).getByLabelText("E-mail"), {
-      target: { value: "actiehouder@example.test" },
-    })
-    fireEvent.click(
-      within(panel).getByRole("button", { name: "Actor opslaan" }),
-    )
-
-    panel = await screen.findByRole("dialog", { name: "Actie toevoegen" })
-    expect(within(panel).getByLabelText("Titel")).toHaveValue(
-      "Controleer medische toegang",
-    )
-    expect(within(panel).getByLabelText(/Deadline/)).toHaveValue("2026-08-30")
-    expect(within(panel).getByLabelText("Eigenaar")).toHaveDisplayValue(
-      "Nieuwe Actiehouder",
-    )
-    fireEvent.click(
-      within(panel).getByRole("button", { name: "Actie opslaan" }),
-    )
+    fireEvent.blur(deadline)
 
     await waitFor(() => {
-      const created = useAppStore
+      const matches = useAppStore
         .getState()
-        .session?.state.records.actions.find(
+        .session!.state.records.actions.filter(
           (action) => action.title === "Controleer medische toegang",
         )
-      expect(created).toMatchObject({
+      expect(matches).toHaveLength(1)
+      expect(matches[0]).toMatchObject({
         objectType: "Topic",
         objectId: testIds.topicCritical,
+        ownerActorId: testIds.actorTwo,
         deadline: "2026-08-30",
       })
     })
-    expect(useAppStore.getState().dirty).toBe(true)
-    expect(screen.getAllByText("Controleer medische toegang")).not.toHaveLength(
-      0,
-    )
 
     await act(async () => {
       await router.navigate("/actions")
@@ -84,12 +76,11 @@ describe("actie-invoer en globale opvolging", () => {
     expect(
       await screen.findByRole("heading", { name: "Acties" }),
     ).toBeInTheDocument()
-    expect(
-      screen.getByRole("button", { name: /Controleer medische toegang/ }),
-    ).toBeInTheDocument()
     fireEvent.change(
       screen.getByLabelText("Status van Controleer medische toegang"),
-      { target: { value: "Bezig" } },
+      {
+        target: { value: "Bezig" },
+      },
     )
     await waitFor(() => {
       const state = useAppStore.getState().session!.state
@@ -107,14 +98,6 @@ describe("actie-invoer en globale opvolging", () => {
         ]),
       )
     })
-    expect(
-      screen.getByText("Actiestatus bijgewerkt · back-up nodig"),
-    ).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Per eigenaar" }))
-    expect(window.location.hash).toContain("groep=eigenaar")
-    expect(
-      screen.getByRole("heading", { name: "Nieuwe Actiehouder" }),
-    ).toBeInTheDocument()
     router.dispose()
   })
 

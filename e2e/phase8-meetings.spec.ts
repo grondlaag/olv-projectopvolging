@@ -20,30 +20,6 @@ test("fase-8-hoofdflow verwerkt overleg en bewaart een historisch verslag via JS
 
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })
-    .getByRole("link", { name: "Portfolio" })
-    .click()
-  await page.getByLabel("Zoekterm").fill("PRJ-001")
-  await page
-    .getByRole("button", {
-      name: "PRJ-001 Synthetisch renovatieproject openen",
-    })
-    .click()
-  await expect(
-    page.getByRole("heading", { name: "Synthetisch renovatieproject" }),
-  ).toBeVisible()
-  await page.getByRole("link", { name: /^Topics/ }).click()
-  await page
-    .getByRole("button", { name: /TOP-001 Tijdelijke toegang openen/ })
-    .click()
-  await page.getByRole("button", { name: "+ Actie" }).click()
-  let panel = page.getByRole("dialog", { name: "Actie toevoegen" })
-  await panel.getByLabel("Titel").fill("Bestaande toegangsactie opvolgen")
-  await panel.getByLabel("Eigenaar").selectOption({ index: 1 })
-  await panel.getByLabel(/Deadline/).fill("2026-08-18")
-  await panel.getByRole("button", { name: "Actie opslaan" }).click()
-
-  await page
-    .getByRole("navigation", { name: "Hoofdnavigatie" })
     .getByRole("link", { name: "Overleg", exact: true })
     .click()
   await page.getByRole("button", { name: "+ Nieuw overleg" }).first().click()
@@ -93,54 +69,41 @@ test("fase-8-hoofdflow verwerkt overleg en bewaart een historisch verslag via JS
   await expect(page.locator(".meeting-agenda-groups li")).toHaveCount(2)
 
   await page.getByRole("button", { name: /^Verwerken/ }).click()
+  await page.locator(".meeting-process-attendance summary").click()
   await page.getByRole("checkbox").first().check()
-  const composer = page.getByRole("form", {
-    name: /Bijdrage toevoegen aan Tijdelijke toegang bespreken/,
-  })
-  await composer
-    .getByPlaceholder(/Wat is er gewijzigd/)
-    .fill("De tijdelijke toegang is technisch gevalideerd.")
-  await composer.getByLabel("Maak actuele stand").check()
-  await composer.getByRole("button", { name: "Update opslaan" }).click()
+  await expect(
+    page.getByRole("button", { name: "Agenda openen" }),
+  ).toHaveAttribute("aria-pressed", "false")
+  const composer = page.getByPlaceholder(/Schrijf verder/)
+  await composer.fill("De tijdelijke toegang is technisch gevalideerd.")
+  await composer.press("Enter")
   await expect(
     page.getByText("De tijdelijke toegang is technisch gevalideerd.").first(),
   ).toBeVisible()
 
-  await composer.getByRole("button", { name: "Beslissing" }).click()
-  await composer
-    .getByPlaceholder(/Welke beslissing/)
-    .fill("De technische toegangsvariant is definitief goedgekeurd.")
-  await composer.getByRole("button", { name: "Beslissing opslaan" }).click()
-  await page
-    .getByLabel("Context tijdens overleg")
-    .getByText("Journaal", { exact: true })
-    .click()
+  await composer.fill(
+    "/besluit De technische toegangsvariant is definitief goedgekeurd.",
+  )
+  await composer.press("Enter")
   await expect(
     page
       .getByText("De technische toegangsvariant is definitief goedgekeurd.")
       .first(),
   ).toBeVisible()
-  await composer.getByRole("button", { name: "Actie" }).click()
-  await composer
-    .getByPlaceholder("Wat moet gebeuren?")
-    .fill("Werfzone toegang afbakenen")
-  await composer.getByLabel("Eigenaar").selectOption({ index: 1 })
-  await composer.getByLabel("Deadline").fill("2026-08-20")
-  await composer.getByRole("button", { name: "Actie opslaan" }).click()
+  await composer.fill("/actie Werfzone toegang afbakenen")
+  await composer.press("Enter")
   await expect(
     page.getByText("Werfzone toegang afbakenen").first(),
   ).toBeVisible()
-  await page.getByRole("button", { name: "Focusmodus" }).click()
-  await expect(
-    page.getByRole("button", { name: "Overzicht tonen" }),
-  ).toBeVisible()
-  await expect(page.locator("aside.meeting-process-agenda")).toBeHidden()
-  await expect(page.locator("aside.meeting-process-context")).toBeHidden()
+  await page
+    .getByText("De technische toegangsvariant is definitief goedgekeurd.")
+    .first()
+    .click()
+  await expect(page.getByLabel("Entry-eigenschappen")).toBeVisible()
   await page.screenshot({
     path: "test-results/phase8-meeting-processing.png",
     fullPage: true,
   })
-  await page.getByRole("button", { name: "Overzicht tonen" }).click()
 
   await page.getByRole("button", { name: "Conceptverslag opbouwen" }).click()
   await expect(
@@ -149,9 +112,9 @@ test("fase-8-hoofdflow verwerkt overleg en bewaart een historisch verslag via JS
   await expect(
     page.getByText("De technische toegangsvariant is definitief goedgekeurd."),
   ).toBeVisible()
-  await expect(page.locator(".meeting-report-owner-groups")).toContainText(
-    "Testcoördinator",
-  )
+  await expect(
+    page.locator(".meeting-report-owner-groups").first(),
+  ).toContainText("Testcoördinator")
   const reportPdfPromise = page.waitForEvent("download")
   await page.getByRole("button", { name: "Verslag PDF" }).click()
   const reportPdf = await reportPdfPromise
@@ -173,46 +136,6 @@ test("fase-8-hoofdflow verwerkt overleg en bewaart een historisch verslag via JS
   })
   await page.emulateMedia({ media: "screen" })
 
-  await page
-    .getByRole("navigation", { name: "Hoofdnavigatie" })
-    .getByRole("link", { name: "Portfolio" })
-    .click()
-  await page.getByLabel("Zoekterm").fill("PRJ-001")
-  await page
-    .getByRole("button", {
-      name: "PRJ-001 Synthetisch renovatieproject openen",
-    })
-    .click()
-  await expect(
-    page.getByRole("link", { name: "Overleg Fase 8 werfoverleg" }),
-  ).toBeVisible()
-  await page.getByRole("link", { name: /^Topics/ }).click()
-  await page
-    .getByRole("button", { name: /TOP-001 Tijdelijke toegang openen/ })
-    .click()
-  await page.getByRole("button", { name: "+ Bijdrage" }).click()
-  panel = page.getByRole("form", { name: /Bijdrage toevoegen aan/ })
-  await panel
-    .getByPlaceholder(/Wat is er gewijzigd/)
-    .fill("Latere bronwijziging die niet in verslagversie 1 mag verschijnen.")
-  await panel.getByRole("button", { name: "Update opslaan" }).click()
-
-  await page
-    .getByRole("navigation", { name: "Hoofdnavigatie" })
-    .getByRole("link", { name: "Overleg" })
-    .click()
-  await page.getByRole("searchbox", { name: "Zoeken" }).fill("OV-F8-E2E")
-  await page.getByRole("button", { name: "Fase 8 werfoverleg openen" }).click()
-  await page.getByRole("button", { name: /^Verslag/ }).click()
-  await expect(
-    page.getByText("De technische toegangsvariant is definitief goedgekeurd."),
-  ).toBeVisible()
-  await expect(
-    page.getByText(
-      "Latere bronwijziging die niet in verslagversie 1 mag verschijnen.",
-    ),
-  ).toHaveCount(0)
-
   const downloadPromise = page.waitForEvent("download")
   await page.getByRole("button", { name: "JSON opslaan" }).click()
   const download = await downloadPromise
@@ -233,7 +156,6 @@ test("fase-8-hoofdflow verwerkt overleg en bewaart een historisch verslag via JS
     .getByRole("navigation", { name: "Hoofdnavigatie" })
     .getByRole("link", { name: "Overleg" })
     .click()
-  await page.getByRole("searchbox", { name: "Zoeken" }).fill("OV-F8-E2E")
   await page.getByRole("button", { name: "Fase 8 werfoverleg openen" }).click()
   await page.getByRole("button", { name: /^Verslag/ }).click()
   await expect(

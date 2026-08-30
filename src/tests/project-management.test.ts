@@ -7,10 +7,12 @@ import {
   ProjectManagementError,
   ProjectManagementService,
   normalizeDomainState,
+  validateDomainIntegrity,
   type ProjectInput,
 } from "../application/services"
 import type { Chapter, LocalDate, UUID } from "../domain"
 import { BrowserExcelWorkbookGateway } from "../infrastructure/excel"
+import { JsonDataFileGateway } from "../infrastructure/json"
 import { createPortfolioTestSession, testIds } from "./test-data"
 
 const service = new ProjectManagementService()
@@ -208,6 +210,79 @@ describe("projectbeheer en clusterhistoriek", () => {
     expect(changed.state.records.projectClusterHistory[0]?.validTo).toBe(
       "2026-08-12",
     )
+  })
+
+  it("migreert vrij naar een cluster in een ander hoofdstuk en blijft exporteerbaar", async () => {
+    const session = createPortfolioTestSession()
+    const records = structuredClone(session.state.records)
+    const otherChapter: Chapter = {
+      ...records.chapters[0]!,
+      id: "b0000000-0000-4000-8000-000000000002" as UUID,
+      code: "H2",
+      title: "Technieken",
+    }
+    records.chapters.push(otherChapter)
+    const initial = normalizeDomainState(records)
+    const created = service.createProject(
+      initial,
+      projectInput({ clusterId: testIds.cluster }),
+      { now, createUuid },
+    )
+    const targetCluster = service.createCluster(
+      created.state,
+      {
+        chapterId: otherChapter.id,
+        code: "CL-H2",
+        title: "Cluster technieken",
+      },
+      { now: new Date("2026-08-10T12:00:00Z"), createUuid },
+    )
+    const migrated = service.updateProject(
+      targetCluster.state,
+      created.record.id,
+      projectInput({
+        chapterId: otherChapter.id,
+        clusterId: targetCluster.record.id,
+      }),
+      { now: new Date("2026-08-11T12:00:00Z"), createUuid },
+    )
+
+    expect(migrated.record).toMatchObject({
+      chapterId: otherChapter.id,
+      clusterId: targetCluster.record.id,
+    })
+    const history =
+      migrated.state.indices.projectClusterHistoryByProject.get(
+        migrated.record.id,
+      ) ?? []
+    expect(history).toEqual([
+      expect.objectContaining({
+        clusterId: testIds.cluster,
+        validTo: "2026-08-11",
+      }),
+      expect.objectContaining({
+        clusterId: targetCluster.record.id,
+      }),
+    ])
+    expect(history[1]?.validTo).toBeUndefined()
+    expect(validateDomainIntegrity(migrated.state.records)).toEqual([])
+
+    const invalidRecords = structuredClone(migrated.state.records)
+    delete invalidRecords.projectClusterHistory[0]!.validTo
+    expect(
+      validateDomainIntegrity(invalidRecords).map((issue) => issue.code),
+    ).toContain("data.history.open-cluster-mismatch")
+
+    const gateway = new JsonDataFileGateway()
+    const exported = gateway.export(migrated.state)
+    const reopened = await gateway.importText(exported.text, exported.fileName)
+    expect(reopened.hasBlockingIssues).toBe(false)
+    expect(
+      reopened.state.indices.projectById.get(migrated.record.id),
+    ).toMatchObject({
+      chapterId: otherChapter.id,
+      clusterId: targetCluster.record.id,
+    })
   })
 
   it("weigert een inactieve projectcoördinator", () => {

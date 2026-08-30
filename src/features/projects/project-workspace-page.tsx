@@ -36,6 +36,7 @@ const journalService = new ProjectJournalService()
 const typeLabels: Record<JournalEntryType, string> = {
   update: "Update",
   action: "Actie",
+  decision_request: "Beslissing nodig",
   decision: "Beslissing",
 }
 

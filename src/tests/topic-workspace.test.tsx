@@ -1,18 +1,11 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react"
+import { fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { RouterProvider } from "react-router-dom"
 import { beforeEach, describe, expect, it } from "vitest"
 import { createAppRouter } from "../app/routing"
 import { useAppStore } from "../app/state/app-store"
-import { normalizeDomainState } from "../application/services"
 import { createPortfolioTestSession, testIds } from "./test-data"
 
-describe("topicwerkruimte", () => {
+describe("topics in het projectjournaal", () => {
   beforeEach(() => {
     useAppStore.getState().reset()
     useAppStore.setState({
@@ -21,344 +14,45 @@ describe("topicwerkruimte", () => {
     })
   })
 
-  it("opent nieuwe topicinvoer rechtstreeks uit context en ruimt de URL op bij sluiten", async () => {
-    window.location.hash = `#/projects/${testIds.projectOne}/topics?nieuw=1`
+  it("opent een topicdeeplink in dezelfde journaalcontext", async () => {
+    window.location.hash = `#/projects/${testIds.projectOne}/topics/${testIds.topicCritical}`
     const router = createAppRouter()
     render(<RouterProvider router={router} />)
 
     expect(
-      await screen.findByRole("dialog", { name: "Nieuw topic" }),
+      await screen.findByRole("main", { name: "Projectjournaal" }),
     ).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Paneel sluiten" }))
-    await waitFor(() =>
-      expect(window.location.hash).toBe(
-        `#/projects/${testIds.projectOne}/topics`,
-      ),
-    )
+    expect(
+      screen.getByRole("complementary", { name: "Topiceigenschappen" }),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText("Titel")).toHaveValue("Toegang spoed")
     router.dispose()
   })
 
-  it("legt een inhoudelijk projectstatusmoment vast zonder de levenscyclusstatus te wijzigen", async () => {
-    window.location.hash = `#/projects/${testIds.projectOne}`
+  it("maakt een topic inline en geeft het eerstvolgende stabiele T-nummer", async () => {
+    window.location.hash = `#/projects/${testIds.projectOne}/journal`
     const router = createAppRouter()
-    const view = render(<RouterProvider router={router} />)
+    render(<RouterProvider router={router} />)
 
-    expect(
-      await screen.findByText("Actuele inhoudelijke projectstand"),
-    ).toBeInTheDocument()
-    expect(screen.getByText(/levenscyclusstatus/)).toBeInTheDocument()
-    const composer = screen.getByRole("form", {
-      name: /Bijdrage toevoegen aan PRJ-001/,
+    const newTopicButtons = await screen.findAllByRole("button", {
+      name: /Nieuw topic/,
     })
-    fireEvent.click(
-      within(composer).getByRole("button", {
-        name: "+ Actuele stand toevoegen",
-      }),
-    )
-    fireEvent.change(
-      within(composer).getByPlaceholderText(/Wat is er gewijzigd/),
-      { target: { value: "De werfzone is klaar voor ingebruikname." } },
-    )
-    fireEvent.click(within(composer).getByLabelText("Maak actuele stand"))
-    fireEvent.click(
-      within(composer).getByRole("button", { name: "Update opslaan" }),
-    )
+    fireEvent.click(newTopicButtons[0]!)
+    fireEvent.change(screen.getByLabelText("Titel nieuw topic"), {
+      target: { value: "Brandcompartimentering" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Topic toevoegen" }))
 
     await waitFor(() => {
-      const state = useAppStore.getState().session!.state
-      const project = state.indices.projectById.get(testIds.projectOne)!
-      expect(project.status).toBe("Uitvoering")
-      expect(state.indices.updateById.get(project.currentUpdateId!)?.text).toBe(
-        "De werfzone is klaar voor ingebruikname.",
-      )
-    })
-    view.unmount()
-    router.dispose()
-  })
-
-  it("maakt een projecttopic, actuele update en beslissing zonder formuliercontextverlies", async () => {
-    window.location.hash = `#/projects/${testIds.projectOne}/topics`
-    const router = createAppRouter()
-    render(<RouterProvider router={router} />)
-
-    fireEvent.click(
-      await screen.findByRole(
-        "button",
-        { name: "+ Nieuw topic" },
-        { timeout: 10_000 },
-      ),
-    )
-    let panel = screen.getByRole("dialog", { name: "Nieuw topic" })
-    fireEvent.change(within(panel).getByLabelText("Topiccode"), {
-      target: { value: "TOP-NEW" },
-    })
-    fireEvent.change(within(panel).getByLabelText("Titel"), {
-      target: { value: "Nieuwe projectvraag" },
-    })
-    fireEvent.change(within(panel).getByLabelText("Vaste context"), {
-      target: { value: "Deze vaste context blijft bij het topic." },
-    })
-    fireEvent.change(within(panel).getByLabelText("Eigenaar"), {
-      target: { value: testIds.actorOne },
-    })
-    fireEvent.change(within(panel).getByLabelText("Prioriteit"), {
-      target: { value: "Hoog" },
-    })
-    fireEvent.click(
-      within(panel).getByRole("button", { name: "Topic opslaan" }),
-    )
-
-    await waitFor(() =>
-      expect(window.location.hash).toMatch(
-        new RegExp(`^#/projects/${testIds.projectOne}/topics/[0-9a-f-]+$`),
-      ),
-    )
-    expect(
-      await screen.findByRole(
-        "heading",
-        { name: "Nieuwe projectvraag" },
-        { timeout: 10_000 },
-      ),
-    ).toBeInTheDocument()
-    expect(
-      useAppStore
+      const topic = useAppStore
         .getState()
-        .session?.state.records.topics.find(
-          (topic) => topic.title === "Nieuwe projectvraag",
-        )?.ownerActorId,
-    ).toBe(testIds.actorOne)
-    expect(useAppStore.getState().dirty).toBe(true)
-
-    fireEvent.click(screen.getByRole("button", { name: "+ Bijdrage" }))
-    panel = screen.getByRole("form", { name: /Bijdrage toevoegen aan/ })
-    fireEvent.change(
-      within(panel).getByPlaceholderText(/Wat is er gewijzigd/),
-      {
-        target: { value: "De uitvoering is klaar voor medische validatie." },
-      },
-    )
-    fireEvent.change(within(panel).getByLabelText("Auteur"), {
-      target: { value: testIds.actorTwo },
-    })
-    fireEvent.click(within(panel).getByLabelText("Maak actuele stand"))
-    fireEvent.keyDown(panel, { key: "Enter", ctrlKey: true })
-
-    expect(
-      (
-        await screen.findAllByText(
-          "De uitvoering is klaar voor medische validatie.",
+        .session!.state.records.topics.find(
+          (candidate) => candidate.title === "Brandcompartimentering",
         )
-      ).length,
-    ).toBeGreaterThanOrEqual(2)
-    expect(
-      useAppStore
-        .getState()
-        .session?.state.records.updates.find((update) =>
-          update.text.includes("medische validatie"),
-        )?.authorActorId,
-    ).toBe(testIds.actorTwo)
-
-    fireEvent.click(within(panel).getByRole("button", { name: "Beslissing" }))
-    fireEvent.change(within(panel).getByPlaceholderText(/Welke beslissing/), {
-      target: { value: "De medische variant is formeel goedgekeurd." },
+      expect(topic?.code).toBe("T-004")
     })
-    fireEvent.click(
-      within(panel).getByRole("button", { name: "Beslissing opslaan" }),
-    )
-
-    expect(
-      await screen.findByText("De medische variant is formeel goedgekeurd."),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole("heading", { name: "Open acties" }),
-    ).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "+ Actie" })).toBeInTheDocument()
-    router.dispose()
-  }, 30_000)
-
-  it("laat een auteur kiezen wanneer geen huidige actor ingesteld is", async () => {
-    const session = createPortfolioTestSession()
-    const records = structuredClone(session.state.records)
-    delete records.config[0]!.currentActorId
-    useAppStore.setState({
-      session: { ...session, state: normalizeDomainState(records) },
-    })
-    window.location.hash = `#/projects/${testIds.projectOne}/topics/${testIds.topicCritical}`
-    const router = createAppRouter()
-    render(<RouterProvider router={router} />)
-
-    expect(
-      await screen.findByRole("heading", { name: "Toegang spoed" }),
-    ).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "+ Bijdrage" }))
-    const panel = screen.getByRole("form", { name: /Bijdrage toevoegen aan/ })
-    expect(within(panel).getByLabelText("Auteur")).toHaveValue("")
-    fireEvent.change(
-      within(panel).getByPlaceholderText(/Wat is er gewijzigd/),
-      {
-        target: { value: "Update zonder vooraf ingestelde huidige actor." },
-      },
-    )
-    fireEvent.change(within(panel).getByLabelText("Auteur"), {
-      target: { value: testIds.actorTwo },
-    })
-    fireEvent.click(
-      within(panel).getByRole("button", { name: "Update opslaan" }),
-    )
-
-    expect(
-      await screen.findByText("Update zonder vooraf ingestelde huidige actor."),
-    ).toBeInTheDocument()
-    expect(
-      useAppStore
-        .getState()
-        .session?.state.records.updates.find((update) =>
-          update.text.includes("zonder vooraf ingestelde"),
-        )?.authorActorId,
-    ).toBe(testIds.actorTwo)
-    router.dispose()
-  })
-
-  it("opent een clusterroute rechtstreeks en maakt een clustertopic", async () => {
-    window.location.hash = `#/clusters/${testIds.cluster}`
-    const router = createAppRouter()
-    render(<RouterProvider router={router} />)
-
-    expect(
-      await screen.findByRole("heading", { name: "Zorgcampus" }),
-    ).toBeInTheDocument()
-    fireEvent.click(
-      screen.getAllByRole("button", { name: "+ Nieuw topic" })[0]!,
-    )
-    const panel = screen.getByRole("dialog", { name: "Nieuw topic" })
-    fireEvent.change(within(panel).getByLabelText("Topiccode"), {
-      target: { value: "CL-TOP-01" },
-    })
-    fireEvent.change(within(panel).getByLabelText("Titel"), {
-      target: { value: "Clusterbrede bereikbaarheid" },
-    })
-    fireEvent.change(within(panel).getByLabelText("Vaste context"), {
-      target: { value: "Geldt voor alle projecten binnen de cluster." },
-    })
-    fireEvent.click(
-      within(panel).getByRole("button", { name: "Topic opslaan" }),
-    )
-
-    await waitFor(() =>
-      expect(window.location.hash).toMatch(
-        new RegExp(`^#/clusters/${testIds.cluster}/topics/[0-9a-f-]+$`),
-      ),
-    )
-    const created = useAppStore
-      .getState()
-      .session?.state.records.topics.find(
-        (topic) => topic.title === "Clusterbrede bereikbaarheid",
-      )
-    expect(created).toMatchObject({
-      parentType: "Cluster",
-      clusterId: testIds.cluster,
-    })
-    expect(created?.projectId).toBeUndefined()
-    router.dispose()
-  })
-
-  it("voegt topictiming toe met expliciete save en zet de sessie dirty", async () => {
-    window.location.hash = `#/projects/${testIds.projectOne}/topics/${testIds.topicCritical}`
-    const router = createAppRouter()
-    render(<RouterProvider router={router} />)
-
-    expect(
-      await screen.findByRole("heading", { name: "Toegang spoed" }),
-    ).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Topicacties" }))
-    fireEvent.click(screen.getByRole("button", { name: "+ Timing" }))
-    const panel = screen.getByRole("dialog", { name: "Timing toevoegen" })
-    fireEvent.change(within(panel).getByLabelText("Startdatum"), {
-      target: { value: "2026-08-10" },
-    })
-    fireEvent.change(within(panel).getByLabelText("Geplande einddatum"), {
-      target: { value: "2026-09-30" },
-    })
-    fireEvent.change(within(panel).getByLabelText("Voortgang"), {
-      target: { value: "35" },
-    })
-    fireEvent.change(within(panel).getByLabelText("Status"), {
-      target: { value: "Op schema" },
-    })
-    fireEvent.click(
-      within(panel).getByRole("button", { name: "Timing opslaan" }),
-    )
-
-    await waitFor(() =>
-      expect(
-        useAppStore
-          .getState()
-          .session?.state.indices.planningByTopic.get(testIds.topicCritical),
-      ).toHaveLength(1),
-    )
+    expect(screen.getByText("Brandcompartimentering")).toBeInTheDocument()
     expect(useAppStore.getState().dirty).toBe(true)
-    expect(
-      screen.getByText("Timing opgeslagen in de lokale sessie · back-up nodig"),
-    ).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Topicacties" }))
-    expect(
-      screen.getByRole("button", { name: "Timing bewerken" }),
-    ).toBeInTheDocument()
-    router.dispose()
-  })
-
-  it("bewerkt alle kernvelden zonder broncontext of historiek te verliezen", async () => {
-    window.location.hash = `#/projects/${testIds.projectOne}/topics/${testIds.topicCritical}`
-    const before = useAppStore.getState().session!.state
-    const original = before.indices.topicById.get(testIds.topicCritical)!
-    const updateCount = before.records.updates.length
-    const currentUpdateId = original.currentUpdateId
-    const router = createAppRouter()
-    render(<RouterProvider router={router} />)
-
-    fireEvent.click(await screen.findByRole("button", { name: "Topicacties" }))
-    fireEvent.click(screen.getByRole("button", { name: "Topic bewerken" }))
-    const panel = screen.getByRole("dialog", { name: "Topic bewerken" })
-    fireEvent.change(within(panel).getByLabelText("Titel"), {
-      target: { value: "Toegang spoed herwerkt" },
-    })
-    fireEvent.change(within(panel).getByLabelText("Vaste context"), {
-      target: { value: "Aangepaste vaste context voor de spoedtoegang." },
-    })
-    fireEvent.change(within(panel).getByLabelText("Eigenaar"), {
-      target: { value: testIds.actorTwo },
-    })
-    fireEvent.change(within(panel).getByLabelText("Prioriteit"), {
-      target: { value: "Hoog" },
-    })
-    fireEvent.click(
-      within(panel).getByRole("button", { name: "Wijzigingen opslaan" }),
-    )
-
-    expect(
-      await screen.findByRole("heading", { name: "Toegang spoed herwerkt" }),
-    ).toBeInTheDocument()
-    const updated = useAppStore
-      .getState()
-      .session!.state.indices.topicById.get(testIds.topicCritical)!
-    expect(updated).toMatchObject({
-      title: "Toegang spoed herwerkt",
-      context: "Aangepaste vaste context voor de spoedtoegang.",
-      ownerActorId: testIds.actorTwo,
-      priority: "Hoog",
-      parentType: "Project",
-      projectId: testIds.projectOne,
-    })
-    expect(updated.currentUpdateId).toBe(currentUpdateId)
-    expect(useAppStore.getState().session!.state.records.updates).toHaveLength(
-      updateCount,
-    )
-    expect(window.location.hash).toBe(
-      `#/projects/${testIds.projectOne}/topics/${testIds.topicCritical}`,
-    )
-    expect(
-      screen.getByText("Topic bijgewerkt in de lokale sessie · back-up nodig"),
-    ).toBeInTheDocument()
     router.dispose()
   })
 })

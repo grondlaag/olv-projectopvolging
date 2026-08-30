@@ -7,7 +7,10 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom"
-import { buildMeetingDetailModel } from "../../application/queries"
+import {
+  buildMeetingDetailModel,
+  type MeetingDetailModel,
+} from "../../application/queries"
 import {
   MeetingManagementError,
   MeetingManagementService,
@@ -105,16 +108,86 @@ function groupReportItems(
   return groups
 }
 
-function groupReportItemsByOwner(
-  items: readonly ReportItem[],
-): ReadonlyMap<string, readonly ReportItem[]> {
-  const groups = new Map<string, ReportItem[]>()
-  for (const item of items) {
-    const group = groups.get(item.contentType) ?? []
-    group.push(item)
-    groups.set(item.contentType, group)
-  }
-  return groups
+function MeetingReportHierarchy({ model }: { model: MeetingDetailModel }) {
+  const items = model.selectedReportItems
+  const used = new Set<UUID>()
+  const participants = items.filter((item) => item.section === "Deelnemers")
+  participants.forEach((item) => used.add(item.id))
+
+  return (
+    <div className="meeting-report-items meeting-report-hierarchy">
+      {participants.map((item) => (
+        <section key={item.id}>
+          <h3>{item.titleSnapshot}</h3>
+          <p>{item.textSnapshot}</p>
+        </section>
+      ))}
+      {model.agendaGroups.map((group) => (
+        <section key={group.id} className="meeting-report-group">
+          <header>
+            <span>
+              {group.chapter
+                ? `${group.chapter.code} · ${group.chapter.title}`
+                : "Zonder hoofdstuk"}
+            </span>
+            <h3>
+              {group.cluster
+                ? `${group.cluster.code} · ${group.cluster.title}`
+                : "Zonder cluster"}
+            </h3>
+            <p>{group.label}</p>
+          </header>
+          {group.items.map((agendaItem) => {
+            const linked = items.filter(
+              (item) =>
+                item.objectType === agendaItem.objectType &&
+                item.objectId === agendaItem.objectId,
+            )
+            linked.forEach((item) => used.add(item.id))
+            return (
+              <article
+                key={agendaItem.id}
+                className="meeting-report-agenda-item"
+              >
+                <header>
+                  <span>{agendaItem.order}</span>
+                  <div>
+                    <h4>{agendaItem.title}</h4>
+                    <small>{agendaItem.discussionStatus}</small>
+                  </div>
+                </header>
+                {agendaItem.reason ? <p>{agendaItem.reason}</p> : null}
+                <div className="meeting-report-owner-groups">
+                  {linked
+                    .filter((item) => item.section !== "Agenda")
+                    .map((item) => (
+                      <section key={item.id}>
+                        <small>{item.contentType}</small>
+                        <h5>{item.titleSnapshot}</h5>
+                        <p>{item.textSnapshot}</p>
+                      </section>
+                    ))}
+                </div>
+              </article>
+            )
+          })}
+        </section>
+      ))}
+      {[...groupReportItems(items.filter((item) => !used.has(item.id)))].map(
+        ([section, unlinked]) => (
+          <section key={section}>
+            <h3>{section}</h3>
+            {unlinked.map((item) => (
+              <article key={item.id}>
+                <h4>{item.titleSnapshot}</h4>
+                <p>{item.textSnapshot}</p>
+              </article>
+            ))}
+          </section>
+        ),
+      )}
+    </div>
+  )
 }
 
 interface AgendaPanelProps {
@@ -917,9 +990,6 @@ export function MeetingDetailPage() {
           onMessage={setStatusMessage}
           onBuildReport={saveDraft}
           onEditAgenda={(item) => setPanel({ type: "agenda", item })}
-          onEditAction={(actionId) =>
-            setPanel({ type: "edit-action", actionId })
-          }
         />
       ) : (
         <div className="meeting-report-area">
@@ -1036,40 +1106,7 @@ export function MeetingDetailPage() {
                 </div>
               </dl>
               {model.selectedReportItems.length ? (
-                <div className="meeting-report-items">
-                  {[...groupReportItems(model.selectedReportItems)].map(
-                    ([section, items]) => (
-                      <section key={section}>
-                        <h3>{section}</h3>
-                        {section === "Acties" &&
-                        items.some((item) => item.contentType !== "Actie") ? (
-                          <div className="meeting-report-owner-groups">
-                            {[...groupReportItemsByOwner(items)].map(
-                              ([owner, ownerItems]) => (
-                                <section key={owner}>
-                                  <h4>{owner}</h4>
-                                  {ownerItems.map((item) => (
-                                    <article key={item.id}>
-                                      <h5>{item.titleSnapshot}</h5>
-                                      <p>{item.textSnapshot}</p>
-                                    </article>
-                                  ))}
-                                </section>
-                              ),
-                            )}
-                          </div>
-                        ) : (
-                          items.map((item) => (
-                            <article key={item.id}>
-                              <h4>{item.titleSnapshot}</h4>
-                              <p>{item.textSnapshot}</p>
-                            </article>
-                          ))
-                        )}
-                      </section>
-                    ),
-                  )}
-                </div>
+                <MeetingReportHierarchy model={model} />
               ) : (
                 <EmptyState
                   title="Leeg conceptverslag"

@@ -303,16 +303,24 @@ function agendaItemRelations(
   project?: Project
   topic?: Topic
 } {
+  const action =
+    item.objectType === "Action" && item.objectId
+      ? state.indices.actionById.get(item.objectId)
+      : undefined
   const topic =
     item.objectType === "Topic" && item.objectId
       ? state.indices.topicById.get(item.objectId)
-      : undefined
+      : action?.objectType === "Topic"
+        ? state.indices.topicById.get(action.objectId)
+        : undefined
   const project =
     item.objectType === "Project" && item.objectId
       ? state.indices.projectById.get(item.objectId)
-      : topic?.projectId
-        ? state.indices.projectById.get(topic.projectId)
-        : undefined
+      : action?.objectType === "Project"
+        ? state.indices.projectById.get(action.objectId)
+        : topic?.projectId
+          ? state.indices.projectById.get(topic.projectId)
+          : undefined
   const cluster = project?.clusterId
     ? state.indices.clusterById.get(project.clusterId)
     : topic?.clusterId
@@ -340,7 +348,11 @@ export function buildMeetingAgendaGroups(
   >()
   for (const item of agenda) {
     const relations = agendaItemRelations(state, item)
-    const legacy = item.objectType !== "Project" && item.objectType !== "Topic"
+    const legacy =
+      !relations.project ||
+      (item.objectType !== "Project" &&
+        item.objectType !== "Topic" &&
+        item.objectType !== "Action")
     const id = legacy
       ? "legacy"
       : `${relations.chapter?.id ?? "no-chapter"}:${relations.cluster?.id ?? "no-cluster"}:${relations.project?.id ?? "cluster-topics"}`

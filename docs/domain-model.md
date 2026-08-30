@@ -101,9 +101,14 @@ Mutatieregels in fase 3:
 - een project zonder cluster krijgt geen vervangend of fictief clusterrecord;
 - bij clusterwijziging worden bestaande open koppelingen gesloten en wordt één
   nieuwe open koppeling gemaakt;
-- bij verwijderen van de cluster wordt de open koppeling gesloten zonder een
-  record voor "Zonder cluster" te maken;
-- project-ID en bestaande historiekrecords blijven behouden bij bewerken.
+  - bij verwijderen van de cluster wordt de open koppeling gesloten zonder een
+    record voor "Zonder cluster" te maken;
+  - een project mag naar een ander hoofdstuk en naar een cluster binnen dat
+    hoofdstuk migreren; afgesloten historiek blijft daarbij naar de voormalige
+    cluster en dus eventueel naar het voormalige hoofdstuk verwijzen;
+  - alleen de open historiekkoppeling moet overeenkomen met het huidige
+    `project.clusterId` en met het huidige hoofdstuk van het project;
+  - project-ID en bestaande historiekrecords blijven behouden bij bewerken.
 
 ## Actor
 
@@ -181,14 +186,17 @@ Mutatieregels in fase 4:
 ### Uniforme journalentry
 
 Binnen de project-UX is `JournalEntry` een application-level discriminated
-union met de types `update`, `action` en `decision`. De persistente bron blijft:
+union met de types `update`, `action`, `decision_request` en `decision`. De
+persistente bron blijft:
 
 - `update` → `Update` met type `Update`;
 - `decision` → `Update` met type `Beslissing`;
-- `action` → `Action`.
+- `action` → `Action`;
+- `decision_request` → `Evidence` met type `DecisionRequest`.
 
-Een typewissel archiveert de vorige representatie, activeert de nieuwe
-representatie en registreert de overgang in `ActionHistory`. Een afgeleide actie
+Een typewissel archiveert de vorige representatie, activeert met een nieuwe UUID
+de nieuwe representatie en registreert de overgang als `JournalHistory`-
+evidence. Het oorspronkelijke `createdAt` blijft behouden. Een afgeleide actie
 of een nieuw opvolgtopic bewaart de bronrelatie als getypeerd `Evidence`-record.
 Een beslissingsvraag is eveneens getypeerde evidence met status `pending`,
 `decided` of `cancelled`; de beslissing zelf blijft een gewone journalentry.
@@ -224,6 +232,11 @@ huidige actor is ingesteld, blijft die de auditactor (`createdByActorId` en
 `updatedByActorId`); de gekozen auteur kan daarvan verschillen. Zonder huidige
 actor wordt de gekozen auteur ook als auditactor gebruikt. Historische updates
 met een later gedeactiveerde auteur blijven geldig en zichtbaar.
+
+Een projecttopic krijgt bij creatie een code `T-###`. Het volgende nummer is
+één hoger dan het hoogste ooit gebruikte projectgebonden topicnummer, inclusief
+inactieve topics. Bestaande `TOP-###`-codes blijven importeerbaar en worden in
+het Journaal als `T-###` gepresenteerd.
 
 ## Action
 
@@ -442,8 +455,8 @@ Invarianten:
 - `sourceMeetingId` verwijst, indien gevuld, naar een ander actief overleg met
   exact dezelfde scope;
 - een vervolgoverleg krijgt een nieuw ID en kopieert alleen actieve,
-  brongebonden agendapunten met status `Te bespreken` of `Doorgeschoven`; de
-  nieuwe punten krijgen nieuwe IDs en status `Te bespreken`;
+  brongebonden agendapunten met status `Doorgeschoven`; de nieuwe punten krijgen
+  nieuwe IDs en status `Te bespreken`;
 - deelnemers en basisvelden worden in het vervolgformulier vooringevuld, maar
   pas bij expliciete save opgeslagen;
 - een definitief overleg blijft historisch beschikbaar en inhoudelijke
@@ -478,8 +491,8 @@ Nieuwe of bewerkte agendapunten verwijzen naar één bestaand `Project` of `Topi
 binnen de overlegscope. Historisch geïmporteerde vrije of anders gekoppelde
 punten blijven leesbaar omdat de bronvelden optioneel zijn, maar kunnen niet als
 nieuw los punt worden opgeslagen. De volgorde is expliciet en uniek gemaakt
-door de applicatieservice. Bespreekstatus is `Te bespreken`, `Besproken` of
-`Doorgeschoven`.
+door de applicatieservice. Bespreekstatus is `Te bespreken`, `Besproken`,
+`Doorgeschoven`, `Ter info` of `Geannuleerd`.
 
 Een actief bronrecord kan per overleg maximaal één actief gekoppeld agendapunt
 hebben. Vanuit een project- of topicdossier worden alleen toekomstige actieve
@@ -497,9 +510,12 @@ bronvelden in het JSON-schema optioneel blijven, maar moeten vóór inhoudelijke
 bewerking opnieuw worden gekoppeld. Een aanleiding blijft tekst op het
 brongebonden agendapunt en wordt geen los domeinrecord.
 
-De universele invoerkaart schrijft afhankelijk van de gekozen knop exact één
-`Update`, één `Update` met type `Beslissing`, of één `Action`. Updates en
-beslissingen blijven append-only; een lege kaart schrijft niets.
+De inline composer schrijft zonder voorafgaande typeselectie exact één bestaand
+projectjournaalobject: `Update`, `Update` met type `Beslissing`, `Action` of
+`Evidence` met type `DecisionRequest`. Slashcommando's bepalen optioneel het
+type. Het bronrecord krijgt de vergadering als native koppeling waar die al in
+het domein bestaat; een `MeetingLink` bewaart daarnaast `meetingId`,
+`agendaItemId` en `meetingDate`. Een lege composer schrijft niets.
 
 - id;
 - meetingId;

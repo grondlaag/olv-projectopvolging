@@ -175,11 +175,23 @@ export class ExcelReferentialValidator {
     for (const history of records.projectClusterHistory) {
       const project = projects.get(history.projectId)
       const cluster = clusters.get(history.clusterId)
-      if (!project || !cluster || project.chapterId !== cluster.chapterId) {
+      if (!project || !cluster) {
         issues.push(
           blocking(
             "excel.relation.project-cluster-history",
             `Clusterhistoriek ${history.id} bevat een verbroken relatie.`,
+            "tblProjectClusterHistoriek",
+          ),
+        )
+      } else if (
+        !history.validTo &&
+        (project.clusterId !== history.clusterId ||
+          project.chapterId !== cluster.chapterId)
+      ) {
+        issues.push(
+          blocking(
+            "excel.history.open-cluster-mismatch",
+            `De open clusterhistoriek ${history.id} komt niet overeen met de huidige projectindeling.`,
             "tblProjectClusterHistoriek",
           ),
         )

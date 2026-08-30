@@ -13,10 +13,14 @@ import type {
   LogEntry,
   Meeting,
   MeetingParticipant,
+  Milestone,
   PlanningDependency,
   PlanningEntry,
   Project,
   ProjectClusterHistory,
+  ProjectPhase,
+  Resource,
+  ResourceAssignment,
   Report,
   ReportItem,
   Topic,
@@ -37,6 +41,10 @@ export interface DomainCollections {
   evidence: Evidence[]
   planning: PlanningEntry[]
   planningDependencies: PlanningDependency[]
+  projectPhases: ProjectPhase[]
+  milestones: Milestone[]
+  resources: Resource[]
+  resourceAssignments: ResourceAssignment[]
   budgets: BudgetRecord[]
   budgetMutations: BudgetMutation[]
   meetings: Meeting[]
@@ -68,6 +76,10 @@ export interface DomainIndices {
   budgetMutationById: ReadonlyMap<UUID, BudgetMutation>
   planningById: ReadonlyMap<UUID, PlanningEntry>
   planningDependencyById: ReadonlyMap<UUID, PlanningDependency>
+  projectPhaseById: ReadonlyMap<UUID, ProjectPhase>
+  milestoneById: ReadonlyMap<UUID, Milestone>
+  resourceById: ReadonlyMap<UUID, Resource>
+  resourceAssignmentById: ReadonlyMap<UUID, ResourceAssignment>
   topicsByProject: ReadonlyMap<UUID, readonly Topic[]>
   topicsByCluster: ReadonlyMap<UUID, readonly Topic[]>
   projectClusterHistoryByProject: ReadonlyMap<
@@ -83,6 +95,12 @@ export interface DomainIndices {
   actionHistoryByAction: ReadonlyMap<UUID, readonly ActionHistory[]>
   planningByProject: ReadonlyMap<UUID, readonly PlanningEntry[]>
   planningByTopic: ReadonlyMap<UUID, readonly PlanningEntry[]>
+  phasesByProject: ReadonlyMap<UUID, readonly ProjectPhase[]>
+  milestonesByProject: ReadonlyMap<UUID, readonly Milestone[]>
+  milestonesByPhase: ReadonlyMap<UUID, readonly Milestone[]>
+  assignmentsByProject: ReadonlyMap<UUID, readonly ResourceAssignment[]>
+  assignmentsByPhase: ReadonlyMap<UUID, readonly ResourceAssignment[]>
+  assignmentsByResource: ReadonlyMap<UUID, readonly ResourceAssignment[]>
   planningDependenciesByPredecessor: ReadonlyMap<
     UUID,
     readonly PlanningDependency[]
@@ -121,6 +139,10 @@ export function createEmptyDomainCollections(): DomainCollections {
     evidence: [],
     planning: [],
     planningDependencies: [],
+    projectPhases: [],
+    milestones: [],
+    resources: [],
+    resourceAssignments: [],
     budgets: [],
     budgetMutations: [],
     meetings: [],
@@ -253,6 +275,16 @@ export function buildDomainIndices(records: DomainCollections): DomainIndices {
     planningDependencyById: new Map(
       records.planningDependencies.map((record) => [record.id, record]),
     ),
+    projectPhaseById: new Map(
+      records.projectPhases.map((record) => [record.id, record]),
+    ),
+    milestoneById: new Map(
+      records.milestones.map((record) => [record.id, record]),
+    ),
+    resourceById: new Map(records.resources.map((record) => [record.id, record])),
+    resourceAssignmentById: new Map(
+      records.resourceAssignments.map((record) => [record.id, record]),
+    ),
     topicsByProject: groupBy(records.topics, (record) => record.projectId),
     topicsByCluster: groupBy(records.topics, (record) => record.clusterId),
     projectClusterHistoryByProject: groupBy(
@@ -280,6 +312,21 @@ export function buildDomainIndices(records: DomainCollections): DomainIndices {
     ),
     planningByProject: groupBy(records.planning, (record) => record.projectId),
     planningByTopic: groupBy(records.planning, (record) => record.topicId),
+    phasesByProject: groupBy(records.projectPhases, (record) => record.projectId),
+    milestonesByProject: groupBy(records.milestones, (record) => record.projectId),
+    milestonesByPhase: groupBy(records.milestones, (record) => record.phaseId),
+    assignmentsByProject: groupBy(
+      records.resourceAssignments,
+      (record) => record.projectId,
+    ),
+    assignmentsByPhase: groupBy(
+      records.resourceAssignments,
+      (record) => record.phaseId,
+    ),
+    assignmentsByResource: groupBy(
+      records.resourceAssignments,
+      (record) => record.resourceId ?? record.roleId,
+    ),
     planningDependenciesByPredecessor: groupBy(
       records.planningDependencies,
       (record) => record.predecessorPlanningId,

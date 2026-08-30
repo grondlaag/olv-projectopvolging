@@ -1002,7 +1002,7 @@ export function ProjectReadonlyPage({
     <article className="project-readonly">
       <ProjectDossierHeader
         project={project}
-        activeTab={view}
+        activeTab={view === "overview" ? "dashboard" : "journal"}
         openTopicCount={overview.openTopicCount}
         actions={
           <Button variant="secondary" onClick={() => setAgendaPanelOpen(true)}>

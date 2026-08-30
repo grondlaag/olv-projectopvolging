@@ -301,6 +301,14 @@ Niet elke metadatawaarde als pill.
 
 ## Projectdossier
 
+De projectcontext heeft overal exact dezelfde vier werkruimtes: **Dashboard**,
+**Journaal**, **Planning** en **Budget**. Dossierheader, KPI-strip,
+tabnavigatie en inhoudsbreedte blijven tussen deze pagina's gelijk. Het Journaal
+is de primaire operationele werkruimte: actieve topics staan open en worden op
+laatste activiteit gesorteerd; gesloten topics staan in één ingeklapte sectie.
+Selectie opent een contextpaneel rechts en stapelt dat paneel onder de inhoud op
+smalle schermen. Inline bediening krijgt voorrang op modals.
+
 Dezelfde rustige dossierkop blijft zichtbaar op overzicht, topics, journaal,
 planning en budget. Header toont:
 

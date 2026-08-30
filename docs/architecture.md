@@ -215,6 +215,16 @@ overige, nog niet opgeslagen formulierwaarden blijven lokale form state.
 
 ## Mutatie- en auditregels
 
+### Projectjournaal als applicatieprojectie
+
+De projectwerkruimte gebruikt één leesmodel (`ProjectJournalWorkspace`) bovenop
+de bestaande `Topic`, `Update`, `Action`, `PlanningEntry`, `AgendaItem` en
+`Evidence`-records. Een journalentry is bewust geen extra persistente tabel:
+updates en beslissingen blijven `Update`-records en acties blijven
+`Action`-records. `ProjectJournalService` is het centrale mutatiepunt voor inline
+typewissels, afleidingen, verplaatsingen en beslissingsvragen. Dashboard,
+journaal en planning blijven zo afgeleid van dezelfde domeintoestand.
+
 - Elk persistent record krijgt UUID v4.
 - Complexe formulieren muteren pas bij expliciete save.
 - Elke mutation bouwt incremental een nieuwe normalized state.

@@ -178,6 +178,21 @@ Mutatieregels in fase 4:
 
 ## Update
 
+### Uniforme journalentry
+
+Binnen de project-UX is `JournalEntry` een application-level discriminated
+union met de types `update`, `action` en `decision`. De persistente bron blijft:
+
+- `update` → `Update` met type `Update`;
+- `decision` → `Update` met type `Beslissing`;
+- `action` → `Action`.
+
+Een typewissel archiveert de vorige representatie, activeert de nieuwe
+representatie en registreert de overgang in `ActionHistory`. Een afgeleide actie
+of een nieuw opvolgtopic bewaart de bronrelatie als getypeerd `Evidence`-record.
+Een beslissingsvraag is eveneens getypeerde evidence met status `pending`,
+`decided` of `cancelled`; de beslissing zelf blijft een gewone journalentry.
+
 - id;
 - objectType;
 - objectId;

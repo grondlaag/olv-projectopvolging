@@ -14,8 +14,7 @@ import type { Project } from "../../domain"
 import { formatLocalDate } from "../../utils"
 import "./project-dossier-header.css"
 
-export type ProjectDossierTab =
-  "overview" | "topics" | "journal" | "planning" | "budget"
+export type ProjectDossierTab = "dashboard" | "journal" | "planning" | "budget"
 
 interface ProjectDossierHeaderProps {
   project: Project
@@ -30,13 +29,8 @@ const tabs: readonly [
   string,
   (project: Project) => string,
 ][] = [
-  ["overview", "Overzicht", (project) => `/projects/${project.id}`],
-  ["topics", "Topics", (project) => `/projects/${project.id}/topics`],
-  [
-    "journal",
-    "Projectjournaal",
-    (project) => `/projects/${project.id}/journal`,
-  ],
+  ["dashboard", "Dashboard", (project) => `/projects/${project.id}`],
+  ["journal", "Journaal", (project) => `/projects/${project.id}/journal`],
   ["planning", "Planning", (project) => `/projects/${project.id}/planning`],
   ["budget", "Budget", (project) => `/projects/${project.id}/budget`],
 ]
@@ -172,7 +166,7 @@ export function ProjectDossierHeader({
             aria-current={activeTab === key ? "page" : undefined}
           >
             {label}
-            {key === "topics" && openTopicCount !== undefined ? (
+            {key === "journal" && openTopicCount !== undefined ? (
               <span>{openTopicCount}</span>
             ) : null}
           </Link>

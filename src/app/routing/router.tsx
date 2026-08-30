@@ -7,8 +7,8 @@ import {
 } from "../../design-system/components"
 import { DashboardPage } from "../../features/dashboard/dashboard-page"
 import { PortfolioPage } from "../../features/portfolio/portfolio-page"
-import { ProjectReadonlyPage } from "../../features/projects/project-readonly-page"
 import { ProjectFormPage } from "../../features/projects/project-form-page"
+import { ProjectWorkspacePage } from "../../features/projects/project-workspace-page"
 import { ClusterTopicsPage } from "../../features/clusters/cluster-topics-page"
 import { ActionsPage } from "../../features/actions/actions-page"
 
@@ -112,23 +112,27 @@ export function createAppRouter() {
         },
         {
           path: "projects/:projectId",
-          element: <ProjectReadonlyPage view="overview" />,
+          element: <ProjectWorkspacePage view="dashboard" />,
+        },
+        {
+          path: "projects/:projectId/dashboard",
+          element: <ProjectWorkspacePage view="dashboard" />,
         },
         {
           path: "projects/:projectId/overview",
-          element: <ProjectReadonlyPage view="overview" />,
+          element: <ProjectWorkspacePage view="dashboard" />,
         },
         {
           path: "projects/:projectId/topics",
-          element: <ProjectReadonlyPage view="topics" />,
+          element: <ProjectWorkspacePage view="journal" />,
         },
         {
           path: "projects/:projectId/journal",
-          element: <ProjectReadonlyPage view="journal" />,
+          element: <ProjectWorkspacePage view="journal" />,
         },
         {
           path: "projects/:projectId/topics/:topicId",
-          element: <ProjectReadonlyPage view="topics" />,
+          element: <ProjectWorkspacePage view="journal" />,
         },
         {
           path: "clusters/:clusterId",

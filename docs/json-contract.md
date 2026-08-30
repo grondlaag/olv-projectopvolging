@@ -165,6 +165,15 @@ de ondersteunde inline contextacties worden beheerd.
 
 ## Schemaversies en migratie
 
+### Projectjournaal
+
+De uniforme projectjournalentry introduceert geen nieuwe JSON-collectie en
+vereist geen schema-upgrade. Updates, acties, beslissingen, planning en
+agenda-items behouden hun bestaande recordvorm. Optionele `Evidence`-records met
+`type` `DecisionRequest` of `JournalRelation` dragen aanvullende journalmetadata
+als JSON in `description`. Ongeldige metadata wordt bij de projectie genegeerd
+en verandert de bronrecords niet.
+
 De huidige ondersteunde schemawaarde is `1.0.0`. Een onbekende versie wordt
 geblokkeerd; er is geen opportunistische repair. Een toekomstige wijziging moet:
 

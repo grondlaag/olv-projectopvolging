@@ -30,9 +30,11 @@ describe("actie-invoer en globale opvolging", () => {
       "Nieuwe bijdrage aan Toegang spoed",
     )
     const composerShell = composer.closest(".journal-composer") as HTMLElement
-    fireEvent.change(
-      within(composerShell).getByRole("combobox", { name: "Soort bijdrage" }),
-      { target: { value: "action" } },
+    fireEvent.click(
+      within(composerShell).getByRole("button", { name: "Soort bijdrage" }),
+    )
+    fireEvent.click(
+      within(composerShell).getByRole("menuitem", { name: "Actie" }),
     )
     fireEvent.change(composer, {
       target: { value: "Controleer medische toegang" },

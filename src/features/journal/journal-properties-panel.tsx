@@ -3,7 +3,10 @@ import type {
   JournalEntryType,
   ProjectJournalWorkspace,
 } from "../../application/queries"
-import { ProjectJournalService } from "../../application/services"
+import {
+  PlanningManagementService,
+  ProjectJournalService,
+} from "../../application/services"
 import { useAppStore } from "../../app/state/app-store"
 import { Button, SidePanel } from "../../design-system/components"
 import type {
@@ -22,6 +25,7 @@ import {
 } from "./project-journal"
 
 const journalService = new ProjectJournalService()
+const planningService = new PlanningManagementService()
 
 function objectTypeForEntry(
   type: JournalEntryType,
@@ -65,6 +69,12 @@ export function JournalPropertiesPanel({
       ?.topic.id ?? "",
   )
   const [meetingId, setMeetingId] = useState("")
+  const [timingStartDate, setTimingStartDate] = useState(
+    topicModel?.planning?.startDate ?? "",
+  )
+  const [timingEndDate, setTimingEndDate] = useState(
+    topicModel?.planning?.plannedEndDate ?? "",
+  )
   const actors = state.records.actors.filter(
     (actor) => actor.active && actor.audit.active,
   )
@@ -165,6 +175,33 @@ export function JournalPropertiesPanel({
           : {}),
       }),
     )
+  }
+
+  const saveTiming = () => {
+    if (!timingStartDate || !timingEndDate) {
+      onStatus("Vul een start- en einddatum in.", true)
+      return
+    }
+    try {
+      const result = planningService.saveTopicTiming(
+        state,
+        topicModel.topic.id,
+        {
+          startDate: timingStartDate as LocalDate,
+          plannedEndDate: timingEndDate as LocalDate,
+          progressPercent: topicModel.planning?.progressPercent ?? 0,
+          status: topicModel.planning?.status ?? "Niet gestart",
+          isMilestone: false,
+        },
+      )
+      replaceDomainState(result.state)
+      onStatus("Topicplanning opgeslagen")
+    } catch (error) {
+      onStatus(
+        error instanceof Error ? error.message : "Planning opslaan mislukt",
+        true,
+      )
+    }
   }
 
   const links = entry?.meetingLinks ?? topicModel.agendaLinks
@@ -326,6 +363,22 @@ export function JournalPropertiesPanel({
               </select>
             </label>
           ) : null}
+          {entry?.type === "update" ? (
+            <Button
+              variant="tertiary"
+              onClick={() =>
+                run(() =>
+                  journalService.setUpdateCompleted(
+                    state,
+                    entry.id,
+                    !entry.completed,
+                  ),
+                )
+              }
+            >
+              {entry.completed ? "Update heropenen" : "Update afsluiten"}
+            </Button>
+          ) : null}
           {entry?.type === "action" ||
           entry?.type === "decision_request" ||
           !entry ? (
@@ -379,6 +432,31 @@ export function JournalPropertiesPanel({
             </label>
           ) : null}
         </section>
+
+        {!entry ? (
+          <section className="properties-section">
+            <h3>Planning</h3>
+            <label>
+              Startdatum
+              <input
+                type="date"
+                value={timingStartDate}
+                onChange={(event) => setTimingStartDate(event.target.value)}
+              />
+            </label>
+            <label>
+              Einddatum
+              <input
+                type="date"
+                value={timingEndDate}
+                onChange={(event) => setTimingEndDate(event.target.value)}
+              />
+            </label>
+            <Button variant="tertiary" onClick={saveTiming}>
+              Datums opslaan
+            </Button>
+          </section>
+        ) : null}
 
         <section className="properties-section">
           <h3>Vergadering</h3>

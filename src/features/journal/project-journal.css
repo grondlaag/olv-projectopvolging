@@ -347,13 +347,31 @@
   background: rgb(255 255 255 / 70%);
 }
 
-.journal-entry__actions select {
-  max-width: 2rem;
-  min-height: 1.9rem;
-  border: 0;
-  background: transparent;
-  color: transparent;
-  cursor: pointer;
+.journal-type-menu {
+  position: relative;
+}
+
+.journal-type-menu__items {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  display: grid;
+  min-width: 10rem;
+  padding: var(--space-1);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-elevated);
+  box-shadow: var(--shadow-md);
+}
+
+.journal-type-menu__items button,
+.journal-composer__controls .journal-type-menu__items button {
+  display: block;
+  width: 100%;
+  padding: var(--space-2);
+  text-align: left;
+  white-space: nowrap;
 }
 
 .journal-composer {
@@ -416,6 +434,55 @@
   cursor: pointer;
 }
 
+.journal-type-menu--composer > button {
+  width: auto;
+  min-width: 6.5rem;
+  padding-inline: var(--space-2);
+}
+
+.journal-type-menu--composer .journal-type-menu__items {
+  top: auto;
+  right: auto;
+  bottom: calc(100% + 0.25rem);
+  left: 0;
+}
+
+.journal-markdown-toolbar {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--color-border);
+}
+
+.journal-markdown-toolbar button {
+  min-height: 1.75rem;
+  padding: 0.15rem 0.45rem;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-ink-muted);
+  font: inherit;
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.journal-markdown-toolbar button:hover,
+.journal-markdown-toolbar button:focus-visible,
+.journal-markdown-toolbar button[aria-pressed="true"] {
+  background: var(--color-accent-soft);
+  color: var(--color-ink-strong);
+}
+
+.journal-composer__preview {
+  grid-column: 1 / -1;
+  min-height: 3rem;
+  padding: var(--space-3);
+  border: 1px dashed var(--color-border-strong);
+  background: var(--color-paper);
+}
+
 .journal-composer__controls button:hover,
 .journal-composer__controls button:focus-visible {
   background: var(--color-accent-soft);
@@ -423,11 +490,8 @@
 }
 
 .journal-command-list {
-  position: absolute;
   z-index: 5;
-  right: 0;
-  bottom: calc(100% + 0.3rem);
-  left: 0;
+  grid-column: 1 / -1;
   display: grid;
   max-height: 16rem;
   overflow: auto;
@@ -435,6 +499,41 @@
   border: 1px solid var(--color-border-strong);
   background: var(--color-elevated);
   box-shadow: var(--shadow-md);
+}
+
+.journal-mention-list {
+  z-index: 5;
+  display: grid;
+  grid-column: 1 / -1;
+  max-height: 14rem;
+  overflow: auto;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-elevated);
+  box-shadow: var(--shadow-md);
+}
+
+.journal-mention-list button {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) minmax(8rem, auto);
+  gap: var(--space-3);
+  padding: var(--space-2);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.journal-mention-list button:hover,
+.journal-mention-list button:focus-visible {
+  background: var(--color-accent-soft);
+}
+
+.journal-mention-list span {
+  color: var(--color-ink-muted);
+  font-size: var(--font-size-xs);
 }
 
 .journal-command-list button {

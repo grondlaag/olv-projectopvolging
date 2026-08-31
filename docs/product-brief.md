@@ -111,6 +111,8 @@ hoofdstuk, cluster en actor, met behoud van alle reeds ingevulde waarden.
   De ingestelde huidige actor wordt als voorselectie gebruikt, maar is geen
   blokkade wanneer een andere auteur wordt gekozen.
 - Historische updates en beslissingen worden append-only bewaard.
+- Een update kan in het journaal traceerbaar worden afgesloten en heropend
+  zonder de oorspronkelijke bijdrage te overschrijven.
 - Acties kunnen bij project, cluster, topic of overleg horen.
 - Afgeronde acties vereisen een afronddatum; wijzigingen blijven traceerbaar.
 
@@ -120,6 +122,8 @@ Projecten hebben kernplanning. Topics kunnen maximaal één primaire planningent
 hebben; vrije mijlpalen zijn aparte records. Afhankelijkheden zijn initieel
 finish-to-start en cycli zijn verboden. Een topic zonder timing verschijnt niet
 als geplande Gantt-balk.
+Start- en einddatum van een topic worden in de topiccontext beheerd en blijven
+opgeslagen in die primaire planningentry.
 
 De globale planning toont zonder projectselectie de planningdekking, het aantal
 planningitems en mijlpalen, aandachtspunten en de zichtbare periode. De cijfers

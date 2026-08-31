@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react"
-import { useNavigate, useSearchParams } from "react-router-dom"
+import { useSearchParams } from "react-router-dom"
 import {
   buildPortfolioPlanningModel,
   summarizePortfolioPlanning,
   type GlobalPlanningFilters,
+  type PlanningRow,
   type PlanningZoom,
 } from "../../application/queries"
 import { useAppStore } from "../../app/state/app-store"
@@ -23,10 +24,11 @@ import {
 } from "../../domain"
 import { formatLocalDate, todayAsLocalDate } from "../../utils"
 import { PlanningGantt, type PlanningDisplayRow } from "./planning-gantt"
+import { PlanningSelectionPanel } from "./planning-selection-panel"
+import { TopicTimingPanel } from "./topic-timing-panel"
 import "./planning.css"
 
 export function PlanningPage() {
-  const navigate = useNavigate()
   const [searchParameters, setSearchParameters] = useSearchParams()
   const session = useAppStore((state) => state.session)
   const setImportPanelOpen = useAppStore((state) => state.setImportPanelOpen)
@@ -62,6 +64,7 @@ export function PlanningPage() {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
     new Set(),
   )
+  const [selectedRow, setSelectedRow] = useState<PlanningRow>()
   const today = todayAsLocalDate()
   const model = useMemo(
     () =>
@@ -521,15 +524,7 @@ export function PlanningPage() {
                 toggle(setExpandedProjects, projectId)
               }
               onSelectRow={(row) => {
-                if (row.kind === "project") {
-                  navigate(`/projects/${row.projectId}`)
-                } else if (row.topic) {
-                  navigate(`/projects/${row.projectId}/topics/${row.topic.id}`)
-                } else if (row.actionId) {
-                  navigate(`/actions?actie=${row.actionId}`)
-                } else {
-                  navigate(`/projects/${row.projectId}/planning`)
-                }
+                setSelectedRow(row)
               }}
             />
           </section>
@@ -545,6 +540,19 @@ export function PlanningPage() {
           }
         />
       )}
+      {selectedRow?.entry && selectedRow.topic ? (
+        <TopicTimingPanel
+          topic={selectedRow.topic}
+          planning={selectedRow.entry}
+          onClose={() => setSelectedRow(undefined)}
+          onSaved={() => setSelectedRow(undefined)}
+        />
+      ) : selectedRow ? (
+        <PlanningSelectionPanel
+          row={selectedRow}
+          onClose={() => setSelectedRow(undefined)}
+        />
+      ) : null}
     </div>
   )
 }

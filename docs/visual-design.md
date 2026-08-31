@@ -429,6 +429,10 @@ select met `Te bespreken`, `Besproken`, `Doorgeschoven`, `Ter info` en
 `Geannuleerd`; bij doorschuiven is de datum van het volgende overleg zichtbaar.
 De composer begint onmiddellijk met `Schrijf verder…` en ondersteunt Markdown,
 slashcommando's, vermeldingen, tags en bijlagelinks zonder typekeuze vooraf.
+De compacte knoppen hebben toegankelijke namen en zichtbare tooltips. `@` opent
+een begrensde lijst met actieve actoren; slash- en actormenu's blijven binnen de
+composerflow en veranderen de paginabreedte niet. Markdown biedt schrijfknoppen
+en een voorbeeldweergave vóór opslaan.
 
 Agenda en verslag hebben een echte client-side PDF-download met paginanummers.
 `Kopieer voor Outlook` schrijft zowel `text/html` als `text/plain` naar het
@@ -550,6 +554,8 @@ Respecteer `prefers-reduced-motion`.
 
 - Portfoliohoofdstukken en clusters zijn standaard open en apart inklapbaar.
 - Ganttlabels en balken zijn hetzelfde klikdoel naar hun bronrecord.
+- Een klik op een Ganttlabel of -balk opent het rechter detail- of
+  bewerkpaneel en veroorzaakt geen routewissel.
 - De XS-XXL-band toont aantallen en indicatieve VTE zonder extra chartwand.
 - Topicdatums breken op smalle breedte af zonder titel of metadata te overlappen.
 - Agenda- en verslag-PDF gebruiken een rustige documentkop, metadataband,

@@ -30,6 +30,7 @@ export interface JournalEntryView {
   dueDate?: LocalDate
   status?: Action["status"]
   priority?: Action["priority"]
+  completed?: boolean
   meetingLinks: readonly AgendaLinkView[]
   source: Update | Action | Evidence
 }
@@ -154,6 +155,13 @@ function updateEntry(
   update: Update,
 ): JournalEntryView {
   const createdBy = state.indices.actorById.get(update.authorActorId)
+  const completed = state.records.evidence.some(
+    (evidence) =>
+      evidence.audit.active &&
+      evidence.type === "JournalCompletion" &&
+      evidence.objectType === "Update" &&
+      evidence.objectId === update.id,
+  )
   return {
     id: update.id,
     type: update.type === "Beslissing" ? "decision" : "update",
@@ -162,6 +170,7 @@ function updateEntry(
     updatedAt: update.audit.updatedAt,
     date: update.date,
     ...(createdBy ? { createdBy } : {}),
+    completed,
     meetingLinks: agendaLinksForObject(state, "Update", update.id),
     source: update,
   }

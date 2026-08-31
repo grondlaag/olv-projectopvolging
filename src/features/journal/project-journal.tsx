@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from "react"
+import { useRef, useState, type KeyboardEvent } from "react"
 import type {
   JournalEntryType,
   JournalEntryView,
@@ -65,6 +65,7 @@ export function JournalEntryRow({
   onMutation: (message: string, error?: boolean) => void
 }) {
   const [editing, setEditing] = useState(false)
+  const [typeMenuOpen, setTypeMenuOpen] = useState(false)
   const [content, setContent] = useState(entry.content)
   const replaceDomainState = useAppStore((state) => state.replaceDomainState)
   const date = dateParts(entry.createdAt)
@@ -127,11 +128,28 @@ export function JournalEntryRow({
       )
     }
   }
+  const toggleUpdateCompleted = () => {
+    if (entry.type !== "update") return
+    try {
+      const result = journalService.setUpdateCompleted(
+        useAppStore.getState().session!.state,
+        entry.id,
+        !entry.completed,
+      )
+      replaceDomainState(result.state)
+      onMutation(result.message)
+    } catch (error) {
+      onMutation(
+        error instanceof Error ? error.message : "Update afsluiten mislukt",
+        true,
+      )
+    }
+  }
   const select = () => onSelect({ kind: "entry", entryId: entry.id, topicId })
 
   return (
     <article
-      className={`journal-entry journal-entry--${entry.type}${selected ? " is-selected" : ""}${entry.status === "Afgerond" ? " is-completed" : ""}`}
+      className={`journal-entry journal-entry--${entry.type}${selected ? " is-selected" : ""}${entry.status === "Afgerond" || entry.completed ? " is-completed" : ""}`}
       tabIndex={0}
       onClick={select}
       onKeyDown={(event) => {
@@ -207,30 +225,58 @@ export function JournalEntryRow({
             type="button"
             onClick={complete}
             aria-label={`Actie ${entry.content} voltooien`}
+            title="Actie voltooien"
           >
             ✓
+          </button>
+        ) : null}
+        {entry.type === "update" ? (
+          <button
+            type="button"
+            onClick={toggleUpdateCompleted}
+            aria-label={`${entry.completed ? "Update heropenen" : "Update afsluiten"}: ${entry.content}`}
+            title={entry.completed ? "Update heropenen" : "Update afsluiten"}
+          >
+            {entry.completed ? "↺" : "✓"}
           </button>
         ) : null}
         <button
           type="button"
           aria-label={`Inhoud van ${entry.content} bewerken`}
           onClick={() => setEditing(true)}
+          title="Markdown bewerken"
         >
           ✎
         </button>
-        <select
-          aria-label={`Type van ${entry.content}`}
-          value={entry.type}
-          onChange={(event) =>
-            changeType(event.target.value as JournalEntryType)
-          }
-        >
-          {Object.entries(journalTypeLabels).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
+        <div className="journal-type-menu">
+          <button
+            type="button"
+            aria-label={`Type van ${entry.content} wijzigen`}
+            aria-haspopup="menu"
+            aria-expanded={typeMenuOpen}
+            title="Type wijzigen"
+            onClick={() => setTypeMenuOpen((open) => !open)}
+          >
+            ⋯
+          </button>
+          {typeMenuOpen ? (
+            <div role="menu" className="journal-type-menu__items">
+              {Object.entries(journalTypeLabels).map(([value, label]) => (
+                <button
+                  type="button"
+                  role="menuitem"
+                  key={value}
+                  onClick={() => {
+                    setTypeMenuOpen(false)
+                    changeType(value as JournalEntryType)
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
     </article>
   )
@@ -245,13 +291,33 @@ function TopicComposer({
 }) {
   const [value, setValue] = useState("")
   const [type, setType] = useState<JournalEntryType>("update")
+  const [typeMenuOpen, setTypeMenuOpen] = useState(false)
+  const [mentionMenuOpen, setMentionMenuOpen] = useState(false)
+  const [preview, setPreview] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const replaceDomainState = useAppStore((state) => state.replaceDomainState)
+  const actorRecords = useAppStore(
+    (state) => state.session?.state.records.actors,
+  )
+  const actors = [...(actorRecords ?? [])]
+    .filter((actor) => actor.active && actor.audit.active)
+    .sort((left, right) =>
+      left.displayName.localeCompare(right.displayName, "nl"),
+    )
   const command = value.startsWith("/")
     ? value.split(/\s/)[0]!.toLocaleLowerCase("nl")
     : ""
   const suggestions = command
     ? journalCommands.filter((item) => item.command.startsWith(command))
     : []
+  const mentionMatch = /(?:^|\s)@([^\s@]*)$/.exec(value)
+  const mentionedActors = mentionMatch
+    ? actors.filter((actor) =>
+        actor.displayName
+          .toLocaleLowerCase("nl")
+          .includes(mentionMatch[1]!.toLocaleLowerCase("nl")),
+      )
+    : actors
   const submit = () => {
     if (!value.trim()) return
     try {
@@ -262,6 +328,8 @@ function TopicComposer({
       replaceDomainState(result.state)
       setValue("")
       setType("update")
+      setPreview(false)
+      setMentionMenuOpen(false)
       onMutation(result.message)
     } catch (error) {
       onMutation(
@@ -276,58 +344,204 @@ function TopicComposer({
       submit()
     }
   }
-  const insertToken = (token: string) =>
+  const insertToken = (token: string) => {
+    const textarea = textareaRef.current
+    const start = textarea?.selectionStart ?? value.length
+    const end = textarea?.selectionEnd ?? value.length
+    setValue(`${value.slice(0, start)}${token}${value.slice(end)}`)
+    requestAnimationFrame(() => {
+      textarea?.focus()
+      textarea?.setSelectionRange(start + token.length, start + token.length)
+    })
+  }
+  const wrapSelection = (before: string, after = before) => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const selected = value.slice(start, end) || "tekst"
     setValue(
-      (current) =>
-        `${current}${current && !current.endsWith(" ") ? " " : ""}${token}`,
+      `${value.slice(0, start)}${before}${selected}${after}${value.slice(end)}`,
     )
+    requestAnimationFrame(() => {
+      textarea.focus()
+      textarea.setSelectionRange(
+        start + before.length,
+        start + before.length + selected.length,
+      )
+    })
+  }
+  const appendToken = (token: string) => {
+    const separator = value && !value.endsWith(" ") ? " " : ""
+    const nextValue = `${value}${separator}${token}`
+    setValue(nextValue)
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus()
+      textareaRef.current?.setSelectionRange(nextValue.length, nextValue.length)
+    })
+  }
+  const openMentions = () => {
+    appendToken("@")
+    setMentionMenuOpen(true)
+  }
+  const insertMention = (displayName: string) => {
+    const at = value.lastIndexOf("@")
+    const nextValue =
+      at >= 0
+        ? `${value.slice(0, at)}@${displayName} `
+        : `${value}${value && !value.endsWith(" ") ? " " : ""}@${displayName} `
+    setValue(nextValue)
+    setMentionMenuOpen(false)
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus()
+      textareaRef.current?.setSelectionRange(nextValue.length, nextValue.length)
+    })
+  }
   return (
     <div className="journal-composer">
       <textarea
+        ref={textareaRef}
         rows={1}
         value={value}
         aria-label={`Nieuwe bijdrage aan ${topic.topic.title}`}
         placeholder="Schrijf een update, actie of beslissing..."
-        onChange={(event) => setValue(event.target.value)}
+        onChange={(event) => {
+          const nextValue = event.target.value
+          setValue(nextValue)
+          setMentionMenuOpen(/(?:^|\s)@[^\s@]*$/.test(nextValue))
+          setPreview(false)
+        }}
         onKeyDown={onKeyDown}
       />
       <div className="journal-composer__controls">
-        <select
-          aria-label="Soort bijdrage"
-          value={type}
-          onChange={(event) => setType(event.target.value as JournalEntryType)}
-        >
-          {Object.entries(journalTypeLabels).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
+        <div className="journal-type-menu journal-type-menu--composer">
+          <button
+            type="button"
+            aria-label="Soort bijdrage"
+            aria-haspopup="menu"
+            aria-expanded={typeMenuOpen}
+            title="Soort bijdrage kiezen"
+            onClick={() => setTypeMenuOpen((open) => !open)}
+          >
+            {journalTypeLabels[type]}⌄
+          </button>
+          {typeMenuOpen ? (
+            <div role="menu" className="journal-type-menu__items">
+              {Object.entries(journalTypeLabels).map(([value, label]) => (
+                <button
+                  type="button"
+                  role="menuitem"
+                  key={value}
+                  onClick={() => {
+                    setType(value as JournalEntryType)
+                    setTypeMenuOpen(false)
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
         <button
           type="button"
-          onClick={() => insertToken("@")}
+          onClick={openMentions}
           aria-label="Persoon vermelden"
+          title="Persoon vermelden"
         >
           @
         </button>
         <button
           type="button"
-          onClick={() => insertToken("#")}
+          onClick={() => appendToken("#")}
           aria-label="Tag toevoegen"
+          title="Tag toevoegen"
         >
           #
         </button>
         <button
           type="button"
-          onClick={() => insertToken("[bijlage](https://)")}
+          onClick={() => appendToken("[bijlage](https://)")}
           aria-label="Bijlagelink toevoegen"
+          title="Bijlagelink toevoegen"
         >
           ↗
         </button>
-        <button type="button" onClick={submit} aria-label="Bijdrage toevoegen">
+        <button
+          type="button"
+          onClick={submit}
+          aria-label="Bijdrage toevoegen"
+          title="Bijdrage toevoegen"
+        >
           →
         </button>
       </div>
+      <div className="journal-markdown-toolbar" aria-label="Markdown opmaak">
+        <button
+          type="button"
+          onClick={() => wrapSelection("**")}
+          aria-label="Vet"
+          title="Vet (**tekst**)"
+        >
+          <strong>B</strong>
+        </button>
+        <button
+          type="button"
+          onClick={() => wrapSelection("*")}
+          aria-label="Cursief"
+          title="Cursief (*tekst*)"
+        >
+          <em>I</em>
+        </button>
+        <button
+          type="button"
+          onClick={() => insertToken("\n- ")}
+          aria-label="Opsomming"
+          title="Opsomming"
+        >
+          •
+        </button>
+        <button
+          type="button"
+          onClick={() => insertToken("\n- [ ] ")}
+          aria-label="Checklist"
+          title="Checklist"
+        >
+          ☐
+        </button>
+        <button
+          type="button"
+          onClick={() => wrapSelection("`")}
+          aria-label="Inline code"
+          title="Inline code"
+        >
+          &lt;/&gt;
+        </button>
+        <button
+          type="button"
+          onClick={() => wrapSelection("[", "](https://)")}
+          aria-label="Markdownlink"
+          title="Link invoegen"
+        >
+          🔗
+        </button>
+        <button
+          type="button"
+          onClick={() => setPreview((shown) => !shown)}
+          aria-pressed={preview}
+          title="Markdownvoorbeeld tonen"
+        >
+          {preview ? "Schrijven" : "Voorbeeld"}
+        </button>
+      </div>
+      {preview ? (
+        <div
+          className="journal-composer__preview"
+          aria-label="Markdownvoorbeeld"
+        >
+          <MarkdownContent>{value || "Nog geen inhoud."}</MarkdownContent>
+        </div>
+      ) : null}
       {suggestions.length ? (
         <div
           className="journal-command-list"
@@ -342,6 +556,24 @@ function TopicComposer({
             >
               <strong>{item.command}</strong>
               <span>{item.description}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {mentionMenuOpen && mentionedActors.length ? (
+        <div
+          className="journal-mention-list"
+          role="listbox"
+          aria-label="Actoren vermelden"
+        >
+          {mentionedActors.map((actor) => (
+            <button
+              type="button"
+              key={actor.id}
+              onClick={() => insertMention(actor.displayName)}
+            >
+              <strong>{actor.displayName}</strong>
+              <span>{actor.role || actor.organization || "Actor"}</span>
             </button>
           ))}
         </div>

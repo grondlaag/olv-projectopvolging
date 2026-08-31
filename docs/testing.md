@@ -34,6 +34,8 @@ Pure domein- en applicationlogica:
   entrypositie bij typewissel;
 - multiline Markdown en één chronologische stroom met update, actie,
   beslissingsvraag en beslissing;
+- Markdown schrijven/voorbeeld, begrensde slashmenu's, actieve actorvermeldingen
+  en traceerbaar afsluiten/heropenen van updates;
 - meerdere entryspecifieke overlegkoppelingen via dezelfde bronrecords;
 - expliciete actieve auteurkeuze, onderscheid tussen auteur en auditactor en
   update-invoer zonder ingestelde huidige actor;
@@ -148,6 +150,8 @@ De gatewaytests controleren:
 - inline actor toevoegen aan een update met behoud van ingevoerde tekst;
 - acties en actiehistoriek;
 - planning, globale cijferstrook, Gantt en afhankelijkheden;
+- Ganttselectie in een rechterpaneel zonder routewissel en topictiming met
+  start- en einddatum;
 - gecombineerde planningboom/Gantt, uitklappen en URL-herstel van filter en zoom;
 - budget, correcties en topicimpact;
 - overleg, agenda en definitief verslag;

@@ -199,6 +199,10 @@ notitie of verslaginvoer. Er ontstaat geen `entries`- of
 `meetingLinks`-collectie en dus geen tweede source of truth. Zie
 [ADR-014](decisions/ADR-014-continuous-project-journal.md).
 
+`JournalCompletion` gebruikt eveneens de bestaande `evidence`-collectie en
+verwijst naar een `Update`. Daardoor kan een update worden afgesloten en
+heropend zonder extra collectie, schemawijziging of verlies van de brontekst.
+
 De huidige schemawaarde is `1.1.0`. Schema `1.0.0` wordt expliciet gemigreerd:
 de vier nieuwe planningcollecties worden leeg toegevoegd en de envelope en
 Config krijgen versie `1.1.0`. Bestaande `PlanningEntry`-records en

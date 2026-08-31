@@ -30,7 +30,8 @@ test("fase-5-hoofdflow beheert, groepeert en roundtript acties volledig lokaal",
   const topic = page.locator(".journal-topic").filter({
     hasText: "Tijdelijke toegang",
   })
-  await topic.getByLabel("Soort bijdrage").selectOption("action")
+  await topic.getByLabel("Soort bijdrage").click()
+  await topic.getByRole("menuitem", { name: "Actie" }).click()
   const composer = topic.getByLabel("Nieuwe bijdrage aan Tijdelijke toegang")
   await composer.fill("Controle medische toegang")
   await composer.press("Enter")

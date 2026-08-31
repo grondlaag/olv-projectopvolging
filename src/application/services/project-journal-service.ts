@@ -1111,6 +1111,69 @@ export class ProjectJournalService {
     }
   }
 
+  setUpdateCompleted(
+    state: NormalizedDomainState,
+    updateId: UUID,
+    completed: boolean,
+    options: JournalMutationOptions = {},
+  ): JournalMutationResult<Evidence | Update> {
+    const update = state.indices.updateById.get(updateId)
+    if (!update?.audit.active) throw new Error("Update niet gevonden.")
+    const now = options.now ?? new Date()
+    const actorId = activeActorId(state)
+    const createUuid = options.createUuid ?? defaultUuid
+    const records = cloneDomainCollections(state.records)
+    const existingIndex = records.evidence.findIndex(
+      (evidence) =>
+        evidence.type === "JournalCompletion" &&
+        evidence.objectType === "Update" &&
+        evidence.objectId === updateId &&
+        evidence.audit.active,
+    )
+
+    if (completed && existingIndex < 0) {
+      records.evidence.push({
+        id: createUuid(),
+        objectType: "Update",
+        objectId: updateId,
+        type: "JournalCompletion",
+        title: "Update afgesloten",
+        description: JSON.stringify({ completedAt: now.toISOString() }),
+        date: todayAsLocalDate(now) as LocalDate,
+        authorActorId: actorId,
+        audit: auditFields(now, actorId),
+      })
+    } else if (!completed && existingIndex >= 0) {
+      const existing = records.evidence[existingIndex]!
+      records.evidence[existingIndex] = {
+        ...existing,
+        audit: {
+          ...existing.audit,
+          updatedAt: now.toISOString() as DateTime,
+          updatedByActorId: actorId,
+          active: false,
+        },
+      }
+    }
+
+    records.evidence.push(
+      historyEvidence(
+        "Update",
+        updateId,
+        completed ? "update completed" : "update reopened",
+        {},
+        now,
+        actorId,
+        createUuid,
+      ),
+    )
+    return {
+      state: normalizeDomainState(records),
+      record: update,
+      message: completed ? "Update afgesloten" : "Update heropend",
+    }
+  }
+
   moveEntry(
     state: NormalizedDomainState,
     entryId: UUID,

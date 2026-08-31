@@ -656,6 +656,30 @@
   padding: var(--space-6);
 }
 
+.planning-selection {
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-6);
+}
+
+.planning-selection dl {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  gap: var(--space-3) var(--space-4);
+  margin: 0;
+}
+
+.planning-selection dt {
+  color: var(--color-ink-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.planning-selection dd,
+.planning-selection p {
+  margin: 0;
+}
+
 .planning-form section {
   display: grid;
   gap: var(--space-4);

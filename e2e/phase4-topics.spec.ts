@@ -56,14 +56,16 @@ test("projectjournaal beheert topics en bijdragen volledig lokaal", async ({
   await composer.press("Enter")
   await expect(topic.getByText("looplijnen", { exact: true })).toBeVisible()
 
-  await topic.getByLabel("Soort bijdrage").selectOption("action")
+  await topic.getByLabel("Soort bijdrage").click()
+  await topic.getByRole("menuitem", { name: "Actie" }).click()
   await composer.fill("Controleer de branddoorgang")
   await composer.press("Enter")
   await expect(
     topic.locator(".journal-entry__label--action").filter({ hasText: "Actie" }),
   ).toBeVisible()
 
-  await topic.getByLabel("Soort bijdrage").selectOption("decision_request")
+  await topic.getByLabel("Soort bijdrage").click()
+  await topic.getByRole("menuitem", { name: "Beslissing nodig" }).click()
   await composer.fill("Kan de huidige bouwvariant behouden blijven?")
   await composer.press("Enter")
   await expect(

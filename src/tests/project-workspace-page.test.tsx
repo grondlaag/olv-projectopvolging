@@ -37,13 +37,11 @@ describe("projectwerkruimte met vier afgeleide views", () => {
     const composer = await screen.findByLabelText(
       "Nieuwe bijdrage aan Toegang spoed",
     )
-    fireEvent.change(
-      within(composer.closest(".journal-composer") as HTMLElement).getByRole(
-        "combobox",
-        { name: "Soort bijdrage" },
-      ),
-      { target: { value: "action" } },
+    const shell = composer.closest(".journal-composer") as HTMLElement
+    fireEvent.click(
+      within(shell).getByRole("button", { name: "Soort bijdrage" }),
     )
+    fireEvent.click(within(shell).getByRole("menuitem", { name: "Actie" }))
     fireEvent.change(composer, {
       target: { value: "Controleer branddoorgang" },
     })
@@ -81,7 +79,7 @@ describe("projectwerkruimte met vier afgeleide views", () => {
     ).toHaveTextContent("/agendeer")
   })
 
-  it("voegt vermeldingen, tags en bijlagelinks in de composer in", async () => {
+  it("kiest actieve actoren voor vermeldingen en biedt Markdown-opmaak en voorbeeld", async () => {
     window.location.hash = `#/projects/${testIds.projectOne}/journal`
     render(<RouterProvider router={createAppRouter()} />)
     const composer = await screen.findByLabelText(
@@ -92,6 +90,10 @@ describe("projectwerkruimte met vier afgeleide views", () => {
     fireEvent.click(
       within(shell).getByRole("button", { name: "Persoon vermelden" }),
     )
+    const actors = within(shell).getByRole("listbox", {
+      name: "Actoren vermelden",
+    })
+    fireEvent.click(within(actors).getByRole("button", { name: /Anna/ }))
     fireEvent.click(
       within(shell).getByRole("button", { name: "Tag toevoegen" }),
     )
@@ -99,6 +101,12 @@ describe("projectwerkruimte met vier afgeleide views", () => {
       within(shell).getByRole("button", { name: "Bijlagelink toevoegen" }),
     )
 
-    expect(composer).toHaveValue("@ # [bijlage](https://)")
+    expect(composer).toHaveValue("@Anna Coördinator # [bijlage](https://)")
+
+    fireEvent.change(composer, { target: { value: "**Belangrijk**" } })
+    fireEvent.click(within(shell).getByRole("button", { name: "Voorbeeld" }))
+    expect(within(shell).getByLabelText("Markdownvoorbeeld")).toHaveTextContent(
+      "Belangrijk",
+    )
   })
 })

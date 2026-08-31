@@ -205,6 +205,9 @@ evidence. Het oorspronkelijke `createdAt` blijft behouden. Een afgeleide actie
 of een nieuw opvolgtopic bewaart de bronrelatie als getypeerd `Evidence`-record.
 Een beslissingsvraag is eveneens getypeerde evidence met status `pending`,
 `decided` of `cancelled`; de beslissing zelf blijft een gewone journalentry.
+Een gewone update kan daarnaast worden afgesloten. Dat wijzigt of archiveert de
+`Update` niet: een `Evidence` met type `JournalCompletion` verwijst naar het
+update-ID. Heropenen deactiveert deze markering en schrijft een historiekregel.
 
 - id;
 - objectType;

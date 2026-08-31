@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react"
 import { useForm, type FieldPath } from "react-hook-form"
-import { Link, useNavigate, useParams } from "react-router-dom"
+import { Link, useParams } from "react-router-dom"
 import {
   buildProjectPlanningModel,
+  type PlanningRow,
   type PlanningZoom,
 } from "../../application/queries"
 import {
@@ -29,6 +30,7 @@ import {
   type PlanningEntryFormValues,
 } from "./planning-form-schema"
 import { PlanningGantt } from "./planning-gantt"
+import { PlanningSelectionPanel } from "./planning-selection-panel"
 import { TopicTimingPanel } from "./topic-timing-panel"
 import "./planning.css"
 
@@ -344,13 +346,13 @@ function DependencyPanel({ entries, onClose, onSaved }: DependencyPanelProps) {
 }
 
 export function ProjectPlanningPage() {
-  const navigate = useNavigate()
   const { projectId } = useParams<{ projectId: string }>()
   const session = useAppStore((state) => state.session)
   const setImportPanelOpen = useAppStore((state) => state.setImportPanelOpen)
   const [zoom, setZoom] = useState<PlanningZoom>("month")
   const [panel, setPanel] = useState<EntryPanelMode | "dependency">()
   const [selectedEntryId, setSelectedEntryId] = useState<UUID>()
+  const [selectedRow, setSelectedRow] = useState<PlanningRow>()
   const [statusMessage, setStatusMessage] = useState("")
   const today = todayAsLocalDate()
   const model = useMemo(
@@ -489,12 +491,9 @@ export function ProjectPlanningPage() {
           zoom={zoom}
           today={today}
           onSelectRow={(row) => {
-            if (row.kind === "project") navigate(`/projects/${row.projectId}`)
-            else if (row.entry) setSelectedEntryId(row.entry.id)
-            else if (row.topic)
-              navigate(`/projects/${row.projectId}/topics/${row.topic.id}`)
-            else if (row.actionId) navigate(`/actions?actie=${row.actionId}`)
-            else navigate(`/projects/${row.projectId}`)
+            setSelectedRow(undefined)
+            setSelectedEntryId(row.entry?.id)
+            if (!row.entry) setSelectedRow(row)
           }}
         />
       </section>
@@ -567,6 +566,12 @@ export function ProjectPlanningPage() {
           entry={selectedEntry}
           onClose={() => setSelectedEntryId(undefined)}
           onSaved={() => saved("Planningitem opgeslagen")}
+        />
+      ) : null}
+      {selectedRow ? (
+        <PlanningSelectionPanel
+          row={selectedRow}
+          onClose={() => setSelectedRow(undefined)}
         />
       ) : null}
     </article>

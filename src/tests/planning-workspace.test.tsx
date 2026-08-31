@@ -150,6 +150,28 @@ describe("planningwerkruimte", () => {
       screen.queryByRole("heading", { name: "Zichtbare lagen" }),
     ).not.toBeInTheDocument()
 
+    const hashBeforeSelection = window.location.hash
+    const projectRecordButton = screen
+      .getAllByRole("button", { name: /Renovatie verpleegafdeling/ })
+      .find((button) =>
+        button.classList.contains("planning-gantt__record-link"),
+      )!
+    fireEvent.click(projectRecordButton)
+    expect(
+      screen.getByRole("dialog", { name: "Renovatie verpleegafdeling" }),
+    ).toBeInTheDocument()
+    expect(window.location.hash).toBe(hashBeforeSelection)
+    fireEvent.click(screen.getByRole("button", { name: "Sluiten" }))
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /Toegang spoed/ })[0]!,
+    )
+    expect(
+      screen.getByRole("dialog", { name: "Timing bewerken" }),
+    ).toBeInTheDocument()
+    expect(window.location.hash).toBe(hashBeforeSelection)
+    fireEvent.click(screen.getByRole("button", { name: "Sluiten" }))
+
     fireEvent.click(screen.getByRole("radio", { name: "Maand" }))
     fireEvent.change(screen.getByLabelText("Project"), {
       target: { value: testIds.projectOne },

@@ -77,6 +77,48 @@ describe("uniform projectjournaal", () => {
     ).toBe(true)
   })
 
+  it("sluit een update traceerbaar af en kan ze opnieuw openen", () => {
+    sequence = 0
+    const added = service.addEntry(
+      createPortfolioTestSession().state,
+      testIds.topicCritical,
+      "update",
+      "Afsluitbare update",
+      { now, createUuid },
+    )
+    const updateId = (added.record as { id: UUID }).id
+    const closed = service.setUpdateCompleted(added.state, updateId, true, {
+      now,
+      createUuid,
+    })
+    expect(
+      buildProjectJournalWorkspace(
+        closed.state,
+        testIds.projectOne,
+        "2026-02-10" as LocalDate,
+      )?.activeTopics[0]?.entries.find((entry) => entry.id === updateId)
+        ?.completed,
+    ).toBe(true)
+    expect(
+      closed.state.records.evidence.some(
+        (item) => item.type === "JournalCompletion" && item.audit.active,
+      ),
+    ).toBe(true)
+
+    const reopened = service.setUpdateCompleted(closed.state, updateId, false, {
+      now,
+      createUuid,
+    })
+    expect(
+      buildProjectJournalWorkspace(
+        reopened.state,
+        testIds.projectOne,
+        "2026-02-10" as LocalDate,
+      )?.activeTopics[0]?.entries.find((entry) => entry.id === updateId)
+        ?.completed,
+    ).toBe(false)
+  })
+
   it("bewaart overlegbijdragen als dezelfde projectjournaalobjecten met agendacontext", () => {
     sequence = 0
     const meeting = meetingService.createMeeting(

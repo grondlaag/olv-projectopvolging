@@ -207,6 +207,9 @@ De productie-interface ondersteunt nu:
 De Gantt is read-only-first. Selecteren opent formulierbewerking in een
 zijpaneel; drag/drop, auto-scheduling en automatisch berekende
 projectvoortgang zijn niet geïmplementeerd. Zie ADR-009.
+Project-, topic-, actie- en beslissingsregels openen daarbij op dezelfde route
+een rechterpaneel. Topictiming toont start- en einddatum en schrijft via
+`saveTopicTiming` naar de enige primaire `PlanningEntry`.
 
 De portefeuillesamenvatting volgt de actieve filters. Een project telt als
 ingepland wanneer het een projectstart/einddatum of minstens één zichtbaar actief

@@ -230,6 +230,9 @@ updates en beslissingen blijven `Update`-records en acties blijven
 `Action`-records. `ProjectJournalService` is het centrale mutatiepunt voor inline
 typewissels, afleidingen, verplaatsingen en beslissingsvragen. Dashboard,
 journaal en planning blijven zo afgeleid van dezelfde domeintoestand.
+Een afgesloten update blijft hetzelfde actieve `Update`-record. De afsluitstatus
+wordt traceerbaar geprojecteerd uit een actief `JournalCompletion`-evidence;
+heropenen deactiveert die markering en behoudt de bijdrage en historie.
 
 De concrete projectie- en migratiekeuzes staan in
 [ADR-014](decisions/ADR-014-continuous-project-journal.md). De Journaalvolgorde

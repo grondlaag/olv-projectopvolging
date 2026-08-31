@@ -20,7 +20,7 @@ Operationele bestanden worden niet in Git of de Pages-build opgenomen.
 ```json
 {
   "format": "olv-projectopvolging",
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "exportedAt": "2026-08-16T12:00:00.000Z",
   "appVersion": "1.1.0",
   "dataSetId": "00000000-0000-4000-8000-000000000001",
@@ -37,6 +37,10 @@ Operationele bestanden worden niet in Git of de Pages-build opgenomen.
     "evidence": [],
     "planning": [],
     "planningDependencies": [],
+    "projectPhases": [],
+    "milestones": [],
+    "resources": [],
+    "resourceAssignments": [],
     "budgets": [],
     "budgetMutations": [],
     "meetings": [],
@@ -89,6 +93,10 @@ kolommapping.
 | `evidence` | Evidence | bronobject, optioneel actor |
 | `planning` | PlanningEntry | project, optioneel topic |
 | `planningDependencies` | PlanningDependency | twee planningentries |
+| `projectPhases` | ProjectPhase | project, optioneel eigenaar/voorganger |
+| `milestones` | Milestone | project, optioneel fase/eigenaar |
+| `resources` | Resource | optioneel actor |
+| `resourceAssignments` | ResourceAssignment | project, optioneel fase, resource of rol |
 | `budgets` | BudgetRecord | project, optioneel topic/leverancier |
 | `budgetMutations` | BudgetMutation | budgetrecord, auteur |
 | `meetings` | Meeting | scope, optioneel bronoverleg, voorzitter, verslaggever |
@@ -105,6 +113,9 @@ Een afgesloten koppeling mag naar een cluster in een voormalig hoofdstuk van
 het project verwijzen. Alleen een open koppeling moet overeenkomen met de
 huidige `clusterId` en het huidige hoofdstuk van het project. Daardoor blijft
 historiek geldig wanneer een project tussen hoofdstukken migreert.
+Scopevalidatie van actieve agendakoppelingen geldt voor conceptoverleggen.
+Definitieve overlegagenda's blijven historische context en worden bij een latere
+projectverplaatsing niet opnieuw tegen de actuele indeling afgekeurd.
 
 ## Validatie bij openen
 
@@ -188,8 +199,14 @@ notitie of verslaginvoer. Er ontstaat geen `entries`- of
 `meetingLinks`-collectie en dus geen tweede source of truth. Zie
 [ADR-014](decisions/ADR-014-continuous-project-journal.md).
 
-De huidige ondersteunde schemawaarde is `1.0.0`. Een onbekende versie wordt
-geblokkeerd; er is geen opportunistische repair. Een toekomstige wijziging moet:
+De huidige schemawaarde is `1.1.0`. Schema `1.0.0` wordt expliciet gemigreerd:
+de vier nieuwe planningcollecties worden leeg toegevoegd en de envelope en
+Config krijgen versie `1.1.0`. Bestaande `PlanningEntry`-records en
+`PlanningDependency`-records blijven ongewijzigd in hun oorspronkelijke
+collecties, zodat oudere mijlpalen en vrije planningitems bewerkbaar en
+verliesloos blijven. Andere onbekende versies worden geblokkeerd.
+
+Een toekomstige wijziging moet:
 
 1. de schemaversie verhogen;
 2. een expliciete, geteste migratiefunctie toevoegen;
@@ -205,4 +222,5 @@ Operationele Excel-import en -export maken geen deel meer uit van dit contract.
 
 `Project.size` bevat optioneel `XS`, `S`, `M`, `L`, `XL` of `XXL`. Ontbreken
 betekent dat het project nog niet is ingeschaald. Het veld is achterwaarts
-compatibel binnen schema 1.0.0; oude bestanden blijven geldig.
+compatibel binnen schema 1.0.0 en 1.1.0; oude bestanden worden bij openen
+expliciet gemigreerd.

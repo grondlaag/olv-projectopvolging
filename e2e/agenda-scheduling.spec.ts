@@ -39,7 +39,6 @@ test("project en topic worden vanuit hun dossier op een overlegagenda geplaatst"
     .getByRole("navigation", { name: "Hoofdnavigatie" })
     .getByRole("link", { name: "Portfolio" })
     .click()
-  await page.getByLabel("Zoekterm").fill("PRJ-001")
   await page
     .getByRole("button", {
       name: "PRJ-001 Synthetisch renovatieproject openen",
@@ -50,7 +49,7 @@ test("project en topic worden vanuit hun dossier op een overlegagenda geplaatst"
   await page
     .getByRole("button", { name: "Project bespreken op overleg" })
     .click()
-  let panel = page.getByRole("dialog", { name: "Bespreken op overleg" })
+  const panel = page.getByRole("dialog", { name: "Bespreken op overleg" })
   await panel.getByRole("radio", { name: /Projectoverleg agenda/ }).check()
   await panel
     .getByLabel("Reden of gewenste bespreking")
@@ -62,27 +61,23 @@ test("project en topic worden vanuit hun dossier op een overlegagenda geplaatst"
     ),
   ).toBeVisible()
 
-  await page.getByRole("link", { name: /^Topics/ }).click()
-  await page
-    .getByRole("button", { name: /TOP-001 Tijdelijke toegang openen/ })
-    .click()
-  await page.getByRole("button", { name: "Topicacties" }).click()
-  await page
-    .getByRole("button", { name: "Bespreken op overleg", exact: true })
-    .click()
-  panel = page.getByRole("dialog", { name: "Bespreken op overleg" })
-  await panel.getByRole("radio", { name: /Projectoverleg agenda/ }).check()
-  await panel.getByRole("button", { name: "Op agenda plaatsen" }).click()
+  await page.getByRole("link", { name: /^Journaal/ }).click()
+  const topic = page.locator(".journal-topic").filter({
+    hasText: "Tijdelijke toegang",
+  })
+  await topic.locator(".journal-topic__header").click()
+  const properties = page.getByRole("complementary", {
+    name: "Topiceigenschappen",
+  })
+  await properties.getByLabel("Vergadering kiezen").selectOption({ index: 1 })
+  await properties.getByRole("button", { name: "+ Voeg toe" }).click()
 
   await page
-    .getByLabel("Topiccontext")
-    .getByText("Overleg", { exact: true })
+    .getByRole("navigation", { name: "Hoofdnavigatie" })
+    .getByRole("link", { name: "Overleg" })
     .click()
-  await expect(page.getByText("1 keer ingepland")).toBeVisible()
-  await page
-    .getByRole("link", { name: "Projectoverleg agenda", exact: true })
-    .click()
+  await page.getByRole("link", { name: "Projectoverleg agenda" }).click()
   const agenda = page.locator(".meeting-agenda--grouped")
   await expect(agenda).toContainText("PRJ-001 · Synthetisch renovatieproject")
-  await expect(agenda).toContainText("TOP-001 · Tijdelijke toegang")
+  await expect(agenda).toContainText("TOP-001 Tijdelijke toegang")
 })

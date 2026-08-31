@@ -21,54 +21,34 @@ test("fase-5-hoofdflow beheert, groepeert en roundtript acties volledig lokaal",
     .getByRole("navigation", { name: "Hoofdnavigatie" })
     .getByRole("link", { name: "Portfolio" })
     .click()
-  await page.getByLabel("Zoekterm").fill("PRJ-001")
   await page
     .getByRole("button", {
       name: "PRJ-001 Synthetisch renovatieproject openen",
     })
     .click()
-  await page.getByRole("link", { name: /^Topics/ }).click()
-  await page
-    .getByRole("button", { name: "TOP-001 Tijdelijke toegang openen" })
-    .click()
-
-  await page.getByRole("button", { name: "+ Actie" }).click()
-  let panel = page.getByRole("dialog", { name: "Actie toevoegen" })
-  await panel.getByLabel("Titel").fill("Controle medische toegang")
-  await panel.getByLabel(/Deadline/).fill("2026-08-15")
-  await panel.getByRole("button", { name: "+ Nieuwe actor" }).click()
-  panel = page.getByRole("dialog", { name: "Nieuwe actor" })
-  await panel.getByLabel("Naam").fill("E2E Actiehouder")
-  await panel.getByLabel("E-mail").fill("actiehouder@example.test")
-  await panel.getByLabel("Organisatie").fill("OLV Test")
-  await panel.getByLabel("Rol").fill("Actiehouder")
-  await panel.getByRole("button", { name: "Actor opslaan" }).click()
-
-  panel = page.getByRole("dialog", { name: "Actie toevoegen" })
-  await expect(panel.getByLabel("Titel")).toHaveValue(
-    "Controle medische toegang",
-  )
-  await expect(panel.getByLabel("Eigenaar")).toHaveValue(/.+/)
+  await page.getByRole("link", { name: /^Journaal/ }).click()
+  const topic = page.locator(".journal-topic").filter({
+    hasText: "Tijdelijke toegang",
+  })
+  await topic.getByLabel("Soort bijdrage").selectOption("action")
+  const composer = topic.getByLabel("Nieuwe bijdrage aan Tijdelijke toegang")
+  await composer.fill("Controle medische toegang")
+  await composer.press("Enter")
   await page.screenshot({
     path: "test-results/phase5-action-quick-input.png",
     fullPage: true,
   })
-  await panel.getByRole("button", { name: "Actie opslaan" }).click()
-  await expect(
-    page.getByText("Controle medische toegang").first(),
-  ).toBeVisible()
+  await expect(topic.getByText("Controle medische toegang")).toBeVisible()
 
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })
     .getByRole("link", { name: "Dashboard" })
     .click()
   await expect(
-    page.locator(".dashboard-kpi").filter({ hasText: "Open acties" }),
-  ).toContainText("1")
-  await expect(
     page
-      .locator(".dashboard-kpi")
-      .filter({ hasText: "Acties komende 14 dagen" }),
+      .getByRole("region", { name: "Kerncijfers" })
+      .getByText("Open acties", { exact: true })
+      .locator(".."),
   ).toContainText("1")
   await expect(page.getByText("Acties die aandacht vragen")).toBeVisible()
 
@@ -76,13 +56,21 @@ test("fase-5-hoofdflow beheert, groepeert en roundtript acties volledig lokaal",
     .getByRole("navigation", { name: "Hoofdnavigatie" })
     .getByRole("link", { name: "Acties" })
     .click()
-  await page.getByLabel("Eigenaar").selectOption({ label: "E2E Actiehouder" })
   await expect(
     page.getByRole("button", { name: /Controle medische toegang/ }),
   ).toBeVisible()
+
+  await page.getByRole("button", { name: /Controle medische toegang/ }).click()
+  let panel = page.getByRole("dialog", { name: "Actie bewerken" })
+  await panel.getByLabel("Eigenaar").selectOption({ label: "Testcoördinator" })
+  await panel.getByLabel(/Deadline/).fill("2026-08-01")
+  await panel.getByLabel("Status").selectOption("Bezig")
+  await panel.getByLabel("Prioriteit").selectOption("Hoog")
+  await panel.getByRole("button", { name: "Wijzigingen opslaan" }).click()
+
   await page.getByRole("button", { name: "Per eigenaar" }).click()
   await expect(
-    page.getByRole("heading", { name: "E2E Actiehouder" }),
+    page.getByRole("heading", { name: "Testcoördinator" }),
   ).toBeVisible()
   await page.screenshot({
     path: "test-results/phase5-actions-by-owner.png",
@@ -91,24 +79,16 @@ test("fase-5-hoofdflow beheert, groepeert en roundtript acties volledig lokaal",
 
   await page.getByRole("button", { name: /Controle medische toegang/ }).click()
   panel = page.getByRole("dialog", { name: "Actie bewerken" })
-  await panel.getByLabel("Eigenaar").selectOption({ label: "Testcoördinator" })
-  await panel.getByLabel(/Deadline/).fill("2026-08-01")
-  await panel.getByLabel("Status").selectOption("Bezig")
-  await panel.getByLabel("Prioriteit").selectOption("Hoog")
-  await panel.getByRole("button", { name: "Wijzigingen opslaan" }).click()
-
-  await page
-    .locator(".actions-filterbar")
-    .getByLabel("Eigenaar")
-    .selectOption("")
-  await page.getByRole("button", { name: /Controle medische toegang/ }).click()
-  panel = page.getByRole("dialog", { name: "Actie bewerken" })
   await panel.getByLabel("Status").selectOption("Afgerond")
   await panel.getByLabel(/Afronddatum/).fill("2026-08-09")
   await panel.getByRole("button", { name: "Wijzigingen opslaan" }).click()
   await expect(
     page.getByRole("row", { name: /Controle medische toegang/ }),
   ).toHaveCount(0)
+  await page
+    .getByRole("region", { name: "Filters" })
+    .getByText("Filters", { exact: true })
+    .click()
   await page.getByRole("button", { name: "Alles" }).click()
   await expect(
     page.getByRole("row", { name: /Controle medische toegang/ }),
@@ -133,6 +113,10 @@ test("fase-5-hoofdflow beheert, groepeert en roundtript acties volledig lokaal",
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })
     .getByRole("link", { name: "Acties" })
+    .click()
+  await page
+    .getByRole("region", { name: "Filters" })
+    .getByText("Filters", { exact: true })
     .click()
   await page
     .getByRole("searchbox", { name: "Zoeken" })

@@ -129,17 +129,14 @@ test("projectjournaal beheert topics en bijdragen volledig lokaal", async ({
     })
     .click()
   await page.getByRole("link", { name: /^Journaal/ }).click()
-  await expect(
-    page.getByText("Medische validatie bouwfase", { exact: true }),
-  ).toBeVisible()
-  await expect(
-    page.getByText("Controleer de branddoorgang", { exact: true }),
-  ).toBeVisible()
-  await expect(
-    page.getByText("Kan de huidige bouwvariant behouden blijven?", {
-      exact: true,
-    }),
-  ).toBeVisible()
+  const restoredTopic = page.locator(".journal-topic").filter({
+    hasText: "Medische validatie bouwfase",
+  })
+  await expect(restoredTopic).toBeVisible()
+  await expect(restoredTopic).toContainText("Controleer de branddoorgang")
+  await expect(restoredTopic).toContainText(
+    "Kan de huidige bouwvariant behouden blijven?",
+  )
 
   await page.setViewportSize({ width: 720, height: 900 })
   await page.screenshot({

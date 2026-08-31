@@ -47,13 +47,17 @@ format check
 lint
 typecheck
 unit/integration tests
+performance-audit
 build met repositorybase
+release-audit
+Playwright Chromium installeren
+end-to-end tests
 Pages artifact upload
 deploy-pages
 ```
 
-Playwright kan als afzonderlijke verplichte check draaien voordat deployment
-wordt toegestaan.
+De deployjob publiceert pas nadat ook de release-audit en de volledige
+Playwright-hoofdflows slagen.
 
 ## JSON-gegevensbestanden
 

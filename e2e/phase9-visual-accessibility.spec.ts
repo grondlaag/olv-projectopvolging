@@ -93,11 +93,7 @@ test("fase 9 productiepreview blijft rustig, responsive en toetsenbordbruikbaar"
     page.getByRole("heading", { name: "Synthetisch renovatieproject" }),
   ).toBeVisible()
   const projectRoute = `/${new URL(page.url()).hash}`
-  await page.getByRole("link", { name: /^Topics/ }).click()
-  await page
-    .getByRole("button", { name: /TOP-001 Tijdelijke toegang openen/ })
-    .click()
-  const topicRoute = `/${new URL(page.url()).hash}`
+  const topicRoute = `${projectRoute}/topics/60000000-0000-4000-8000-000000000001`
 
   const surfaces = [
     {
@@ -114,10 +110,9 @@ test("fase 9 productiepreview blijft rustig, responsive en toetsenbordbruikbaar"
     },
     {
       width: 1024,
-      name: "topic",
+      name: "journal",
       route: topicRoute,
-      heading: "Tijdelijke toegang",
-      level: 2,
+      heading: "Synthetisch renovatieproject",
     },
     {
       width: 768,
@@ -176,12 +171,11 @@ test("fase 9 productiepreview blijft rustig, responsive en toetsenbordbruikbaar"
 
   await page.setViewportSize({ width: 1024, height: 1000 })
   await page.goto(topicRoute)
-  await page.getByRole("button", { name: "+ Bijdrage" }).click()
-  const composer = page.getByRole("form", {
-    name: /Bijdrage toevoegen aan/,
+  const topic = page.locator(".journal-topic").filter({
+    hasText: "Tijdelijke toegang",
   })
-  await expect(composer).toBeVisible()
   await expect(
-    composer.getByRole("button", { name: "Beslissing" }),
+    topic.getByLabel("Nieuwe bijdrage aan Tijdelijke toegang"),
   ).toBeVisible()
+  await expect(topic.getByLabel("Soort bijdrage")).toBeVisible()
 })

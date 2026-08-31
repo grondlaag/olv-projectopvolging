@@ -39,6 +39,51 @@ function projectInput(patch: Partial<ProjectInput> = {}): ProjectInput {
   }
 }
 
+function stateWithClusterAgenda(status: "Concept" | "Definitief") {
+  const records = structuredClone(createPortfolioTestSession().state.records)
+  const otherChapter: Chapter = {
+    ...records.chapters[0]!,
+    id: "b0000000-0000-4000-8000-000000000010" as UUID,
+    code: "H2",
+    title: "Technieken",
+  }
+  const targetCluster = {
+    ...records.clusters[0]!,
+    id: "b0000000-0000-4000-8000-000000000011" as UUID,
+    chapterId: otherChapter.id,
+    code: "CL-H2",
+    title: "Cluster technieken",
+  }
+  const meetingId = "b0000000-0000-4000-8000-000000000012" as UUID
+  records.chapters.push(otherChapter)
+  records.clusters.push(targetCluster)
+  records.meetings.push({
+    id: meetingId,
+    type: "Projectoverleg",
+    scopeType: "Cluster",
+    scopeId: testIds.cluster,
+    title: "Overleg oude cluster",
+    date: "2026-08-10" as LocalDate,
+    status,
+    audit: records.projects[0]!.audit,
+  })
+  records.agendaItems.push({
+    id: "b0000000-0000-4000-8000-000000000013" as UUID,
+    meetingId,
+    order: 1,
+    objectType: "Project",
+    objectId: testIds.projectOne,
+    title: "Project bespreken",
+    discussionStatus: status === "Concept" ? "Te bespreken" : "Besproken",
+    audit: records.projects[0]!.audit,
+  })
+  return {
+    state: normalizeDomainState(records),
+    otherChapter,
+    targetCluster,
+  }
+}
+
 beforeEach(() => {
   idCounter = 0
 })
@@ -283,6 +328,45 @@ describe("projectbeheer en clusterhistoriek", () => {
       chapterId: otherChapter.id,
       clusterId: targetCluster.record.id,
     })
+  })
+
+  it("blokkeert migratie zolang het project op een conceptagenda van de oude cluster staat", () => {
+    const { state, otherChapter, targetCluster } =
+      stateWithClusterAgenda("Concept")
+
+    expect(() =>
+      service.updateProject(
+        state,
+        testIds.projectOne,
+        projectInput({
+          chapterId: otherChapter.id,
+          clusterId: targetCluster.id,
+        }),
+        { now, createUuid },
+      ),
+    ).toThrow("staat nog op de agenda van een conceptoverleg")
+  })
+
+  it("behoudt een definitieve overlegagenda als historische context na migratie", () => {
+    const { state, otherChapter, targetCluster } =
+      stateWithClusterAgenda("Definitief")
+
+    const migrated = service.updateProject(
+      state,
+      testIds.projectOne,
+      projectInput({
+        chapterId: otherChapter.id,
+        clusterId: targetCluster.id,
+      }),
+      { now, createUuid },
+    )
+
+    expect(migrated.record).toMatchObject({
+      chapterId: otherChapter.id,
+      clusterId: targetCluster.id,
+    })
+    expect(validateDomainIntegrity(migrated.state.records)).toEqual([])
+    expect(migrated.state.records.agendaItems).toHaveLength(1)
   })
 
   it("weigert een inactieve projectcoördinator", () => {

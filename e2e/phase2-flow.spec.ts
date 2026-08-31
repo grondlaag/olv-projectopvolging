@@ -19,7 +19,7 @@ test("fase-2-hoofdflow werkt volledig lokaal en herstelt de projectroute", async
 
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible()
   await expect(
-    page.getByText("small-valid.json", { exact: true }),
+    page.getByText(/Actuele signalen uit small-valid\.json/),
   ).toBeVisible()
   await page.screenshot({
     path: "test-results/phase2-dashboard.png",
@@ -32,8 +32,6 @@ test("fase-2-hoofdflow werkt volledig lokaal en herstelt de projectroute", async
     fullPage: true,
   })
 
-  const search = page.getByLabel("Zoekterm")
-  await search.fill("PRJ-001")
   await expect(
     page.getByRole("button", {
       name: "PRJ-001 Synthetisch renovatieproject openen",

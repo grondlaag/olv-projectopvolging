@@ -21,43 +21,26 @@ test("fase-6-hoofdflow beheert planning, Gantt en JSON-roundtrip lokaal", async 
     .getByRole("navigation", { name: "Hoofdnavigatie" })
     .getByRole("link", { name: "Portfolio" })
     .click()
-  await page.getByLabel("Zoekterm").fill("PRJ-001")
   await page
     .getByRole("button", {
       name: "PRJ-001 Synthetisch renovatieproject openen",
     })
     .click()
-  await page.getByRole("link", { name: /^Topics/ }).click()
-
-  await page.getByRole("button", { name: "+ Nieuw topic" }).first().click()
-  let panel = page.getByRole("dialog", { name: "Nieuw topic" })
-  await panel.getByText("Meer opties", { exact: true }).click()
-  await panel.getByLabel("Topiccode").fill("TOP-F6-E2E")
-  await panel.getByLabel("Titel").fill("Fasering medische verhuis")
-  await panel
-    .getByLabel("Vaste context")
-    .fill(
-      "Plant de verhuisbewegingen zonder de zorgcontinuïteit te onderbreken.",
-    )
-  await panel.getByLabel("Eigenaar").selectOption({ index: 1 })
-  await panel.getByRole("button", { name: "Topic opslaan" }).click()
-
-  await page.getByRole("button", { name: "Topicacties" }).click()
-  await page.getByRole("button", { name: "+ Timing" }).click()
-  panel = page.getByRole("dialog", { name: "Timing toevoegen" })
+  await page
+    .getByRole("navigation", { name: "Projectdossierweergave" })
+    .getByRole("link", { name: "Planning" })
+    .click()
+  await page
+    .locator(".planning-gantt__labels")
+    .getByRole("button", { name: /Tijdelijke toegang realiseren/ })
+    .click()
+  const panel = page.getByRole("dialog", { name: "Timing bewerken" })
   await panel.getByLabel("Startdatum").fill("2026-08-10")
   await panel.getByLabel("Geplande einddatum").fill("2026-09-30")
   await panel.getByLabel("Voortgang").fill("20")
   await panel.getByLabel("Status").selectOption("Op schema")
   await panel.getByRole("button", { name: "Timing opslaan" }).click()
-  await expect(
-    page.getByText("Timing opgeslagen in de lokale sessie · back-up nodig"),
-  ).toBeVisible()
-
-  await page
-    .getByRole("navigation", { name: "Projectdossierweergave" })
-    .getByRole("link", { name: "Planning" })
-    .click()
+  await expect(page.getByRole("status")).toContainText("Timing opgeslagen")
   await expect(
     page.getByRole("heading", { name: "Synthetisch renovatieproject" }),
   ).toBeVisible()
@@ -72,7 +55,7 @@ test("fase-6-hoofdflow beheert planning, Gantt en JSON-roundtrip lokaal", async 
   await expect(
     page
       .locator(".planning-gantt__labels")
-      .getByText("Fasering medische verhuis"),
+      .getByText("Tijdelijke toegang", { exact: true }),
   ).toBeVisible()
   await expect(
     page.getByRole("button", { name: "+ Planningitem" }),
@@ -155,7 +138,6 @@ test("fase-6-hoofdflow beheert planning, Gantt en JSON-roundtrip lokaal", async 
     .getByRole("navigation", { name: "Hoofdnavigatie" })
     .getByRole("link", { name: "Portfolio" })
     .click()
-  await page.getByLabel("Zoekterm").fill("PRJ-001")
   await page
     .getByRole("button", {
       name: "PRJ-001 Synthetisch renovatieproject openen",

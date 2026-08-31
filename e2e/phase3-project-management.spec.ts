@@ -59,13 +59,10 @@ test("fase-3-hoofdflow beheert en roundtript een project volledig lokaal", async
   await expect(
     page.getByRole("heading", { name: "Fase 3 hoofdflow" }),
   ).toBeVisible()
-  await expect(
-    page.getByText("Bewaard in lokale sessie · back-up nodig"),
-  ).toBeVisible()
-  await expect(
-    page.getByText("E2E cluster", { exact: true }).first(),
-  ).toBeVisible()
+  await expect(page.getByText("Back-up nodig", { exact: true })).toBeVisible()
+  await expect(page.getByText(/Gebouw en ruimte · E2E cluster/)).toBeVisible()
 
+  await page.getByRole("button", { name: "Projectacties" }).click()
   await page.getByRole("button", { name: "Project bewerken" }).click()
   await page.getByLabel("Titel").fill("Fase 3 hoofdflow gewijzigd")
   await page.getByLabel("Voortgang (%)").fill("35")
@@ -98,7 +95,6 @@ test("fase-3-hoofdflow beheert en roundtript een project volledig lokaal", async
     .getByRole("navigation", { name: "Hoofdnavigatie" })
     .getByRole("link", { name: "Portfolio" })
     .click()
-  await page.getByLabel("Zoekterm").fill("PRJ-F3-E2E")
   await expect(
     page.getByRole("button", {
       name: "PRJ-F3-E2E Fase 3 hoofdflow gewijzigd openen",
@@ -112,10 +108,7 @@ test("fase-3-hoofdflow beheert en roundtript een project volledig lokaal", async
   await expect(
     page.getByText("E2E Projectcoördinator", { exact: true }).first(),
   ).toBeVisible()
-  await expect(
-    page.getByText("E2E cluster", { exact: true }).first(),
-  ).toBeVisible()
-  await expect(page.getByText("Project aangemaakt")).toBeVisible()
+  await expect(page.getByText(/Gebouw en ruimte · E2E cluster/)).toBeVisible()
   await page.screenshot({
     path: "test-results/phase3-project-dossier.png",
     fullPage: true,

@@ -281,7 +281,9 @@ export function buildDomainIndices(records: DomainCollections): DomainIndices {
     milestoneById: new Map(
       records.milestones.map((record) => [record.id, record]),
     ),
-    resourceById: new Map(records.resources.map((record) => [record.id, record])),
+    resourceById: new Map(
+      records.resources.map((record) => [record.id, record]),
+    ),
     resourceAssignmentById: new Map(
       records.resourceAssignments.map((record) => [record.id, record]),
     ),
@@ -312,8 +314,14 @@ export function buildDomainIndices(records: DomainCollections): DomainIndices {
     ),
     planningByProject: groupBy(records.planning, (record) => record.projectId),
     planningByTopic: groupBy(records.planning, (record) => record.topicId),
-    phasesByProject: groupBy(records.projectPhases, (record) => record.projectId),
-    milestonesByProject: groupBy(records.milestones, (record) => record.projectId),
+    phasesByProject: groupBy(
+      records.projectPhases,
+      (record) => record.projectId,
+    ),
+    milestonesByProject: groupBy(
+      records.milestones,
+      (record) => record.projectId,
+    ),
     milestonesByPhase: groupBy(records.milestones, (record) => record.phaseId),
     assignmentsByProject: groupBy(
       records.resourceAssignments,

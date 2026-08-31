@@ -108,6 +108,11 @@ Mutatieregels in fase 3:
     cluster en dus eventueel naar het voormalige hoofdstuk verwijzen;
   - alleen de open historiekkoppeling moet overeenkomen met het huidige
     `project.clusterId` en met het huidige hoofdstuk van het project;
+  - een verplaatsing is geblokkeerd zolang het project of een projectgebonden
+    bronrecord op een actief conceptoverleg met de oude hoofdstuk- of
+    clusterscope staat;
+  - definitieve overlegagenda's blijven historische snapshots en worden niet
+    ongeldig wanneer het project later van hoofdstuk of cluster verandert;
   - project-ID en bestaande historiekrecords blijven behouden bij bewerken.
 
 ## Actor
@@ -339,6 +344,42 @@ Regels:
 - audit.
 
 Geen self-link en geen cyclus.
+
+## Uitgebreide fasering en resources
+
+Schema 1.1 voegt vier optionele planningcollecties toe naast de bestaande
+`PlanningEntry`-records. Bestaande topicplanning, vrije planningitems en
+mijlpalen blijven geldig en worden bij migratie niet automatisch verplaatst.
+
+### ProjectPhase
+
+- projectId;
+- name;
+- startDate en endDate;
+- status en progressPercent;
+- ownerActorId?;
+- intensity: `Laag | Normaal | Hoog | Piek`;
+- dependsOnPhaseId?;
+- order.
+
+Een voorganger is een andere fase van hetzelfde project en faseafhankelijkheden
+zijn acyclisch.
+
+### Milestone
+
+- projectId;
+- phaseId?;
+- name en date;
+- status: `Gepland | Behaald | Gemist | Geannuleerd`;
+- ownerActorId?.
+
+### Resource en ResourceAssignment
+
+Een resource beschrijft een persoon, rol, team, externe partij, ruimte of
+uitrusting met totale en voor projecten beschikbare VTE-capaciteit. Een
+`ResourceAssignment` koppelt precies één resource of rol aan een project en
+optioneel een fase, met een geldige periode en niet-negatieve inzet in VTE,
+uren, totaalvolume of indicatieve inzet.
 
 Fase-6-mutatieregels:
 

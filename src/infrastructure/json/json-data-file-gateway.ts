@@ -66,70 +66,8 @@ function migrateLegacyEnvelope(source: unknown): unknown {
   const records = envelope.records
   if (!records || typeof records !== "object") return envelope
   const collections = records as Record<string, unknown>
-  const planning = Array.isArray(collections.planning)
-    ? (collections.planning as Record<string, unknown>[])
-    : []
-  const dependencies = Array.isArray(collections.planningDependencies)
-    ? (collections.planningDependencies as Record<string, unknown>[])
-    : []
-  const projectPhases: Record<string, unknown>[] = []
-  const milestones: Record<string, unknown>[] = []
-  const convertedIds = new Set<string>()
-
-  for (const entry of planning) {
-    const id = String(entry.id ?? "")
-    if (entry.kind === "Custom") {
-      projectPhases.push({
-        id: entry.id,
-        projectId: entry.projectId,
-        name: entry.title,
-        startDate: entry.startDate ?? entry.plannedEndDate,
-        endDate: entry.plannedEndDate,
-        status: entry.status,
-        progressPercent: entry.progressPercent ?? 0,
-        intensity: "Normaal",
-        order: entry.order ?? projectPhases.length + 1,
-        audit: entry.audit,
-      })
-      convertedIds.add(id)
-    }
-    if (entry.kind === "Milestone" || entry.isMilestone === true) {
-      milestones.push({
-        id: entry.id,
-        projectId: entry.projectId,
-        name: entry.title,
-        date: entry.plannedEndDate,
-        status: entry.status === "Afgerond" ? "Behaald" : "Gepland",
-        audit: entry.audit,
-      })
-      convertedIds.add(id)
-    }
-  }
-
-  for (const dependency of dependencies) {
-    const successor = projectPhases.find(
-      (phase) => phase.id === dependency.successorPlanningId,
-    )
-    if (
-      successor &&
-      projectPhases.some(
-        (phase) => phase.id === dependency.predecessorPlanningId,
-      )
-    ) {
-      successor.dependsOnPhaseId = dependency.predecessorPlanningId
-    }
-  }
-
-  collections.planning = planning.filter(
-    (entry) => !convertedIds.has(String(entry.id ?? "")),
-  )
-  collections.planningDependencies = dependencies.filter(
-    (dependency) =>
-      !convertedIds.has(String(dependency.predecessorPlanningId ?? "")) &&
-      !convertedIds.has(String(dependency.successorPlanningId ?? "")),
-  )
-  collections.projectPhases = projectPhases
-  collections.milestones = milestones
+  collections.projectPhases = []
+  collections.milestones = []
   collections.resources = []
   collections.resourceAssignments = []
   if (Array.isArray(collections.config) && collections.config[0]) {
@@ -274,7 +212,9 @@ export class JsonDataFileGateway implements DataFileGateway {
       })
     }
 
-    const parsed = jsonDataEnvelopeSchema.safeParse(migrateLegacyEnvelope(source))
+    const parsed = jsonDataEnvelopeSchema.safeParse(
+      migrateLegacyEnvelope(source),
+    )
     if (!parsed.success) {
       const issues: DataValidationIssue[] = parsed.error.issues.map(
         (issue) => ({
@@ -328,13 +268,18 @@ export class JsonDataFileGateway implements DataFileGateway {
     if (!config) {
       throw new Error("Opslaan is geblokkeerd: configuratie ontbreekt.")
     }
+    const records = structuredClone(state.records)
+    records.config[0] = {
+      ...config,
+      schemaVersion: JSON_DATA_SCHEMA_VERSION,
+    }
     const envelope: JsonDataEnvelope = {
       format: JSON_DATA_FORMAT,
       schemaVersion: JSON_DATA_SCHEMA_VERSION,
       exportedAt: nowIso(),
       appVersion: APP_VERSION,
       dataSetId: config.dataSetId,
-      records: structuredClone(state.records),
+      records,
     }
     const checked = jsonDataEnvelopeSchema.parse(envelope)
     const text = `${JSON.stringify(checked, null, 2)}\n`

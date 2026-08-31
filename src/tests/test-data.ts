@@ -17,6 +17,7 @@ import type {
   Update,
   UUID,
 } from "../domain"
+import { DATA_SCHEMA_VERSION } from "../config/data-format"
 
 const uuid = (value: string) => value as UUID
 const date = (value: string) => value as LocalDate
@@ -249,7 +250,7 @@ export function createPortfolioTestSession(): DataFileSession {
   records.updates.push(decision)
   records.config.push({
     id: uuid("90000000-0000-4000-8000-000000000001"),
-    schemaVersion: "1.0.0",
+    schemaVersion: DATA_SCHEMA_VERSION,
     dataSetId: uuid("90000000-0000-4000-8000-000000000002"),
     createdAt: auditDate,
     appVersion: "test",
@@ -261,7 +262,7 @@ export function createPortfolioTestSession(): DataFileSession {
   return {
     state: normalizeDomainState(records),
     fileName: "portfolio-test.json",
-    schemaVersion: "1.0.0",
+    schemaVersion: DATA_SCHEMA_VERSION,
     format: "json",
     origin: "import",
     issues: [],

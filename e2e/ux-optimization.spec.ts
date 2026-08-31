@@ -48,6 +48,7 @@ test("geoptimaliseerde werkflow blijft compact en contextvast", async ({
   })
 
   await page.locator(".portfolio-row--project").first().click()
+  await page.getByRole("button", { name: "Projectacties" }).click()
   await page.getByRole("button", { name: "Project bewerken" }).click()
   await expect(
     page.getByRole("heading", { name: "Project bewerken" }),

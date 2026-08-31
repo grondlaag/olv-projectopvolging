@@ -543,6 +543,7 @@ export function JournalPropertiesPanel({
               onChange={(event) => setQuestion(event.target.value)}
             />
             <select
+              aria-label="Beslisser kiezen"
               value={requestedActorId}
               onChange={(event) => setRequestedActorId(event.target.value)}
             >

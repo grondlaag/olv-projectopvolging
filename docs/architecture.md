@@ -109,7 +109,7 @@ Het contract staat in [json-contract.md](json-contract.md). De envelope bevat:
 - schemaversie;
 - exporttijd en appversie;
 - stabiele dataSetId;
-- alle 22 domeincollecties.
+- alle 26 domeincollecties.
 
 Import verloopt als volgt:
 

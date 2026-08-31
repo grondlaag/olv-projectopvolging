@@ -1,4 +1,4 @@
-import { phaseIntensityFactors } from "../../domain"
+import { phaseIntensityFactors, projectSizeFte } from "../../domain"
 import type {
   Actor,
   Chapter,
@@ -127,10 +127,26 @@ export function isPlanningEntryDelayed(
   )
 }
 
-function assignmentFte(assignment: Pick<ResourceAssignment, "allocation" | "allocationMode" | "startDate" | "endDate">): number {
-  if (assignment.allocationMode === "fte" || assignment.allocationMode === "indicative") return assignment.allocation
+function assignmentFte(
+  assignment: Pick<
+    ResourceAssignment,
+    "allocation" | "allocationMode" | "startDate" | "endDate"
+  >,
+): number {
+  if (
+    assignment.allocationMode === "fte" ||
+    assignment.allocationMode === "indicative"
+  )
+    return assignment.allocation
   if (assignment.allocationMode === "hours") return assignment.allocation / 40
-  const days = Math.max(1, Math.floor((Date.parse(`${assignment.endDate}T00:00:00Z`) - Date.parse(`${assignment.startDate}T00:00:00Z`)) / 86_400_000) + 1)
+  const days = Math.max(
+    1,
+    Math.floor(
+      (Date.parse(`${assignment.endDate}T00:00:00Z`) -
+        Date.parse(`${assignment.startDate}T00:00:00Z`)) /
+        86_400_000,
+    ) + 1,
+  )
   return assignment.allocation / (Math.max(1, days / 7) * 40)
 }
 
@@ -176,7 +192,10 @@ function entryRow(
   }
 }
 
-function projectRow(project: Project, phases: readonly ProjectPhase[] = []): PlanningRow {
+function projectRow(
+  project: Project,
+  phases: readonly ProjectPhase[] = [],
+): PlanningRow {
   const starts = phases.map((phase) => phase.startDate).sort()
   const ends = phases.map((phase) => phase.endDate).sort()
   const startDate = project.startDate ?? starts[0]
@@ -196,8 +215,15 @@ function projectRow(project: Project, phases: readonly ProjectPhase[] = []): Pla
   }
 }
 
-function phaseRow(state: NormalizedDomainState, phase: ProjectPhase, today: string, depth: PlanningRow["depth"] = 1): PlanningRow {
-  const owner = phase.ownerActorId ? state.indices.actorById.get(phase.ownerActorId) : undefined
+function phaseRow(
+  state: NormalizedDomainState,
+  phase: ProjectPhase,
+  today: string,
+  depth: PlanningRow["depth"] = 1,
+): PlanningRow {
+  const owner = phase.ownerActorId
+    ? state.indices.actorById.get(phase.ownerActorId)
+    : undefined
   return {
     id: phase.id,
     title: phase.name,
@@ -216,8 +242,15 @@ function phaseRow(state: NormalizedDomainState, phase: ProjectPhase, today: stri
   }
 }
 
-function milestoneRow(state: NormalizedDomainState, milestone: Milestone, today: string, depth: PlanningRow["depth"] = 2): PlanningRow {
-  const owner = milestone.ownerActorId ? state.indices.actorById.get(milestone.ownerActorId) : undefined
+function milestoneRow(
+  state: NormalizedDomainState,
+  milestone: Milestone,
+  today: string,
+  depth: PlanningRow["depth"] = 2,
+): PlanningRow {
+  const owner = milestone.ownerActorId
+    ? state.indices.actorById.get(milestone.ownerActorId)
+    : undefined
   return {
     id: milestone.id,
     title: milestone.name,
@@ -332,7 +365,9 @@ export function buildProjectPlanningModel(
   const phases = [...(state.indices.phasesByProject.get(project.id) ?? [])]
     .filter((phase) => phase.audit.active)
     .sort((left, right) => left.order - right.order)
-  const milestones = [...(state.indices.milestonesByProject.get(project.id) ?? [])]
+  const milestones = [
+    ...(state.indices.milestonesByProject.get(project.id) ?? []),
+  ]
     .filter((milestone) => milestone.audit.active)
     .sort((left, right) => left.date.localeCompare(right.date))
   return {
@@ -341,9 +376,13 @@ export function buildProjectPlanningModel(
       projectRow(project, phases),
       ...phases.flatMap((phase) => [
         phaseRow(state, phase, today),
-        ...milestones.filter((milestone) => milestone.phaseId === phase.id).map((milestone) => milestoneRow(state, milestone, today)),
+        ...milestones
+          .filter((milestone) => milestone.phaseId === phase.id)
+          .map((milestone) => milestoneRow(state, milestone, today)),
       ]),
-      ...milestones.filter((milestone) => !milestone.phaseId).map((milestone) => milestoneRow(state, milestone, today, 1)),
+      ...milestones
+        .filter((milestone) => !milestone.phaseId)
+        .map((milestone) => milestoneRow(state, milestone, today, 1)),
       ...entries.map((entry) => entryRow(state, entry, today)),
       ...sourceRows(state, project, 1, today),
     ],
@@ -351,7 +390,9 @@ export function buildProjectPlanningModel(
     dependencies,
     phases,
     milestones,
-    assignments: (state.indices.assignmentsByProject.get(project.id) ?? []).filter((item) => item.audit.active),
+    assignments: (
+      state.indices.assignmentsByProject.get(project.id) ?? []
+    ).filter((item) => item.audit.active),
   }
 }
 
@@ -367,7 +408,11 @@ function projectMatchesFilters(
   if (filters.chapterId && project.chapterId !== filters.chapterId) return false
   if (filters.clusterId && project.clusterId !== filters.clusterId) return false
   if (filters.projectId && project.id !== filters.projectId) return false
-  if (filters.planningStatus && project.planningStatus !== filters.planningStatus) return false
+  if (
+    filters.planningStatus &&
+    project.planningStatus !== filters.planningStatus
+  )
+    return false
   if (
     filters.status &&
     !entries.some((entry) => entry.status === filters.status)
@@ -383,7 +428,9 @@ function projectMatchesFilters(
   if (
     filters.ownerActorId &&
     !phases.some((phase) => phase.ownerActorId === filters.ownerActorId) &&
-    !milestones.some((milestone) => milestone.ownerActorId === filters.ownerActorId) &&
+    !milestones.some(
+      (milestone) => milestone.ownerActorId === filters.ownerActorId,
+    ) &&
     !entries.some((entry) => {
       const topic = entry.topicId
         ? state.indices.topicById.get(entry.topicId)
@@ -392,10 +439,24 @@ function projectMatchesFilters(
     })
   )
     return false
-  if (filters.phase && !phases.some((phase) => phase.name.toLocaleLowerCase("nl").includes(filters.phase!.toLocaleLowerCase("nl")))) return false
+  if (
+    filters.phase &&
+    !phases.some((phase) =>
+      phase.name
+        .toLocaleLowerCase("nl")
+        .includes(filters.phase!.toLocaleLowerCase("nl")),
+    )
+  )
+    return false
   if (filters.resourceId || filters.roleId) {
     const resourceId = filters.resourceId || filters.roleId
-    if (!(state.indices.assignmentsByProject.get(project.id) ?? []).some((assignment) => (assignment.resourceId ?? assignment.roleId) === resourceId)) return false
+    if (
+      !(state.indices.assignmentsByProject.get(project.id) ?? []).some(
+        (assignment) =>
+          (assignment.resourceId ?? assignment.roleId) === resourceId,
+      )
+    )
+      return false
   }
   return true
 }
@@ -406,8 +467,12 @@ export function buildPortfolioPlanningModel(
   today: string,
 ): readonly PortfolioPlanningChapter[] {
   const projects = state.records.projects.flatMap((project) => {
-    const phases = (state.indices.phasesByProject.get(project.id) ?? []).filter((phase) => phase.audit.active)
-    const milestones = (state.indices.milestonesByProject.get(project.id) ?? []).filter((milestone) => milestone.audit.active)
+    const phases = (state.indices.phasesByProject.get(project.id) ?? []).filter(
+      (phase) => phase.audit.active,
+    )
+    const milestones = (
+      state.indices.milestonesByProject.get(project.id) ?? []
+    ).filter((milestone) => milestone.audit.active)
     const entries = (state.indices.planningByProject.get(project.id) ?? [])
       .filter((entry) => entry.audit.active)
       .filter((entry) => !filters.status || entry.status === filters.status)
@@ -423,9 +488,21 @@ export function buildPortfolioPlanningModel(
         return topic?.ownerActorId === filters.ownerActorId
       })
     const allEntries = state.indices.planningByProject.get(project.id) ?? []
-    if (!projectMatchesFilters(state, project, allEntries, phases, milestones, filters, today))
+    if (
+      !projectMatchesFilters(
+        state,
+        project,
+        allEntries,
+        phases,
+        milestones,
+        filters,
+        today,
+      )
+    )
       return []
-    const assignments = (state.indices.assignmentsByProject.get(project.id) ?? []).filter((assignment) => assignment.audit.active)
+    const assignments = (
+      state.indices.assignmentsByProject.get(project.id) ?? []
+    ).filter((assignment) => assignment.audit.active)
     return [{ project, entries, phases, milestones, assignments }]
   })
 
@@ -469,13 +546,23 @@ export function buildPortfolioPlanningModel(
                 assignments,
                 rows: [
                   projectRow(project, phases),
-                  ...phases.sort((left, right) => left.order - right.order).flatMap((phase) => [
-                    phaseRow(state, phase, today, 2),
-                    ...milestones.filter((milestone) => milestone.phaseId === phase.id).map((milestone) => milestoneRow(state, milestone, today, 3)),
-                  ]),
-                  ...milestones.filter((milestone) => !milestone.phaseId).map((milestone) => milestoneRow(state, milestone, today, 2)),
+                  ...phases
+                    .sort((left, right) => left.order - right.order)
+                    .flatMap((phase) => [
+                      phaseRow(state, phase, today, 2),
+                      ...milestones
+                        .filter((milestone) => milestone.phaseId === phase.id)
+                        .map((milestone) =>
+                          milestoneRow(state, milestone, today, 3),
+                        ),
+                    ]),
+                  ...milestones
+                    .filter((milestone) => !milestone.phaseId)
+                    .map((milestone) =>
+                      milestoneRow(state, milestone, today, 2),
+                    ),
                   ...entries.map((entry) => entryRow(state, entry, today, 2)),
-                  ...(filters.includeActions ? sourceRows(state, project, 2, today) : []),
+                  ...sourceRows(state, project, 2, today),
                 ],
               })),
           }
@@ -523,7 +610,14 @@ export function summarizePortfolioPlanning(
           sizeCounts[item.project.size] += 1
           // XS–XXL selects a profile; actual demand comes from assignments.
         } else unscaledProjectCount += 1
-        indicativeFte += item.assignments.reduce((sum, assignment) => sum + assignmentFte(assignment), 0)
+        indicativeFte += item.assignments.length
+          ? item.assignments.reduce(
+              (sum, assignment) => sum + assignmentFte(assignment),
+              0,
+            )
+          : item.project.size
+            ? projectSizeFte[item.project.size]
+            : 0
         const hasProjectPlanning = Boolean(
           item.project.startDate || item.project.plannedEndDate,
         )
@@ -538,11 +632,20 @@ export function summarizePortfolioPlanning(
         milestoneCount += item.milestones.length
         for (const phase of item.phases) {
           dates.push(phase.startDate, phase.endDate)
-          if (phase.status === "Risico" || phase.status === "Vertraagd" || (phase.endDate < today && !closedPlanningStatuses.has(phase.status))) attentionItemCount += 1
+          if (
+            phase.status === "Risico" ||
+            phase.status === "Vertraagd" ||
+            (phase.endDate < today && !closedPlanningStatuses.has(phase.status))
+          )
+            attentionItemCount += 1
         }
         for (const milestone of item.milestones) {
           dates.push(milestone.date)
-          if (milestone.status === "Gemist" || (milestone.status === "Gepland" && milestone.date < today)) attentionItemCount += 1
+          if (
+            milestone.status === "Gemist" ||
+            (milestone.status === "Gepland" && milestone.date < today)
+          )
+            attentionItemCount += 1
         }
         for (const entry of item.entries) {
           if (entry.startDate) dates.push(entry.startDate)
@@ -594,8 +697,24 @@ export function planningRiskProjectIds(
             isPlanningEntryDelayed(entry, today)),
       )
       .map((entry) => entry.projectId),
-    ...state.records.projectPhases.filter((phase) => phase.audit.active && (phase.status === "Risico" || phase.status === "Vertraagd" || (phase.endDate < today && !closedPlanningStatuses.has(phase.status)))).map((phase) => phase.projectId),
-    ...state.records.milestones.filter((milestone) => milestone.audit.active && (milestone.status === "Gemist" || (milestone.status === "Gepland" && milestone.date < today))).map((milestone) => milestone.projectId),
+    ...state.records.projectPhases
+      .filter(
+        (phase) =>
+          phase.audit.active &&
+          (phase.status === "Risico" ||
+            phase.status === "Vertraagd" ||
+            (phase.endDate < today &&
+              !closedPlanningStatuses.has(phase.status))),
+      )
+      .map((phase) => phase.projectId),
+    ...state.records.milestones
+      .filter(
+        (milestone) =>
+          milestone.audit.active &&
+          (milestone.status === "Gemist" ||
+            (milestone.status === "Gepland" && milestone.date < today)),
+      )
+      .map((milestone) => milestone.projectId),
   ])
 }
 
@@ -629,7 +748,9 @@ export function buildResourceCapacity(
   state: NormalizedDomainState,
   range?: { startDate: string; endDate: string },
 ): readonly ResourceCapacityPeriod[] {
-  const active = state.records.resourceAssignments.filter((item) => item.audit.active)
+  const active = state.records.resourceAssignments.filter(
+    (item) => item.audit.active,
+  )
   const dates = active.flatMap((item) => [item.startDate, item.endDate]).sort()
   const start = range?.startDate ?? dates[0]
   const end = range?.endDate ?? dates.at(-1)
@@ -642,21 +763,52 @@ export function buildResourceCapacity(
     cursor.setUTCMonth(cursor.getUTCMonth() + 1)
   }
   const result: ResourceCapacityPeriod[] = []
-  for (const resource of state.records.resources.filter((item) => item.audit.active)) {
-    const assignments = state.indices.assignmentsByResource.get(resource.id) ?? []
+  for (const resource of state.records.resources.filter(
+    (item) => item.audit.active,
+  )) {
+    const assignments =
+      state.indices.assignmentsByResource.get(resource.id) ?? []
     for (const period of periods) {
-      const breakdown = assignments.flatMap((assignment): CapacityBreakdownItem[] => {
-        if (!assignment.audit.active || assignment.endDate < period.startDate || assignment.startDate > period.endDate) return []
-        const project = state.indices.projectById.get(assignment.projectId)
-        if (!project) return []
-        const phase = assignment.phaseId ? state.indices.projectPhaseById.get(assignment.phaseId) : undefined
-        const demandFte = assignmentFte(assignment) * (phase ? phaseIntensityFactors[phase.intensity] : 1)
-        return [{ assignment, project, ...(phase ? { phase } : {}), demandFte }]
-      })
+      const breakdown = assignments.flatMap(
+        (assignment): CapacityBreakdownItem[] => {
+          if (
+            !assignment.audit.active ||
+            assignment.endDate < period.startDate ||
+            assignment.startDate > period.endDate
+          )
+            return []
+          const project = state.indices.projectById.get(assignment.projectId)
+          if (!project) return []
+          const phase = assignment.phaseId
+            ? state.indices.projectPhaseById.get(assignment.phaseId)
+            : undefined
+          const demandFte =
+            assignmentFte(assignment) *
+            (phase ? phaseIntensityFactors[phase.intensity] : 1)
+          return [
+            { assignment, project, ...(phase ? { phase } : {}), demandFte },
+          ]
+        },
+      )
       const demandFte = breakdown.reduce((sum, item) => sum + item.demandFte, 0)
       const capacityFte = resource.projectAvailabilityFte
-      const loadPercent = capacityFte > 0 ? (demandFte / capacityFte) * 100 : demandFte > 0 ? Infinity : 0
-      if (demandFte > 0 || range) result.push({ id: `${resource.id}:${period.startDate}`, resource, ...period, demandFte, capacityFte, loadPercent, conflict: loadPercent > 100, breakdown })
+      const loadPercent =
+        capacityFte > 0
+          ? (demandFte / capacityFte) * 100
+          : demandFte > 0
+            ? Infinity
+            : 0
+      if (demandFte > 0 || range)
+        result.push({
+          id: `${resource.id}:${period.startDate}`,
+          resource,
+          ...period,
+          demandFte,
+          capacityFte,
+          loadPercent,
+          conflict: loadPercent > 100,
+          breakdown,
+        })
     }
   }
   return result
@@ -671,20 +823,67 @@ export interface PlanningAttentionSummary {
   planningAttention: readonly Project[]
 }
 
-export function buildPlanningAttention(state: NormalizedDomainState, today: string): PlanningAttentionSummary {
+export function buildPlanningAttention(
+  state: NormalizedDomainState,
+  today: string,
+): PlanningAttentionSummary {
   const horizon = new Date(`${today}T00:00:00Z`)
   horizon.setUTCDate(horizon.getUTCDate() + 30)
   const horizonDate = horizon.toISOString().slice(0, 10)
-  const upcomingMilestones = state.records.milestones.filter((item) => item.audit.active && item.status === "Gepland" && item.date >= today && item.date <= horizonDate).sort((a, b) => a.date.localeCompare(b.date))
-  const delayedPhases = state.records.projectPhases.filter((item) => item.audit.active && item.endDate < today && !closedPlanningStatuses.has(item.status)).sort((a, b) => a.endDate.localeCompare(b.endDate))
-  const projectsWithoutPlanning = state.records.projects.filter((project) => !(state.indices.phasesByProject.get(project.id) ?? []).some((phase) => phase.audit.active) && !project.startDate && !project.plannedEndDate)
-  const resourceConflicts = buildResourceCapacity(state).filter((item) => item.conflict)
+  const upcomingMilestones = state.records.milestones
+    .filter(
+      (item) =>
+        item.audit.active &&
+        item.status === "Gepland" &&
+        item.date >= today &&
+        item.date <= horizonDate,
+    )
+    .sort((a, b) => a.date.localeCompare(b.date))
+  const delayedPhases = state.records.projectPhases
+    .filter(
+      (item) =>
+        item.audit.active &&
+        item.endDate < today &&
+        !closedPlanningStatuses.has(item.status),
+    )
+    .sort((a, b) => a.endDate.localeCompare(b.endDate))
+  const projectsWithoutPlanning = state.records.projects.filter(
+    (project) =>
+      !(state.indices.phasesByProject.get(project.id) ?? []).some(
+        (phase) => phase.audit.active,
+      ) &&
+      !project.startDate &&
+      !project.plannedEndDate,
+  )
+  const resourceConflicts = buildResourceCapacity(state).filter(
+    (item) => item.conflict,
+  )
   const conflictIds = new Set(resourceConflicts.map((item) => item.resource.id))
-  const overallocatedResources = state.records.resources.filter((resource) => conflictIds.has(resource.id))
+  const overallocatedResources = state.records.resources.filter((resource) =>
+    conflictIds.has(resource.id),
+  )
   const attentionIds = new Set<UUID>([
     ...delayedPhases.map((phase) => phase.projectId),
-    ...state.records.milestones.filter((item) => item.audit.active && (item.status === "Gemist" || (item.status === "Gepland" && item.date < today))).map((item) => item.projectId),
-    ...resourceConflicts.flatMap((period) => period.breakdown.map((item) => item.project.id)),
+    ...state.records.milestones
+      .filter(
+        (item) =>
+          item.audit.active &&
+          (item.status === "Gemist" ||
+            (item.status === "Gepland" && item.date < today)),
+      )
+      .map((item) => item.projectId),
+    ...resourceConflicts.flatMap((period) =>
+      period.breakdown.map((item) => item.project.id),
+    ),
   ])
-  return { upcomingMilestones, delayedPhases, projectsWithoutPlanning, resourceConflicts, overallocatedResources, planningAttention: state.records.projects.filter((project) => attentionIds.has(project.id)) }
+  return {
+    upcomingMilestones,
+    delayedPhases,
+    projectsWithoutPlanning,
+    resourceConflicts,
+    overallocatedResources,
+    planningAttention: state.records.projects.filter((project) =>
+      attentionIds.has(project.id),
+    ),
+  }
 }

@@ -118,6 +118,20 @@ Regels:
 - geen cyclus;
 - beide binnen hetzelfde project in MVP.
 
+## Optionele fasering en resources (schema 1.1)
+
+Naast `PlanningEntry` kan een gegevensset projectfasen, afzonderlijke
+mijlpalen, resources en resource-inzet bevatten. Deze records zijn aanvullend:
+de schema-1.0-planning blijft de bewerkbare bron voor bestaande topicplanning,
+vrije periodes en mijlpalen. Migratie verplaatst of herinterpreteert die records
+niet automatisch.
+
+Een fase heeft een periode, handmatige voortgang, intensiteit en optioneel één
+voorganger binnen hetzelfde project. Resource-inzet verwijst naar hetzelfde
+project en, indien ingevuld, naar een fase van dat project. Capaciteit en inzet
+zijn niet-negatief; projectbeschikbaarheid overschrijdt de totale capaciteit
+niet.
+
 ## Projectvoortgang
 
 Standaard:

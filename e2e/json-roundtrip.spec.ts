@@ -13,7 +13,7 @@ test("de productie-interface bewaart een JSON-roundtrip", async ({ page }) => {
   await expect(dialog.getByText("Blocking: 0")).toBeVisible()
   await dialog.getByRole("button", { name: "Bestand openen" }).click()
   await expect(
-    page.getByText("small-valid.json", { exact: true }),
+    page.getByText(/Actuele signalen uit small-valid\.json/),
   ).toBeVisible()
 
   const downloadPromise = page.waitForEvent("download")

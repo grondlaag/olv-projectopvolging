@@ -128,7 +128,7 @@ oorspronkelijke hoofdstuk/cluster/settings-bug.
 
 De gatewaytests controleren:
 
-- exact 22 collecties;
+- exact 26 JSON-collecties en de geïsoleerde 22 legacy-Excelcollecties;
 - GUID- en relatiebehoud;
 - integer cents zonder floating-pointconversie;
 - datum- en datetimebehoud;

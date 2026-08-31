@@ -76,7 +76,6 @@ test("nieuwe JSON-set ondersteunt instellingen en inline hoofdstuk en cluster", 
     .getByRole("navigation", { name: "Hoofdnavigatie" })
     .getByRole("link", { name: "Portfolio" })
     .click()
-  await page.getByLabel("Zoekterm").fill("PRJ-JSON-01")
   await expect(
     page.getByRole("button", { name: "PRJ-JSON-01 JSON beheerproef openen" }),
   ).toBeVisible()

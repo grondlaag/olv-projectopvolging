@@ -21,7 +21,6 @@ test("fase-7-hoofdflow beheert budget, correctiehistorie en JSON-roundtrip lokaa
     .getByRole("navigation", { name: "Hoofdnavigatie" })
     .getByRole("link", { name: "Portfolio" })
     .click()
-  await page.getByLabel("Zoekterm").fill("PRJ-001")
   await page
     .getByRole("button", {
       name: "PRJ-001 Synthetisch renovatieproject openen",
@@ -105,11 +104,22 @@ test("fase-7-hoofdflow beheert budget, correctiehistorie en JSON-roundtrip lokaa
 
   await page
     .getByRole("navigation", { name: "Projectdossierweergave" })
-    .getByRole("link", { name: /^Topics/ })
+    .getByRole("link", { name: /^Journaal/ })
     .click()
-  await page.getByText("Budgetimpact", { exact: true }).click()
-  await expect(page.getByText("2 gekoppelde records")).toBeVisible()
-  await page.getByRole("link", { name: "Bekijk budgetitems" }).click()
+  const topic = page.locator(".journal-topic").filter({
+    hasText: "Tijdelijke toegang",
+  })
+  await topic.locator(".journal-topic__header").click()
+  const properties = page.getByRole("complementary", {
+    name: "Topiceigenschappen",
+  })
+  await properties.getByText("Planning en budget").click()
+  await expect(properties).toContainText("Budgetrecords")
+  await expect(properties).toContainText("2")
+  await page
+    .getByRole("navigation", { name: "Projectdossierweergave" })
+    .getByRole("link", { name: "Budget" })
+    .click()
   await expect(page.getByText("E2E topicgekoppeld meerwerk")).toBeVisible()
 
   await page
@@ -185,7 +195,6 @@ test("fase-7-hoofdflow beheert budget, correctiehistorie en JSON-roundtrip lokaa
     .getByRole("navigation", { name: "Hoofdnavigatie" })
     .getByRole("link", { name: "Portfolio" })
     .click()
-  await page.getByLabel("Zoekterm").fill("PRJ-001")
   await page
     .getByRole("button", {
       name: "PRJ-001 Synthetisch renovatieproject openen",

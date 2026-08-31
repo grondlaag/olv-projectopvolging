@@ -13,16 +13,27 @@ const auditHeaders = [
   "actief",
 ]
 
-describe("canonical Excel schema 1.0.0", () => {
-  it("dekt alle 22 domeincollecties met unieke tables en werkbladen", () => {
+describe("geïsoleerd legacy-Excel-schema 1.0.0", () => {
+  it("dekt de 22 legacycollecties met unieke tables en werkbladen", () => {
     const collections = Object.keys(createEmptyDomainCollections()).sort()
     const mappedCollections = excelSchema.tables
       .map((table) => table.collection)
       .sort()
+    const planningCollectionsIntroducedAfterExcel = [
+      "milestones",
+      "projectPhases",
+      "resourceAssignments",
+      "resources",
+    ]
 
     expect(EXCEL_SCHEMA_VERSION).toBe("1.0.0")
     expect(excelSchema.tables).toHaveLength(22)
-    expect(mappedCollections).toEqual(collections)
+    expect(mappedCollections).toEqual(
+      collections.filter(
+        (collection) =>
+          !planningCollectionsIntroducedAfterExcel.includes(collection),
+      ),
+    )
     expect(
       new Set(excelSchema.tables.map((table) => table.tableName)).size,
     ).toBe(22)

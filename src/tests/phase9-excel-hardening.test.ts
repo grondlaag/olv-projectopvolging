@@ -26,6 +26,7 @@ describe("fase 9 volledige Excel-hardening", () => {
     const records = cloneDomainCollections(
       createPortfolioTestSession().state.records,
     )
+    records.config[0]!.schemaVersion = "1.0.0"
     const historyId = uuid("91000000-0000-4000-8000-000000000001")
     const updateId = uuid("91000000-0000-4000-8000-000000000002")
     const actionId = uuid("91000000-0000-4000-8000-000000000003")

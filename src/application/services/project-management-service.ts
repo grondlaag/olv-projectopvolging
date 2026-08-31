@@ -18,6 +18,7 @@ import {
   type NormalizedDomainState,
 } from "./domain-state"
 import { cloneDomainCollections } from "./semantic-comparison"
+import { validateDomainIntegrity } from "./domain-integrity"
 
 export interface ProjectInput {
   code: string
@@ -212,6 +213,26 @@ function createHistory(
   }
 }
 
+function agendaObjectBelongsToProject(
+  state: NormalizedDomainState,
+  objectType: "Project" | "Cluster" | "Topic" | "Action",
+  objectId: UUID,
+  projectId: UUID,
+): boolean {
+  if (objectType === "Project") return objectId === projectId
+  if (objectType === "Topic") {
+    return state.indices.topicById.get(objectId)?.projectId === projectId
+  }
+  if (objectType !== "Action") return false
+  const action = state.indices.actionById.get(objectId)
+  if (!action) return false
+  if (action.objectType === "Project") return action.objectId === projectId
+  if (action.objectType === "Topic") {
+    return state.indices.topicById.get(action.objectId)?.projectId === projectId
+  }
+  return false
+}
+
 export class ProjectManagementService {
   createProject(
     state: NormalizedDomainState,
@@ -310,7 +331,43 @@ export class ProjectManagementService {
       }
     }
 
-    return { state: normalizeDomainState(records), record: project }
+    const nextState = normalizeDomainState(records)
+    if (
+      existing.chapterId !== project.chapterId ||
+      existing.clusterId !== project.clusterId
+    ) {
+      const invalidAgendaLink = validateDomainIntegrity(records).find(
+        (issue) => {
+          if (issue.code !== "meeting.agenda.out-of-scope" || !issue.recordId) {
+            return false
+          }
+          const agendaItem = nextState.indices.agendaItemById.get(
+            issue.recordId,
+          )
+          return Boolean(
+            agendaItem?.objectType &&
+            agendaItem.objectId &&
+            agendaObjectBelongsToProject(
+              nextState,
+              agendaItem.objectType,
+              agendaItem.objectId,
+              projectId,
+            ),
+          )
+        },
+      )
+      if (invalidAgendaLink) {
+        throw new ProjectManagementError([
+          {
+            field: "chapterId",
+            message:
+              "Dit project staat nog op de agenda van een conceptoverleg binnen het huidige hoofdstuk of de huidige cluster. Verplaats of rond dat agendapunt eerst af.",
+          },
+        ])
+      }
+    }
+
+    return { state: nextState, record: project }
   }
 
   createCluster(

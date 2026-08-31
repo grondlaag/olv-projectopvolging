@@ -19,6 +19,7 @@ import {
   ProjectJournal,
   type JournalSelection,
 } from "../journal/project-journal"
+import { AgendaSchedulePanel } from "../meetings/agenda-schedule-panel"
 import "../journal/project-journal.css"
 import { ProjectDossierHeader } from "./project-dossier-header"
 import "./project-workspace-page.css"
@@ -211,6 +212,7 @@ export function ProjectWorkspacePage({ view }: { view: WorkspaceView }) {
   )
   const [message, setMessage] = useState<{ text: string; error?: boolean }>()
   const [showNewTopic, setShowNewTopic] = useState(false)
+  const [agendaPanelOpen, setAgendaPanelOpen] = useState(false)
   const [density, setDensity] = useState<"compact" | "comfortable">("compact")
   const [query, setQuery] = useState("")
   const workspace = useMemo(
@@ -264,6 +266,11 @@ export function ProjectWorkspacePage({ view }: { view: WorkspaceView }) {
         project={workspace.project}
         activeTab={view}
         openTopicCount={workspace.activeTopics.length}
+        actions={
+          <Button variant="tertiary" onClick={() => setAgendaPanelOpen(true)}>
+            Project bespreken op overleg
+          </Button>
+        }
         primaryAction={
           view === "journal" ? (
             <Button onClick={() => setShowNewTopic(true)}>+ Nieuw topic</Button>
@@ -361,6 +368,18 @@ export function ProjectWorkspacePage({ view }: { view: WorkspaceView }) {
           </WorkspaceGrid>
         </>
       )}
+      {agendaPanelOpen ? (
+        <AgendaSchedulePanel
+          objectType="Project"
+          objectId={workspace.project.id}
+          sourceLabel={`${workspace.project.code} · ${workspace.project.title}`}
+          onClose={() => setAgendaPanelOpen(false)}
+          onSaved={(savedMessage) => {
+            setStatus(`${savedMessage} · back-up nodig`)
+            setAgendaPanelOpen(false)
+          }}
+        />
+      ) : null}
     </WorkspacePage>
   )
 }

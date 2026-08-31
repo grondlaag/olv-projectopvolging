@@ -80,74 +80,35 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
   const projectId = projectUrl.match(/projects\/([0-9a-f-]+)/)?.[1]
   expect(projectId).toBeTruthy()
 
-  await page.getByRole("link", { name: /^Topics/ }).click()
-  await page.getByRole("button", { name: "+ Nieuw topic" }).first().click()
-  panel = page.getByRole("dialog", { name: "Nieuw topic" })
-  await panel.getByText("Meer opties", { exact: true }).click()
-  await panel.getByLabel("Topiccode").fill("TOP-REL-09")
-  await panel.getByLabel("Titel").fill("Façade en medische toegang")
-  await panel
-    .getByLabel("Vaste context")
-    .fill("De zorgcontinuïteit moet tijdens de werken behouden blijven.")
-  await addActor(panel, "Topicverantwoordelijke", "Topicverantwoordelijke")
-  await expect(panel.getByLabel("Titel")).toHaveValue(
-    "Façade en medische toegang",
-  )
-  await panel.getByLabel("Prioriteit").selectOption("Hoog")
-  await panel.getByRole("button", { name: "Topic opslaan" }).click()
-  await expect(
-    page.getByRole("heading", { name: "Façade en medische toegang" }),
-  ).toBeVisible()
-
-  await page.getByRole("button", { name: "+ Bijdrage" }).click()
-  const quickEntry = page.getByRole("form", { name: /Bijdrage toevoegen aan/ })
-  await quickEntry
-    .getByPlaceholder(/Wat is er gewijzigd/)
-    .fill("De uitvoeringsvariant is klaar voor validatie.")
-  await quickEntry.getByLabel("Maak actuele stand").check()
-  await quickEntry.getByRole("button", { name: "Update opslaan" }).click()
-  await expect(page.locator(".topic-current")).toContainText(
-    "De uitvoeringsvariant is klaar voor validatie.",
-  )
-
-  await quickEntry
-    .getByPlaceholder(/Wat is er gewijzigd/)
-    .fill("De brandweer heeft de route technisch nagekeken.")
-  await quickEntry.getByRole("button", { name: "Update opslaan" }).click()
-  await quickEntry.getByRole("button", { name: "Beslissing" }).click()
-  await quickEntry
-    .getByPlaceholder(/Welke beslissing/)
-    .fill("De voorgestelde toegangsroute is goedgekeurd.")
-  await quickEntry.getByRole("button", { name: "Beslissing opslaan" }).click()
-
-  await page.getByRole("button", { name: "+ Actie" }).click()
-  panel = page.getByRole("dialog", { name: "Actie toevoegen" })
-  await panel.getByLabel("Titel").fill("Signalisatie werfroute plaatsen")
-  await panel
-    .getByLabel("Eigenaar")
-    .selectOption({ label: "Topicverantwoordelijke" })
-  await panel.getByLabel(/Deadline/).fill("2026-09-15")
-  await panel.getByRole("button", { name: "Actie opslaan" }).click()
-
-  await page.getByRole("button", { name: "Topicacties" }).click()
-  await page.getByRole("button", { name: "+ Timing" }).click()
-  panel = page.getByRole("dialog", { name: "Timing toevoegen" })
-  await panel.getByLabel("Startdatum").fill("2026-08-15")
-  await panel.getByLabel("Geplande einddatum").fill("2026-10-31")
-  await panel.getByLabel("Voortgang").fill("25")
-  await panel.getByLabel("Status").selectOption("Op schema")
-  await panel.getByRole("button", { name: "Timing opslaan" }).click()
-
+  await page.getByRole("link", { name: /^Journaal/ }).click()
   await page
-    .getByRole("navigation", { name: "Projectdossierweergave" })
-    .getByRole("link", { name: "Planning" })
+    .getByRole("button", { name: /Nieuw topic/ })
+    .first()
     .click()
-  await expect(page.locator(".planning-gantt__labels")).toContainText(
-    "Signalisatie werfroute plaatsen",
+  await page.getByLabel("Titel nieuw topic").fill("Façade en medische toegang")
+  await page.getByRole("button", { name: "Topic toevoegen" }).click()
+  const topic = page.locator(".journal-topic").filter({
+    hasText: "Façade en medische toegang",
+  })
+  const composer = topic.getByLabel(
+    "Nieuwe bijdrage aan Façade en medische toegang",
   )
-  await expect(page.locator(".planning-gantt__labels")).toContainText(
-    "De voorgestelde toegangsroute is goedgekeurd.",
-  )
+  await composer.fill("De uitvoeringsvariant is klaar voor validatie.")
+  await composer.press("Enter")
+  await topic.getByLabel("Soort bijdrage").selectOption("decision")
+  await composer.fill("De voorgestelde toegangsroute is goedgekeurd.")
+  await composer.press("Enter")
+  await topic.getByLabel("Soort bijdrage").selectOption("action")
+  await composer.fill("Signalisatie werfroute plaatsen")
+  await composer.press("Enter")
+  await topic.locator(".journal-topic__header").click()
+  const properties = page.getByRole("complementary", {
+    name: "Topiceigenschappen",
+  })
+  await properties
+    .getByLabel("Eigenaar")
+    .selectOption({ label: "Releasecoördinator" })
+  await properties.getByLabel("Prioriteit").selectOption("Hoog")
 
   await page.goto(`/#/projects/${projectId}/budget`)
   await page.getByRole("button", { name: "+ Budgetitem" }).click()
@@ -163,7 +124,7 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
   await panel.getByLabel("Status").selectOption("Vastgelegd")
   await panel
     .getByLabel("Topic")
-    .selectOption({ label: "TOP-REL-09 · Façade en medische toegang" })
+    .selectOption({ label: "T-001 · Façade en medische toegang" })
   await panel.getByRole("button", { name: "Budgetitem opslaan" }).click()
   await expect(
     page.getByText("Extra signalisatie en tijdelijke afscheiding"),
@@ -184,10 +145,9 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
     label: "Releasecoördinator",
   })
   await page.locator('select[name="reporterActorId"]').selectOption({
-    label: "Topicverantwoordelijke",
+    label: "Releasecoördinator",
   })
   await page.getByLabel(/Releasecoördinator/).check()
-  await page.getByLabel(/Topicverantwoordelijke/).check()
   await page.getByRole("button", { name: "Overleg opslaan" }).click()
   await expect(
     page.getByRole("heading", { name: "Release werfoverleg" }),
@@ -200,28 +160,18 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
   await panel.getByLabel("Brontype").selectOption("Topic")
   await panel
     .getByLabel("Bronrecord")
-    .selectOption({ label: "TOP-REL-09 · Façade en medische toegang" })
+    .selectOption({ label: "T-001 · Façade en medische toegang" })
   await panel.getByRole("button", { name: "Agendapunt opslaan" }).click()
   await page.getByRole("button", { name: /^Verwerken/ }).click()
-  const meetingComposer = page.getByRole("form", {
-    name: /Bijdrage toevoegen aan Toegangsroute definitief vastleggen/,
-  })
-  await meetingComposer.getByRole("button", { name: "Beslissing" }).click()
-  await meetingComposer
-    .getByPlaceholder(/Welke beslissing/)
-    .fill("De route wordt opgenomen in het uitvoeringsdossier.")
-  await meetingComposer
-    .getByRole("button", { name: "Beslissing opslaan" })
-    .click()
-  await meetingComposer.getByRole("button", { name: "Actie" }).click()
-  await meetingComposer
-    .getByPlaceholder("Wat moet gebeuren?")
-    .fill("Uitvoeringsplan actualiseren")
-  await meetingComposer
-    .getByLabel("Eigenaar")
-    .selectOption({ label: "Releasecoördinator" })
-  await meetingComposer.getByLabel("Deadline").fill("2026-09-20")
-  await meetingComposer.getByRole("button", { name: "Actie opslaan" }).click()
+  const meetingComposer = page.getByLabel(
+    "Schrijf verder bij Toegangsroute definitief vastleggen",
+  )
+  await meetingComposer.fill(
+    "/besluit De route wordt opgenomen in het uitvoeringsdossier.",
+  )
+  await meetingComposer.press("Enter")
+  await meetingComposer.fill("/actie Uitvoeringsplan actualiseren")
+  await meetingComposer.press("Enter")
   await page.getByRole("button", { name: "Conceptverslag opbouwen" }).click()
   await expect(
     page.getByRole("heading", { name: "Verslag versie 1" }),
@@ -249,48 +199,21 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
   ).toBeVisible()
   await globalSearch.press("Enter")
   await expect(page).toHaveURL(new RegExp(`#/projects/${projectId}$`))
-  await expect(
-    page.getByText("Releasecluster", { exact: true }).first(),
-  ).toBeVisible()
+  await expect(page.getByText(/Releasecluster/)).toBeVisible()
   await expect(
     page.getByText("Releasecoördinator", { exact: true }).first(),
   ).toBeVisible()
-  await expect(
-    page
-      .locator(".project-meeting-summary")
-      .getByText("Release werfoverleg", { exact: true }),
-  ).toBeVisible()
-
-  await page.getByRole("link", { name: /^Topics/ }).click()
-  await page
-    .getByRole("button", {
-      name: /TOP-REL-09 Façade en medische toegang openen/,
-    })
-    .click()
-  await expect(page.locator(".topic-current")).toContainText(
+  await page.getByRole("link", { name: /^Journaal/ }).click()
+  const restoredTopic = page.locator(".journal-topic").filter({
+    hasText: "Façade en medische toegang",
+  })
+  await expect(restoredTopic).toContainText(
     "De uitvoeringsvariant is klaar voor validatie.",
   )
-  await expect(page.locator(".topic-journal")).toContainText(
+  await expect(restoredTopic).toContainText(
     "De voorgestelde toegangsroute is goedgekeurd.",
   )
-  await expect(
-    page.getByText("Signalisatie werfroute plaatsen").first(),
-  ).toBeVisible()
-  await page
-    .getByLabel("Topiccontext")
-    .getByText("Budgetimpact", { exact: true })
-    .click()
-  await expect(
-    page.getByLabel("Topiccontext").getByText(/gekoppelde records/),
-  ).toBeVisible()
-
-  await page
-    .getByRole("navigation", { name: "Projectdossierweergave" })
-    .getByRole("link", { name: "Planning" })
-    .click()
-  await expect(page.locator(".planning-gantt__labels")).toContainText(
-    "Façade en medische toegang",
-  )
+  await expect(restoredTopic).toContainText("Signalisatie werfroute plaatsen")
   await page.goto(`/#/projects/${projectId}/budget`)
   await expect(
     page.getByText("Extra signalisatie en tijdelijke afscheiding"),
@@ -299,6 +222,10 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
   await page
     .getByRole("navigation", { name: "Hoofdnavigatie" })
     .getByRole("link", { name: "Overleg" })
+    .click()
+  await page
+    .getByRole("region", { name: "Filters" })
+    .getByText("Filters", { exact: true })
     .click()
   await page.getByRole("searchbox", { name: "Zoeken" }).fill("OV-REL-09")
   await page.getByRole("button", { name: "Release werfoverleg openen" }).click()

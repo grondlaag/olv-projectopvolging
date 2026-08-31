@@ -8,8 +8,7 @@ import {
 import { DashboardPage } from "../../features/dashboard/dashboard-page"
 import { PortfolioPage } from "../../features/portfolio/portfolio-page"
 import { ProjectFormPage } from "../../features/projects/project-form-page"
-import { ProjectWorkspacePage as ProjectJournalWorkspacePage } from "../../features/projects/project-journal-workspace-page"
-import { ProjectWorkspacePage } from "../../features/projects/project-workspace-page"
+import { ProjectWorkspacePage } from "../../features/projects/project-journal-workspace-page"
 import { ClusterTopicsPage } from "../../features/clusters/cluster-topics-page"
 import { ActionsPage } from "../../features/actions/actions-page"
 
@@ -125,15 +124,15 @@ export function createAppRouter() {
         },
         {
           path: "projects/:projectId/topics",
-          element: <ProjectJournalWorkspacePage view="journal" />,
+          element: <ProjectWorkspacePage view="journal" />,
         },
         {
           path: "projects/:projectId/journal",
-          element: <ProjectJournalWorkspacePage view="journal" />,
+          element: <ProjectWorkspacePage view="journal" />,
         },
         {
           path: "projects/:projectId/topics/:topicId",
-          element: <ProjectJournalWorkspacePage view="journal" />,
+          element: <ProjectWorkspacePage view="journal" />,
         },
         {
           path: "clusters/:clusterId",

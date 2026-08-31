@@ -11,6 +11,7 @@ import { useLocation, useNavigate } from "react-router-dom"
 import { buildGlobalSearchResults } from "../../application/queries"
 import { currentAppRoute } from "../../app/routing"
 import { useAppStore } from "../../app/state/app-store"
+import { jsonDataFileService } from "../../app/providers/data-file-services"
 import type { UUID } from "../../domain"
 import { Badge } from "./badge"
 import { Button } from "./button"
@@ -246,8 +247,6 @@ export function AppHeader() {
     setSaving(true)
     setSaveFeedback("")
     try {
-      const { jsonDataFileService } =
-        await import("../../app/providers/data-file-services")
       const exported = jsonDataFileService.exportAndDownload(session.state)
       markSaved(exported.fileName)
       setSaveFeedback(

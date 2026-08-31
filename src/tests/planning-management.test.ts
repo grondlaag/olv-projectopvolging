@@ -13,6 +13,7 @@ import {
   normalizeDomainState,
   PlanningManagementError,
   PlanningManagementService,
+  validateDomainIntegrity,
   type PlanningEntryInput,
 } from "../application/services"
 import {
@@ -206,6 +207,79 @@ describe("planningitems en topictiming", () => {
     expect(project.rows.some((row) => row.updateId)).toBe(true)
     expect(summary.indicativeFte).toBe(1)
     expect(summary.sizeCounts.L).toBe(1)
+  })
+})
+
+describe("schema-1.1-fasering en resource-inzet", () => {
+  const phaseInput = {
+    projectId: testIds.projectOne,
+    name: "Uitvoering",
+    startDate: "2026-08-10" as LocalDate,
+    endDate: "2026-09-30" as LocalDate,
+    status: "Op schema" as const,
+    progressPercent: 20,
+    intensity: "Hoog" as const,
+  }
+
+  it("bewaakt fasevelden en verhindert verplaatsing naar een ander project", () => {
+    const created = service.createPhase(
+      createPortfolioTestSession().state,
+      phaseInput,
+      { now, createUuid },
+    )
+
+    expect(() =>
+      service.updatePhase(
+        created.state,
+        created.record.id,
+        { ...phaseInput, projectId: testIds.projectTwo },
+        { now, createUuid },
+      ),
+    ).toThrow("kan niet naar een ander project verhuizen")
+    expect(() =>
+      service.updatePhase(
+        created.state,
+        created.record.id,
+        { ...phaseInput, progressPercent: 101 },
+        { now, createUuid },
+      ),
+    ).toThrow("Voortgang moet tussen 0 en 100 procent liggen")
+  })
+
+  it("vereist precies één correct getypeerde resourcekoppeling", () => {
+    const resource = service.createResource(
+      createPortfolioTestSession().state,
+      {
+        type: "human",
+        name: "Projectleider",
+        actorId: testIds.actorOne,
+        capacityFte: 1,
+        projectAvailabilityFte: 0.5,
+      },
+      { now, createUuid },
+    )
+    const assignmentInput = {
+      projectId: testIds.projectOne,
+      resourceType: "human" as const,
+      resourceId: resource.record.id,
+      startDate: "2026-08-10" as LocalDate,
+      endDate: "2026-09-30" as LocalDate,
+      allocation: 0.25,
+      allocationMode: "fte" as const,
+    }
+    const assigned = service.createAssignment(resource.state, assignmentInput, {
+      now,
+      createUuid,
+    })
+    expect(validateDomainIntegrity(assigned.state.records)).toEqual([])
+
+    expect(() =>
+      service.createAssignment(
+        resource.state,
+        { ...assignmentInput, roleId: resource.record.id },
+        { now, createUuid },
+      ),
+    ).toThrow("precies één")
   })
 })
 

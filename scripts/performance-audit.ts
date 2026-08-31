@@ -22,6 +22,7 @@ import type {
 } from "../src/domain"
 import { validateDomainIntegrity } from "../src/application/services"
 import { JsonDataFileGateway } from "../src/infrastructure/json"
+import { DATA_SCHEMA_VERSION } from "../src/config/data-format"
 
 let sequence = 1
 const nextUuid = (): UUID =>
@@ -206,7 +207,7 @@ function buildFixture() {
   }
   records.config.push({
     id: nextUuid(),
-    schemaVersion: "1.0.0",
+    schemaVersion: DATA_SCHEMA_VERSION,
     dataSetId: nextUuid(),
     createdAt: dateTime("2026-08-09T09:00:00.000Z"),
     appVersion: "performance-audit",

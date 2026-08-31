@@ -54,6 +54,10 @@ test("P2 persoonlijke werkruimte en contextacties", async ({ page }) => {
     page.getByRole("button", { name: /P2 contextactie/ }),
   ).toBeVisible()
 
+  await page
+    .getByRole("region", { name: "Filters" })
+    .getByText("Filters", { exact: true })
+    .click()
   await page.getByRole("button", { name: "+ Weergave bewaren" }).click()
   await page.getByLabel("Naam van weergave").fill("P2 actieweergave")
   await page.getByRole("button", { name: "Bewaren" }).click()

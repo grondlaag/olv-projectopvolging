@@ -13,6 +13,14 @@ async function openDataFile(page: Page, path: string) {
   await dialog.getByRole("button", { name: "Bestand openen" }).click()
 }
 
+async function navigateWithinApp(page: Page, route: string) {
+  const hash = new URL(route, "http://local").hash
+  await page.evaluate((nextHash) => {
+    window.location.hash = nextHash
+  }, hash)
+  await expect(page).toHaveURL(new RegExp(`${hash.replaceAll("/", "\\/")}$`))
+}
+
 async function addActor(panel: Locator, name: string, role: string) {
   await panel.getByRole("button", { name: "+ Nieuwe actor" }).click()
   const actorPanel = panel.page().getByRole("dialog", { name: "Nieuwe actor" })
@@ -110,7 +118,7 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
     .selectOption({ label: "Releasecoördinator" })
   await properties.getByLabel("Prioriteit").selectOption("Hoog")
 
-  await page.goto(`/#/projects/${projectId}/budget`)
+  await navigateWithinApp(page, `/#/projects/${projectId}/budget`)
   await page.getByRole("button", { name: "+ Budgetitem" }).click()
   panel = page.getByRole("dialog", { name: "Budgetitem toevoegen" })
   await panel.getByLabel("Type").selectOption("Meerwerk")
@@ -214,7 +222,7 @@ test("fase 9 masterflow bewaart alle relaties na export en herimport", async ({
     "De voorgestelde toegangsroute is goedgekeurd.",
   )
   await expect(restoredTopic).toContainText("Signalisatie werfroute plaatsen")
-  await page.goto(`/#/projects/${projectId}/budget`)
+  await navigateWithinApp(page, `/#/projects/${projectId}/budget`)
   await expect(
     page.getByText("Extra signalisatie en tijdelijke afscheiding"),
   ).toBeVisible()

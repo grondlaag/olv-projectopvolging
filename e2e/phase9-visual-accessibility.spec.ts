@@ -48,6 +48,14 @@ async function assertAccessibleSurface(page: Page) {
   await expect(page.getByRole("button", { name: "JSON opslaan" })).toBeVisible()
 }
 
+async function navigateWithinApp(page: Page, route: string) {
+  const hash = new URL(route, "http://local").hash
+  await page.evaluate((nextHash) => {
+    window.location.hash = nextHash
+  }, hash)
+  await expect(page).toHaveURL(new RegExp(`${hash.replaceAll("/", "\\/")}$`))
+}
+
 test("fase 9 productiepreview blijft rustig, responsive en toetsenbordbruikbaar", async ({
   page,
 }) => {
@@ -142,7 +150,7 @@ test("fase 9 productiepreview blijft rustig, responsive en toetsenbordbruikbaar"
 
   for (const surface of surfaces) {
     await page.setViewportSize({ width: surface.width, height: 1000 })
-    await page.goto(surface.route)
+    await navigateWithinApp(page, surface.route)
     await expect(
       page.getByRole("heading", {
         level: "level" in surface ? surface.level : 1,
@@ -170,7 +178,7 @@ test("fase 9 productiepreview blijft rustig, responsive en toetsenbordbruikbaar"
   }
 
   await page.setViewportSize({ width: 1024, height: 1000 })
-  await page.goto(topicRoute)
+  await navigateWithinApp(page, topicRoute)
   const topic = page.locator(".journal-topic").filter({
     hasText: "Tijdelijke toegang",
   })

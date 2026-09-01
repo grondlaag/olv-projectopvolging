@@ -19,10 +19,249 @@
 .planning-actions,
 .planning-canvas__header,
 .planning-zoom,
+.planning-view-switch,
+.planning-header-actions,
+.planning-project-actions,
 .planning-dependency-list header {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+.planning-view-switch {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+}
+
+.planning-view-switch legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.planning-template-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-thin);
+  background: var(--color-surface-soft);
+}
+
+.planning-command-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-thin);
+  border-left: 3px solid var(--color-brand-primary);
+  background: var(--color-surface);
+}
+
+.planning-command-bar > div {
+  display: grid;
+  min-width: 15rem;
+  margin-right: auto;
+}
+
+.planning-command-bar small {
+  color: var(--color-ink-muted);
+}
+
+.planning-template-bar > div {
+  display: grid;
+  margin-right: auto;
+}
+
+.planning-template-bar small {
+  color: var(--color-ink-muted);
+}
+
+.planning-template-bar select,
+.filter-panel input {
+  min-height: 2.45rem;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-ink-strong);
+  font: inherit;
+}
+
+.capacity-board {
+  min-width: max-content;
+  overflow-x: auto;
+}
+
+.planning-asset-register {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: var(--border-strong);
+  background: var(--color-surface-soft);
+}
+
+.planning-asset-register > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.planning-asset-register > header > div {
+  display: grid;
+}
+
+.planning-asset-register small,
+.planning-asset-register > p {
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: var(--font-size-xs);
+}
+
+.planning-asset-register__items {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
+}
+
+.planning-asset-register__items button {
+  display: grid;
+  flex: 0 0 12rem;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-thin);
+  border-left: 3px solid var(--color-brand-primary);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.planning-asset-register__items button:hover {
+  background: var(--color-brand-pale);
+}
+
+.capacity-board__row {
+  display: grid;
+  grid-template-columns: 18rem repeat(
+      var(--capacity-periods, 12),
+      minmax(7rem, 1fr)
+    );
+  min-height: 4rem;
+  border-bottom: var(--border-thin);
+}
+
+.capacity-board__row--header {
+  min-height: 3rem;
+  background: var(--color-surface-soft);
+}
+
+.capacity-board__row--header > span {
+  display: flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border-right: var(--border-thin);
+  color: var(--color-ink-muted);
+  font-size: var(--font-size-xs);
+}
+
+.capacity-board__resource-header,
+.capacity-board__cell {
+  display: grid;
+  align-content: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-right: var(--border-thin);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.capacity-board__resource {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  align-content: center;
+  gap: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.capacity-board__resource-header:hover,
+.capacity-board__cell:hover {
+  background: var(--color-brand-pale);
+}
+
+.capacity-board__resource small,
+.capacity-board__cell small {
+  color: var(--color-ink-muted);
+  font-size: var(--font-size-xs);
+}
+
+.capacity-board__cell.is-conflict,
+.capacity-detail__summary.is-conflict {
+  border-left: 3px solid var(--color-danger);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.capacity-board__cell.is-empty {
+  place-items: center;
+  color: var(--color-ink-muted);
+  cursor: default;
+}
+
+.capacity-detail__summary {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border-left: 3px solid var(--color-brand-primary);
+  background: var(--color-brand-pale);
+}
+
+.capacity-detail__summary strong {
+  font-size: var(--font-size-xl);
+}
+
+.capacity-detail__breakdown {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.capacity-detail__breakdown h3 {
+  margin: 0;
+}
+
+.capacity-detail__breakdown article {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: var(--border-thin);
+}
+
+.capacity-detail__breakdown article > div {
+  display: grid;
+}
+
+.capacity-detail__breakdown span {
+  color: var(--color-ink-muted);
+  font-size: var(--font-size-sm);
 }
 
 .planning-result-count {
@@ -743,9 +982,15 @@
     grid-template-columns: repeat(3, 1fr);
   }
   .planning-actions,
-  .planning-canvas__header {
+  .planning-canvas__header,
+  .planning-template-bar,
+  .planning-command-bar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .planning-view-switch {
+    margin-left: 0;
   }
 
   .planning-filters {

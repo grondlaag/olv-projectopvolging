@@ -38,6 +38,8 @@ export interface PlanningRow {
   owner?: Actor
   phase?: ProjectPhase
   milestone?: Milestone
+  resource?: Resource
+  assignment?: ResourceAssignment
   startDate?: string
   endDate?: string
   progressPercent: number
@@ -267,6 +269,34 @@ function milestoneRow(
   }
 }
 
+function assignmentRow(
+  state: NormalizedDomainState,
+  assignment: ResourceAssignment,
+  today: string,
+  depth: PlanningRow["depth"] = 2,
+): PlanningRow | undefined {
+  const resource = state.indices.resourceById.get(
+    (assignment.resourceId ?? assignment.roleId)!,
+  )
+  if (!resource) return undefined
+  const demand = assignmentFte(assignment)
+  return {
+    id: `assignment:${assignment.id}`,
+    title: resource.name,
+    subtitle: `${assignment.allocation.toLocaleString("nl-BE")} ${assignment.allocationMode === "fte" ? "VTE" : assignment.allocationMode}`,
+    depth,
+    kind: "resource",
+    projectId: assignment.projectId,
+    resource,
+    assignment,
+    startDate: assignment.startDate,
+    endDate: assignment.endDate,
+    progressPercent: 0,
+    isMilestone: false,
+    delayed: assignment.endDate < today && demand > 0,
+  }
+}
+
 function sourceRows(
   state: NormalizedDomainState,
   project: Project,
@@ -370,6 +400,9 @@ export function buildProjectPlanningModel(
   ]
     .filter((milestone) => milestone.audit.active)
     .sort((left, right) => left.date.localeCompare(right.date))
+  const assignments = (
+    state.indices.assignmentsByProject.get(project.id) ?? []
+  ).filter((item) => item.audit.active)
   return {
     project,
     rows: [
@@ -379,10 +412,22 @@ export function buildProjectPlanningModel(
         ...milestones
           .filter((milestone) => milestone.phaseId === phase.id)
           .map((milestone) => milestoneRow(state, milestone, today)),
+        ...assignments
+          .filter((assignment) => assignment.phaseId === phase.id)
+          .flatMap((assignment) => {
+            const row = assignmentRow(state, assignment, today)
+            return row ? [row] : []
+          }),
       ]),
       ...milestones
         .filter((milestone) => !milestone.phaseId)
         .map((milestone) => milestoneRow(state, milestone, today, 1)),
+      ...assignments
+        .filter((assignment) => !assignment.phaseId)
+        .flatMap((assignment) => {
+          const row = assignmentRow(state, assignment, today, 1)
+          return row ? [row] : []
+        }),
       ...entries.map((entry) => entryRow(state, entry, today)),
       ...sourceRows(state, project, 1, today),
     ],
@@ -390,9 +435,7 @@ export function buildProjectPlanningModel(
     dependencies,
     phases,
     milestones,
-    assignments: (
-      state.indices.assignmentsByProject.get(project.id) ?? []
-    ).filter((item) => item.audit.active),
+    assignments,
   }
 }
 

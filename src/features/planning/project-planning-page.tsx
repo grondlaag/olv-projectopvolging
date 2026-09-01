@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 import { useForm, type FieldPath } from "react-hook-form"
-import { Link, useParams } from "react-router-dom"
+import { useParams } from "react-router-dom"
 import {
   buildProjectPlanningModel,
   type PlanningRow,
@@ -9,6 +9,8 @@ import {
 import {
   PlanningManagementError,
   PlanningManagementService,
+  planningTemplates,
+  type PlanningTemplateKey,
 } from "../../application/services"
 import { useAppStore } from "../../app/state/app-store"
 import {
@@ -31,6 +33,10 @@ import {
 } from "./planning-form-schema"
 import { PlanningGantt } from "./planning-gantt"
 import { PlanningSelectionPanel } from "./planning-selection-panel"
+import {
+  PlanningPropertiesPanel,
+  type PlanningPanelKind,
+} from "./planning-properties-panel"
 import { TopicTimingPanel } from "./topic-timing-panel"
 import "./planning.css"
 
@@ -353,6 +359,12 @@ export function ProjectPlanningPage() {
   const [panel, setPanel] = useState<EntryPanelMode | "dependency">()
   const [selectedEntryId, setSelectedEntryId] = useState<UUID>()
   const [selectedRow, setSelectedRow] = useState<PlanningRow>()
+  const [propertiesPanel, setPropertiesPanel] = useState<{
+    kind: PlanningPanelKind
+    row?: PlanningRow
+  }>()
+  const [template, setTemplate] =
+    useState<PlanningTemplateKey>("renovatie-klein")
   const [statusMessage, setStatusMessage] = useState("")
   const today = todayAsLocalDate()
   const model = useMemo(
@@ -394,6 +406,28 @@ export function ProjectPlanningPage() {
     setStatusMessage(`${message} in de lokale sessie · back-up nodig`)
     setPanel(undefined)
     setSelectedEntryId(undefined)
+    setSelectedRow(undefined)
+    setPropertiesPanel(undefined)
+  }
+
+  function applyPlanningTemplate() {
+    const state = useAppStore.getState().session?.state
+    if (!state || !projectId) return
+    try {
+      const result = planningService.applyTemplate(
+        state,
+        projectId as UUID,
+        template,
+      )
+      useAppStore.getState().replaceDomainState(result.state)
+      saved("Planningssjabloon toegepast")
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error
+          ? error.message
+          : "Het sjabloon kon niet worden toegepast.",
+      )
+    }
   }
 
   return (
@@ -401,36 +435,89 @@ export function ProjectPlanningPage() {
       <ProjectDossierHeader
         project={model.project}
         activeTab="planning"
-        actions={
-          <>
-            <Link
-              className="planning-source-link"
-              to={`/projects/${model.project.id}/topics`}
-            >
-              + Topic
-            </Link>
-            <Link className="planning-source-link" to="/actions">
-              + Actie
-            </Link>
-            <Link
-              className="planning-source-link"
-              to={`/projects/${model.project.id}/journal`}
-            >
-              + Beslissing
-            </Link>
-          </>
-        }
         primaryAction={
           <Button onClick={() => setPanel("dependency")}>
             + Afhankelijkheid
           </Button>
         }
       />
+      <section className="planning-command-bar" aria-label="Planning toevoegen">
+        <div>
+          <strong>Planning opbouwen</strong>
+          <small>Items openen en bewerken steeds in het rechterpaneel.</small>
+        </div>
+        <Button
+          variant="secondary"
+          onClick={() => setPropertiesPanel({ kind: "timing" })}
+        >
+          + Timingitem
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => setPropertiesPanel({ kind: "phase" })}
+        >
+          + Fase
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => setPropertiesPanel({ kind: "milestone" })}
+        >
+          + Mijlpaal
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => setPropertiesPanel({ kind: "assignment" })}
+        >
+          + Toewijzing
+        </Button>
+        <Button
+          variant="tertiary"
+          onClick={() => setPropertiesPanel({ kind: "resource" })}
+        >
+          + Asset
+        </Button>
+      </section>
       {statusMessage ? (
         <p className="planning-session-status" role="status">
           {statusMessage}
         </p>
       ) : null}
+      <section className="planning-template-bar" aria-label="Planningssjabloon">
+        <div>
+          <strong>Start vanuit een sjabloon</strong>
+          <small>
+            Alleen beschikbaar zolang dit project nog geen fases heeft.
+          </small>
+        </div>
+        <select
+          aria-label="Planningssjabloon"
+          value={template}
+          onChange={(event) =>
+            setTemplate(event.target.value as PlanningTemplateKey)
+          }
+          disabled={model.phases.length > 0}
+        >
+          {Object.keys(planningTemplates).map((key) => (
+            <option value={key} key={key}>
+              {
+                {
+                  "nieuwbouw-groot": "Nieuwbouw groot",
+                  "renovatie-klein": "Renovatie klein",
+                  "technische-installatie": "Technische installatie",
+                  onderhoudswerk: "Onderhoudswerk",
+                }[key]
+              }
+            </option>
+          ))}
+        </select>
+        <Button
+          variant="secondary"
+          disabled={model.phases.length > 0}
+          onClick={applyPlanningTemplate}
+        >
+          Sjabloon toepassen
+        </Button>
+      </section>
       <section className="planning-summary" aria-label="Kernplanning">
         <div>
           <span>Projectperiode</span>
@@ -444,12 +531,14 @@ export function ProjectPlanningPage() {
           <strong>{model.project.progressPercent ?? 0}%</strong>
         </div>
         <div>
-          <span>Planningitems</span>
-          <strong>{model.entries.length}</strong>
+          <span>Fases en mijlpalen</span>
+          <strong>
+            {model.phases.length} · {model.milestones.length}
+          </strong>
         </div>
         <div>
-          <span>Afhankelijkheden</span>
-          <strong>{model.dependencies.length}</strong>
+          <span>Assettoewijzingen</span>
+          <strong>{model.assignments.length}</strong>
         </div>
       </section>
       <section
@@ -492,8 +581,15 @@ export function ProjectPlanningPage() {
           today={today}
           onSelectRow={(row) => {
             setSelectedRow(undefined)
+            setPropertiesPanel(undefined)
             setSelectedEntryId(row.entry?.id)
-            if (!row.entry) setSelectedRow(row)
+            if (row.phase) setPropertiesPanel({ kind: "phase", row })
+            else if (row.milestone)
+              setPropertiesPanel({ kind: "milestone", row })
+            else if (row.assignment)
+              setPropertiesPanel({ kind: "assignment", row })
+            else if (row.resource) setPropertiesPanel({ kind: "resource", row })
+            else if (!row.entry) setSelectedRow(row)
           }}
         />
       </section>
@@ -572,6 +668,26 @@ export function ProjectPlanningPage() {
         <PlanningSelectionPanel
           row={selectedRow}
           onClose={() => setSelectedRow(undefined)}
+        />
+      ) : null}
+      {propertiesPanel ? (
+        <PlanningPropertiesPanel
+          projectId={model.project.id}
+          kind={propertiesPanel.kind}
+          {...(propertiesPanel.row?.phase
+            ? { phase: propertiesPanel.row.phase }
+            : {})}
+          {...(propertiesPanel.row?.milestone
+            ? { milestone: propertiesPanel.row.milestone }
+            : {})}
+          {...(propertiesPanel.row?.resource
+            ? { resource: propertiesPanel.row.resource }
+            : {})}
+          {...(propertiesPanel.row?.assignment
+            ? { assignment: propertiesPanel.row.assignment }
+            : {})}
+          onClose={() => setPropertiesPanel(undefined)}
+          onSaved={saved}
         />
       ) : null}
     </article>

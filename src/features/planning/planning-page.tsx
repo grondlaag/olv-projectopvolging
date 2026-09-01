@@ -2,17 +2,18 @@ import { useMemo, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import {
   buildPortfolioPlanningModel,
+  buildResourceCapacity,
   summarizePortfolioPlanning,
   type GlobalPlanningFilters,
   type PlanningRow,
   type PlanningZoom,
+  type ResourceCapacityPeriod,
 } from "../../application/queries"
 import { useAppStore } from "../../app/state/app-store"
 import {
   Button,
   EmptyState,
   FilterPanel,
-  KpiStrip,
   PageHeader,
   SavedViewsControl,
 } from "../../design-system/components"
@@ -20,10 +21,16 @@ import {
   planningStatuses,
   projectSizes,
   projectSizeFte,
+  type Resource,
   type UUID,
 } from "../../domain"
-import { formatLocalDate, todayAsLocalDate } from "../../utils"
+import { todayAsLocalDate } from "../../utils"
 import { PlanningGantt, type PlanningDisplayRow } from "./planning-gantt"
+import {
+  CapacityDetailPanel,
+  PlanningCapacityBoard,
+} from "./planning-capacity-board"
+import { PlanningPropertiesPanel } from "./planning-properties-panel"
 import { PlanningSelectionPanel } from "./planning-selection-panel"
 import { TopicTimingPanel } from "./topic-timing-panel"
 import "./planning.css"
@@ -43,6 +50,9 @@ export function PlanningPage() {
         ? (searchParameters.get("status") as GlobalPlanningFilters["status"])
         : "",
       ownerActorId: searchParameters.get("eigenaar") ?? "",
+      resourceId: searchParameters.get("asset") ?? "",
+      roleId: searchParameters.get("rol") ?? "",
+      phase: searchParameters.get("fase") ?? "",
       riskOnly: searchParameters.get("risico") === "1",
       delayedOnly: searchParameters.get("overTijd") === "1",
     }),
@@ -65,6 +75,12 @@ export function PlanningPage() {
     new Set(),
   )
   const [selectedRow, setSelectedRow] = useState<PlanningRow>()
+  const [selectedCapacity, setSelectedCapacity] =
+    useState<ResourceCapacityPeriod>()
+  const [selectedResource, setSelectedResource] = useState<Resource>()
+  const [newResourceOpen, setNewResourceOpen] = useState(false)
+  const view =
+    searchParameters.get("weergave") === "capaciteit" ? "capacity" : "planning"
   const today = todayAsLocalDate()
   const model = useMemo(
     () =>
@@ -75,6 +91,39 @@ export function PlanningPage() {
     () => summarizePortfolioPlanning(model, today),
     [model, today],
   )
+  const capacity = useMemo(() => {
+    if (!session) return []
+    const visibleProjectIds = new Set(
+      model.flatMap((chapter) =>
+        chapter.clusters.flatMap((cluster) =>
+          cluster.projects.map((item) => item.project.id),
+        ),
+      ),
+    )
+    const selectedResourceId = filters.resourceId || filters.roleId
+    return buildResourceCapacity(session.state).flatMap((period) => {
+      if (selectedResourceId && period.resource.id !== selectedResourceId)
+        return []
+      const breakdown = period.breakdown.filter((item) =>
+        visibleProjectIds.has(item.project.id),
+      )
+      if (!breakdown.length) return []
+      const demandFte = breakdown.reduce((sum, item) => sum + item.demandFte, 0)
+      const loadPercent =
+        period.capacityFte > 0
+          ? (demandFte / period.capacityFte) * 100
+          : Number.POSITIVE_INFINITY
+      return [
+        {
+          ...period,
+          demandFte,
+          loadPercent,
+          conflict: loadPercent > 100,
+          breakdown,
+        },
+      ]
+    })
+  }, [filters.resourceId, filters.roleId, model, session])
   const rows = useMemo(() => {
     const result: PlanningDisplayRow[] = []
     for (const chapter of model) {
@@ -151,21 +200,33 @@ export function PlanningPage() {
       (!filters.chapterId || project.chapterId === filters.chapterId) &&
       (!filters.clusterId || project.clusterId === filters.clusterId),
   )
+  const ownerIds = [
+    ...session.state.records.planning.flatMap((entry) => {
+      const topic = entry.topicId
+        ? session.state.indices.topicById.get(entry.topicId)
+        : undefined
+      return topic?.ownerActorId ? [topic.ownerActorId] : []
+    }),
+    ...session.state.records.projectPhases.flatMap((phase) =>
+      phase.ownerActorId ? [phase.ownerActorId] : [],
+    ),
+    ...session.state.records.milestones.flatMap((milestone) =>
+      milestone.ownerActorId ? [milestone.ownerActorId] : [],
+    ),
+  ]
   const owners = [
     ...new Map(
-      session.state.records.planning.flatMap((entry) => {
-        const topic = entry.topicId
-          ? session.state.indices.topicById.get(entry.topicId)
-          : undefined
-        const owner = topic?.ownerActorId
-          ? session.state.indices.actorById.get(topic.ownerActorId)
-          : undefined
+      ownerIds.flatMap((actorId) => {
+        const owner = session.state.indices.actorById.get(actorId)
         return owner ? [[owner.id, owner] as const] : []
       }),
     ).values(),
   ].sort((left, right) =>
     left.displayName.localeCompare(right.displayName, "nl"),
   )
+  const resources = session.state.records.resources
+    .filter((resource) => resource.audit.active)
+    .sort((left, right) => left.name.localeCompare(right.name, "nl"))
 
   function patchFilters(patch: Partial<GlobalPlanningFilters>) {
     const next = { ...filters, ...patch }
@@ -176,6 +237,9 @@ export function PlanningPage() {
       ["projectId", "project"],
       ["status", "status"],
       ["ownerActorId", "eigenaar"],
+      ["resourceId", "asset"],
+      ["roleId", "rol"],
+      ["phase", "fase"],
     ]
     for (const [field, key] of fields) {
       const value = next[field]
@@ -196,6 +260,9 @@ export function PlanningPage() {
       "project",
       "status",
       "eigenaar",
+      "asset",
+      "rol",
+      "fase",
       "risico",
       "overTijd",
     ])
@@ -267,7 +334,40 @@ export function PlanningPage() {
           },
         ]
       : []),
+    ...(filters.resourceId
+      ? [
+          {
+            id: "resource",
+            label: `Asset: ${session.state.indices.resourceById.get(filters.resourceId as UUID)?.name ?? "Onbekend"}`,
+            onRemove: () => patchFilters({ resourceId: "" }),
+          },
+        ]
+      : []),
+    ...(filters.roleId
+      ? [
+          {
+            id: "role",
+            label: `Rol: ${session.state.indices.resourceById.get(filters.roleId as UUID)?.name ?? "Onbekend"}`,
+            onRemove: () => patchFilters({ roleId: "" }),
+          },
+        ]
+      : []),
+    ...(filters.phase
+      ? [
+          {
+            id: "phase",
+            label: `Fase bevat: ${filters.phase}`,
+            onRemove: () => patchFilters({ phase: "" }),
+          },
+        ]
+      : []),
   ]
+  function selectView(value: "planning" | "capacity") {
+    const parameters = new URLSearchParams(searchParameters)
+    if (value === "capacity") parameters.set("weergave", "capaciteit")
+    else parameters.delete("weergave")
+    setSearchParameters(parameters, { replace: true })
+  }
   function selectZoom(value: PlanningZoom) {
     const parameters = new URLSearchParams(searchParameters)
     if (value === "quarter") parameters.delete("zoom")
@@ -293,50 +393,50 @@ export function PlanningPage() {
         title="Planning"
         description="Eén uitklapbare portfoliostructuur met de tijdslijn er direct naast."
         actions={
-          <span className="planning-result-count">
-            <strong>{summary.totalProjects}</strong> projecten
-          </span>
+          <div className="planning-header-actions">
+            <span className="planning-result-count">
+              <strong>{summary.totalProjects}</strong> projecten
+            </span>
+            <Button
+              variant="secondary"
+              onClick={() => setNewResourceOpen(true)}
+            >
+              + Asset
+            </Button>
+          </div>
         }
       />
-      <KpiStrip
-        ariaLabel="Samenvatting portfolioplanning"
-        items={[
-          {
-            id: "coverage",
-            label: "Planningdekking",
-            value: `${summary.projectsWithPlanning} van ${summary.totalProjects} projecten`,
-            supportingText: `${summary.projectsWithoutPlanning} zonder planning`,
-          },
-          {
-            id: "items",
-            label: "Planningitems",
-            value: summary.planningItemCount,
-            supportingText: `${summary.milestoneCount} mijlpalen`,
-          },
-          {
-            id: "attention",
-            label: "Aandacht",
-            value: summary.attentionItemCount,
-            supportingText: "risico, vertraagd of over tijd",
-            tone: summary.attentionItemCount ? "attention" : "neutral",
-          },
-          {
-            id: "period",
-            label: "Zichtbare periode",
-            value:
-              summary.earliestDate && summary.latestDate
-                ? `${formatLocalDate(summary.earliestDate)} – ${formatLocalDate(summary.latestDate)}`
-                : "Nog geen datums",
-            supportingText: "volgens de huidige filters",
-          },
-          {
-            id: "resources",
-            label: "Indicatieve resourcevraag",
-            value: `${summary.indicativeFte.toLocaleString("nl-BE")} VTE`,
-            supportingText: `${summary.unscaledProjectCount} nog niet ingeschaald`,
-          },
-        ]}
-      />
+      <section
+        className="planning-summary planning-summary--portfolio kpi-strip"
+        aria-label="Samenvatting portfolioplanning"
+      >
+        <div>
+          <span>Dekking</span>
+          <strong>
+            {summary.projectsWithPlanning}/{summary.totalProjects}
+          </strong>
+          <small>{summary.projectsWithoutPlanning} zonder planning</small>
+        </div>
+        <div>
+          <span>Planning</span>
+          <strong>{summary.planningItemCount} items</strong>
+          <small>{summary.milestoneCount} mijlpalen</small>
+        </div>
+        <div>
+          <span>Aandacht</span>
+          <strong>{summary.attentionItemCount}</strong>
+          <small>risico, vertraagd of over tijd</small>
+        </div>
+        <div>
+          <span>Capaciteit</span>
+          <strong>
+            {capacity.filter((item) => item.conflict).length} conflicten
+          </strong>
+          <small>
+            {summary.indicativeFte.toLocaleString("nl-BE")} VTE indicatief
+          </small>
+        </div>
+      </section>
       <FilterPanel
         activeFilters={activeFilters}
         onClear={resetFilters}
@@ -426,6 +526,49 @@ export function PlanningPage() {
             ))}
           </select>
         </label>
+        <label>
+          <span>Asset</span>
+          <select
+            value={filters.resourceId ?? ""}
+            onChange={(event) =>
+              patchFilters({ resourceId: event.target.value, roleId: "" })
+            }
+          >
+            <option value="">Alle</option>
+            {resources
+              .filter((item) => item.type !== "role")
+              .map((item) => (
+                <option value={item.id} key={item.id}>
+                  {item.name}
+                </option>
+              ))}
+          </select>
+        </label>
+        <label>
+          <span>Rol</span>
+          <select
+            value={filters.roleId ?? ""}
+            onChange={(event) =>
+              patchFilters({ roleId: event.target.value, resourceId: "" })
+            }
+          >
+            <option value="">Alle</option>
+            {resources
+              .filter((item) => item.type === "role")
+              .map((item) => (
+                <option value={item.id} key={item.id}>
+                  {item.name}
+                </option>
+              ))}
+          </select>
+        </label>
+        <label>
+          <span>Fase bevat</span>
+          <input
+            value={filters.phase ?? ""}
+            onChange={(event) => patchFilters({ phase: event.target.value })}
+          />
+        </label>
         <label className="filter-panel__check">
           <input
             type="checkbox"
@@ -479,54 +622,128 @@ export function PlanningPage() {
           >
             <header className="planning-canvas__header">
               <div>
-                <span>Tijdslijn</span>
-                <h2 id="portfolio-gantt-title">Portfolio-Gantt</h2>
+                <span>{view === "planning" ? "Tijdslijn" : "Belasting"}</span>
+                <h2 id="portfolio-gantt-title">
+                  {view === "planning"
+                    ? "Portfolio-Gantt"
+                    : "Portfoliocapaciteit"}
+                </h2>
               </div>
-              <fieldset className="planning-zoom">
-                <legend>Zoom</legend>
-                {(["week", "month", "quarter", "year"] as const).map(
-                  (value) => (
-                    <label key={value}>
-                      <input
-                        type="radio"
-                        name="portfolio-zoom"
-                        checked={zoom === value}
-                        onChange={() => selectZoom(value)}
-                      />
-                      <span>
-                        {
-                          {
-                            week: "Week",
-                            month: "Maand",
-                            quarter: "Kwartaal",
-                            year: "Jaar",
-                          }[value]
-                        }
-                      </span>
-                    </label>
-                  ),
-                )}
+              <fieldset className="planning-view-switch">
+                <legend>Weergave</legend>
+                <Button
+                  variant={view === "planning" ? "primary" : "tertiary"}
+                  onClick={() => selectView("planning")}
+                >
+                  Planning
+                </Button>
+                <Button
+                  variant={view === "capacity" ? "primary" : "tertiary"}
+                  onClick={() => selectView("capacity")}
+                >
+                  Capaciteit
+                </Button>
               </fieldset>
+              {view === "planning" ? (
+                <fieldset className="planning-zoom">
+                  <legend>Zoom</legend>
+                  {(["week", "month", "quarter", "year"] as const).map(
+                    (value) => (
+                      <label key={value}>
+                        <input
+                          type="radio"
+                          name="portfolio-zoom"
+                          checked={zoom === value}
+                          onChange={() => selectZoom(value)}
+                        />
+                        <span>
+                          {
+                            {
+                              week: "Week",
+                              month: "Maand",
+                              quarter: "Kwartaal",
+                              year: "Jaar",
+                            }[value]
+                          }
+                        </span>
+                      </label>
+                    ),
+                  )}
+                </fieldset>
+              ) : null}
             </header>
-            <PlanningGantt
-              rows={rows}
-              zoom={zoom}
-              today={today}
-              expandedProjectIds={expandedProjects}
-              onToggleGroup={(rowId) => {
-                if (rowId.startsWith("chapter:")) {
-                  toggle(setCollapsedChapters, rowId.slice(8))
-                } else if (rowId.startsWith("cluster:")) {
-                  toggle(setCollapsedClusters, rowId.slice(8))
+            {view === "planning" ? (
+              <PlanningGantt
+                rows={rows}
+                zoom={zoom}
+                today={today}
+                expandedProjectIds={expandedProjects}
+                onToggleGroup={(rowId) => {
+                  if (rowId.startsWith("chapter:")) {
+                    toggle(setCollapsedChapters, rowId.slice(8))
+                  } else if (rowId.startsWith("cluster:")) {
+                    toggle(setCollapsedClusters, rowId.slice(8))
+                  }
+                }}
+                onToggleProject={(projectId) =>
+                  toggle(setExpandedProjects, projectId)
                 }
-              }}
-              onToggleProject={(projectId) =>
-                toggle(setExpandedProjects, projectId)
-              }
-              onSelectRow={(row) => {
-                setSelectedRow(row)
-              }}
-            />
+                onSelectRow={(row) => {
+                  setSelectedRow(row)
+                }}
+              />
+            ) : (
+              <>
+                <section
+                  className="planning-asset-register"
+                  aria-label="Assetregister"
+                >
+                  <header>
+                    <div>
+                      <strong>Assetregister</strong>
+                      <small>
+                        {resources.length} actieve personen, rollen en assets
+                      </small>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      onClick={() => setNewResourceOpen(true)}
+                    >
+                      + Asset
+                    </Button>
+                  </header>
+                  {resources.length ? (
+                    <div className="planning-asset-register__items">
+                      {resources.map((resource) => (
+                        <button
+                          type="button"
+                          key={resource.id}
+                          onClick={() => setSelectedResource(resource)}
+                        >
+                          <strong>{resource.name}</strong>
+                          <small>
+                            {resource.type} · {resource.projectAvailabilityFte}{" "}
+                            VTE beschikbaar
+                          </small>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>
+                      Nog geen assets. Voeg een persoon, rol, ruimte of
+                      uitrusting toe.
+                    </p>
+                  )}
+                </section>
+                <PlanningCapacityBoard
+                  periods={capacity}
+                  onSelect={setSelectedCapacity}
+                  onSelectResource={(period) =>
+                    setSelectedResource(period.resource)
+                  }
+                />
+              </>
+            )}
           </section>
         </>
       ) : (
@@ -540,7 +757,23 @@ export function PlanningPage() {
           }
         />
       )}
-      {selectedRow?.entry && selectedRow.topic ? (
+      {selectedRow?.phase ? (
+        <PlanningPropertiesPanel
+          projectId={selectedRow.projectId}
+          kind="phase"
+          phase={selectedRow.phase}
+          onClose={() => setSelectedRow(undefined)}
+          onSaved={() => setSelectedRow(undefined)}
+        />
+      ) : selectedRow?.milestone ? (
+        <PlanningPropertiesPanel
+          projectId={selectedRow.projectId}
+          kind="milestone"
+          milestone={selectedRow.milestone}
+          onClose={() => setSelectedRow(undefined)}
+          onSaved={() => setSelectedRow(undefined)}
+        />
+      ) : selectedRow?.entry && selectedRow.topic ? (
         <TopicTimingPanel
           topic={selectedRow.topic}
           planning={selectedRow.entry}
@@ -551,6 +784,27 @@ export function PlanningPage() {
         <PlanningSelectionPanel
           row={selectedRow}
           onClose={() => setSelectedRow(undefined)}
+        />
+      ) : null}
+      {selectedCapacity ? (
+        <CapacityDetailPanel
+          period={selectedCapacity}
+          onClose={() => setSelectedCapacity(undefined)}
+        />
+      ) : null}
+      {selectedResource ? (
+        <PlanningPropertiesPanel
+          kind="resource"
+          resource={selectedResource}
+          onClose={() => setSelectedResource(undefined)}
+          onSaved={() => setSelectedResource(undefined)}
+        />
+      ) : null}
+      {newResourceOpen ? (
+        <PlanningPropertiesPanel
+          kind="resource"
+          onClose={() => setNewResourceOpen(false)}
+          onSaved={() => setNewResourceOpen(false)}
         />
       ) : null}
     </div>

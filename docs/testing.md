@@ -41,6 +41,8 @@ Pure domein- en applicationlogica:
   update-invoer zonder ingestelde huidige actor;
 - acties en append-only historie;
 - planning, afhankelijkheden en cyclusdetectie;
+- strategische fases, sjablonen, mijlpalen, assettoewijzingen, maandcapaciteit
+  en conflictberekening;
 - globale planningssamenvatting en filtergebonden tellingen;
 - centsconversie, budgetaggregaties, topicdubbeltelling en mutaties;
 - overlegscope, deelnemers, agenda en verslagsnapshots;
@@ -152,6 +154,8 @@ De gatewaytests controleren:
 - planning, globale cijferstrook, Gantt en afhankelijkheden;
 - Ganttselectie in een rechterpaneel zonder routewissel en topictiming met
   start- en einddatum;
+- timingitem als nieuw topic, fase- en assetinvoer vanuit de projectplanning en
+  de portfolio-wissel tussen Planning en Capaciteit;
 - gecombineerde planningboom/Gantt, uitklappen en URL-herstel van filter en zoom;
 - budget, correcties en topicimpact;
 - overleg, agenda en definitief verslag;

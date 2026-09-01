@@ -186,7 +186,7 @@ MVP interactie:
 
 Drag/drop pas na undo + validatie + dependency checks.
 
-## Implementatiestatus fase 6
+## Implementatiestatus strategische planningsworkspace
 
 De productie-interface ondersteunt nu:
 
@@ -203,6 +203,21 @@ De productie-interface ondersteunt nu:
 - afgeleide waarschuwingen voor overschreden planning zonder statusmutatie;
 - dashboardlijsten voor komende mijlpalen, vertraagde items en projecten met
   planningsrisico.
+- projectfasen met status, voortgang, eigenaar, intensiteit en een eenvoudige
+  finish-to-start-voorganger;
+- vier expliciet toe te passen planningssjablonen: Nieuwbouw groot, Renovatie
+  klein, Technische installatie en Onderhoudswerk;
+- eersteklas mijlpalen op project- of faseniveau;
+- éénstaps timingitems: de gebruiker maakt in de planning een projecttopic met
+  start- en einddatum, opgeslagen als de primaire `PlanningEntry` van dat topic;
+- assets van het type persoon, rol, team, externe partij, ruimte of uitrusting,
+  met totale en projectbeschikbare VTE-capaciteit;
+- afzonderlijke assettoewijzingen per project of fase met VTE, uren per week,
+  totaaluren of indicatieve inzet;
+- een schakelaar `Planning | Capaciteit`, maandelijkse capaciteitsbelasting,
+  conflictmarkering boven 100% en een uitsplitsing per project en fase;
+- bewerken en audit-safe archiveren vanuit hetzelfde rechterpaneel, zonder
+  routewissel.
 
 De Gantt is read-only-first. Selecteren opent formulierbewerking in een
 zijpaneel; drag/drop, auto-scheduling en automatisch berekende
@@ -216,6 +231,12 @@ ingepland wanneer het een projectstart/einddatum of minstens één zichtbaar act
 planningitem heeft. Een aandachtspunt is een uniek planningitem met status
 `Risico` of `Vertraagd`, of met een overschreden einddatum terwijl het niet
 afgerond/geannuleerd is.
+
+XS–XXL blijft een indicatief projectprofiel en is geen verborgen vaste
+personeelsbezetting over de hele projectduur. Na een expliciete sjabloonkeuze
+mag het profiel initiële indicatieve roltoewijzingen voorstellen; verdere
+capaciteitsberekening gebruikt de afzonderlijke `ResourceAssignment`-records.
+De schema-1.0-planning wordt niet destructief omgezet. Zie ADR-016.
 
 # B. Budget
 

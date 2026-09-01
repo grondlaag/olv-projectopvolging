@@ -52,6 +52,48 @@ test("fase-6-hoofdflow beheert planning, Gantt en JSON-roundtrip lokaal", async 
   await expect(
     page.getByRole("heading", { name: "Project-Gantt" }),
   ).toBeVisible()
+  const projectHash = new URL(page.url()).hash
+  await page.getByRole("button", { name: "+ Timingitem" }).click()
+  let propertiesPanel = page.getByRole("dialog", {
+    name: "Timingitem toevoegen",
+  })
+  await propertiesPanel.getByLabel("Titel").fill("E2E planningsmoment")
+  await propertiesPanel.getByLabel("Startdatum").fill("2026-10-01")
+  await propertiesPanel.getByLabel("Einddatum").fill("2026-10-20")
+  await propertiesPanel.getByRole("button", { name: "Opslaan" }).click()
+  await expect(page.getByRole("status")).toContainText(
+    "Timingitem als topic toegevoegd",
+  )
+  expect(new URL(page.url()).hash).toBe(projectHash)
+
+  await page.getByRole("button", { name: "+ Fase" }).click()
+  propertiesPanel = page.getByRole("dialog", { name: "Fase toevoegen" })
+  await propertiesPanel.getByLabel("Naam").fill("E2E uitvoering")
+  await propertiesPanel.getByLabel("Startdatum").fill("2026-09-01")
+  await propertiesPanel.getByLabel("Einddatum").fill("2026-12-15")
+  await propertiesPanel.getByRole("button", { name: "Opslaan" }).click()
+  await expect(
+    page.locator(".planning-gantt__labels").getByText("E2E uitvoering"),
+  ).toBeVisible()
+
+  await page.getByRole("button", { name: "+ Asset" }).click()
+  propertiesPanel = page.getByRole("dialog", { name: "Asset toevoegen" })
+  await propertiesPanel.getByLabel("Naam").fill("E2E projectleider")
+  await propertiesPanel.getByRole("button", { name: "Opslaan" }).click()
+  await page.getByRole("button", { name: "+ Toewijzing" }).click()
+  propertiesPanel = page.getByRole("dialog", { name: "Asset toewijzen" })
+  await propertiesPanel.getByLabel("Asset").selectOption({
+    label: "E2E projectleider · human",
+  })
+  await propertiesPanel.getByLabel("Fase").selectOption({
+    label: "E2E uitvoering",
+  })
+  await propertiesPanel.getByLabel("Startdatum").fill("2026-09-01")
+  await propertiesPanel.getByLabel("Einddatum").fill("2026-12-15")
+  await propertiesPanel.getByRole("button", { name: "Opslaan" }).click()
+  await expect(
+    page.locator(".planning-gantt__labels").getByText("E2E projectleider"),
+  ).toBeVisible()
   await expect(
     page
       .locator(".planning-gantt__labels")
@@ -108,11 +150,18 @@ test("fase-6-hoofdflow beheert planning, Gantt en JSON-roundtrip lokaal", async 
   const planningSummary = page.getByRole("region", {
     name: "Samenvatting portfolioplanning",
   })
-  await expect(planningSummary).toContainText("Planningdekking")
-  await expect(planningSummary).toContainText("Planningitems")
+  await expect(planningSummary).toContainText("Dekking")
+  await expect(planningSummary).toContainText("Planning")
   await expect(planningSummary).toContainText("Aandacht")
-  await expect(planningSummary).toContainText("Indicatieve resourcevraag")
+  await expect(planningSummary).toContainText("Capaciteit")
   await expect(page.getByText("Zonder cluster", { exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "Capaciteit" }).click()
+  await expect(
+    page.getByRole("heading", { name: "Portfoliocapaciteit" }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole("table", { name: "Capaciteit per maand" }),
+  ).toContainText("E2E projectleider")
   await page.screenshot({
     path: "test-results/phase6-portfolio-gantt.png",
     fullPage: true,

@@ -5,6 +5,7 @@ import { resolve } from "node:path"
 import { beforeEach, describe, expect, it } from "vitest"
 import {
   buildPortfolioPlanningModel,
+  buildResourceCapacity,
   defaultGlobalPlanningFilters,
   isPlanningEntryDelayed,
   summarizePortfolioPlanning,
@@ -280,6 +281,86 @@ describe("schema-1.1-fasering en resource-inzet", () => {
         { now, createUuid },
       ),
     ).toThrow("precies één")
+  })
+
+  it("past een sjabloon toe en signaleert overbelasting per maand", () => {
+    const records = structuredClone(createPortfolioTestSession().state.records)
+    records.projects[0]!.size = "L"
+    const templated = service.applyTemplate(
+      normalizeDomainState(records),
+      testIds.projectOne,
+      "renovatie-klein",
+      { now, createUuid },
+    )
+
+    expect(templated.record).toHaveLength(4)
+    expect(
+      templated.state.indices.assignmentsByProject.get(testIds.projectOne),
+    ).toHaveLength(4)
+    const resource = templated.state.records.resources.at(-1)!
+    const extra = service.createAssignment(
+      templated.state,
+      {
+        projectId: testIds.projectOne,
+        phaseId: templated.record[0]!.id,
+        resourceType: "role",
+        roleId: resource.id,
+        startDate: templated.record[0]!.startDate,
+        endDate: templated.record[0]!.endDate,
+        allocation: 2,
+        allocationMode: "fte",
+      },
+      { now, createUuid },
+    )
+
+    expect(
+      buildResourceCapacity(extra.state).some((item) => item.conflict),
+    ).toBe(true)
+  })
+
+  it("bewerkt en archiveert strategische planningrecords audit-safe", () => {
+    const created = service.createPhase(
+      createPortfolioTestSession().state,
+      phaseInput,
+      { now, createUuid },
+    )
+    const milestone = service.createMilestone(
+      created.state,
+      {
+        projectId: testIds.projectOne,
+        phaseId: created.record.id,
+        name: "Technische oplevering",
+        date: "2026-09-20" as LocalDate,
+        status: "Gepland",
+      },
+      { now, createUuid },
+    )
+    const updated = service.updateMilestone(
+      milestone.state,
+      milestone.record.id,
+      {
+        projectId: testIds.projectOne,
+        phaseId: created.record.id,
+        name: "Voorlopige oplevering",
+        date: "2026-09-22" as LocalDate,
+        status: "Behaald",
+      },
+      { now, createUuid },
+    )
+    const archived = service.archiveMilestone(
+      updated.state,
+      updated.record.id,
+      { now, createUuid },
+    )
+
+    expect(updated.record.name).toBe("Voorlopige oplevering")
+    expect(archived.record.audit.active).toBe(false)
+    expect(() =>
+      service.archivePhase(milestone.state, created.record.id, {
+        now,
+        createUuid,
+      }),
+    ).toThrow("gekoppelde fases")
   })
 })
 

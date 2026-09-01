@@ -16,7 +16,7 @@ import {
   type ResourceAssignment,
   type ResourceType,
   type AllocationMode,
-  type ProjectSize,
+  projectSizeFte,
   type UUID,
 } from "../../domain"
 import {
@@ -140,15 +140,6 @@ export const planningTemplates: Readonly<
     { name: "Uitvoering", days: 21, intensity: "Hoog" },
     { name: "Controle", days: 7, intensity: "Laag" },
   ],
-}
-
-const sizeProfileFte: Readonly<Record<ProjectSize, number>> = {
-  XS: 0.08,
-  S: 0.15,
-  M: 0.3,
-  L: 0.5,
-  XL: 0.8,
-  XXL: 1.2,
 }
 
 export interface PlanningMutationResult<T> {
@@ -460,6 +451,56 @@ export class PlanningManagementService {
     return { state: normalizeDomainState(records), record }
   }
 
+  updateMilestone(
+    state: NormalizedDomainState,
+    milestoneId: UUID,
+    input: MilestoneInput,
+    options: PlanningMutationOptions = {},
+  ): PlanningMutationResult<Milestone> {
+    const existing = state.indices.milestoneById.get(milestoneId)
+    if (!existing?.audit.active)
+      throw new PlanningManagementError([
+        { field: "milestoneId", message: "Mijlpaal niet gevonden." },
+      ])
+    if (input.projectId !== existing.projectId)
+      throw new PlanningManagementError([
+        {
+          field: "projectId",
+          message: "Een mijlpaal kan niet naar een ander project verhuizen.",
+        },
+      ])
+    if (!input.name.trim())
+      throw new PlanningManagementError([
+        { field: "name", message: "Naam van de mijlpaal is verplicht." },
+      ])
+    if (
+      input.phaseId &&
+      state.indices.projectPhaseById.get(input.phaseId)?.projectId !==
+        input.projectId
+    )
+      throw new PlanningManagementError([
+        { field: "phaseId", message: "De fase hoort niet bij dit project." },
+      ])
+    assertActor(state, input.ownerActorId)
+    const record: Milestone = {
+      ...existing,
+      ...input,
+      name: input.name.trim(),
+      audit: updateAudit(
+        existing.audit,
+        options.now ?? new Date(),
+        currentActorId(state),
+      ),
+    }
+    if (!input.phaseId) delete record.phaseId
+    if (!input.ownerActorId) delete record.ownerActorId
+    const records = cloneDomainCollections(state.records)
+    records.milestones[
+      records.milestones.findIndex((item) => item.id === milestoneId)
+    ] = record
+    return { state: normalizeDomainState(records), record }
+  }
+
   createResource(
     state: NormalizedDomainState,
     input: ResourceInput,
@@ -494,6 +535,56 @@ export class PlanningManagementService {
     }
     const records = cloneDomainCollections(state.records)
     records.resources.push(record)
+    return { state: normalizeDomainState(records), record }
+  }
+
+  updateResource(
+    state: NormalizedDomainState,
+    resourceId: UUID,
+    input: ResourceInput,
+    options: PlanningMutationOptions = {},
+  ): PlanningMutationResult<Resource> {
+    const existing = state.indices.resourceById.get(resourceId)
+    if (!existing?.audit.active)
+      throw new PlanningManagementError([
+        { field: "resourceId", message: "Asset niet gevonden." },
+      ])
+    if (!input.name.trim())
+      throw new PlanningManagementError([
+        { field: "name", message: "Assetnaam is verplicht." },
+      ])
+    if (
+      input.capacityFte < 0 ||
+      input.projectAvailabilityFte < 0 ||
+      input.projectAvailabilityFte > input.capacityFte
+    )
+      throw new PlanningManagementError([
+        {
+          field: "projectAvailabilityFte",
+          message:
+            "Projectbeschikbaarheid moet tussen 0 en de totale capaciteit liggen.",
+        },
+      ])
+    if (input.actorId && !state.indices.actorById.has(input.actorId))
+      throw new PlanningManagementError([
+        { field: "actorId", message: "Actor niet gevonden." },
+      ])
+    const record: Resource = {
+      ...existing,
+      ...input,
+      name: input.name.trim(),
+      audit: updateAudit(
+        existing.audit,
+        options.now ?? new Date(),
+        currentActorId(state),
+      ),
+    }
+    if (!input.actorId) delete record.actorId
+    if (!input.role) delete record.role
+    const records = cloneDomainCollections(state.records)
+    records.resources[
+      records.resources.findIndex((item) => item.id === resourceId)
+    ] = record
     return { state: normalizeDomainState(records), record }
   }
 
@@ -557,6 +648,152 @@ export class PlanningManagementService {
     return { state: normalizeDomainState(records), record }
   }
 
+  updateAssignment(
+    state: NormalizedDomainState,
+    assignmentId: UUID,
+    input: ResourceAssignmentInput,
+    options: PlanningMutationOptions = {},
+  ): PlanningMutationResult<ResourceAssignment> {
+    const existing = state.indices.resourceAssignmentById.get(assignmentId)
+    if (!existing?.audit.active)
+      throw new PlanningManagementError([
+        { field: "assignmentId", message: "Assettoewijzing niet gevonden." },
+      ])
+    if (input.projectId !== existing.projectId)
+      throw new PlanningManagementError([
+        {
+          field: "projectId",
+          message: "Een toewijzing kan niet naar een ander project verhuizen.",
+        },
+      ])
+    const records = cloneDomainCollections(state.records)
+    records.resourceAssignments = records.resourceAssignments.filter(
+      (item) => item.id !== assignmentId,
+    )
+    const validationState = normalizeDomainState(records)
+    const created = this.createAssignment(validationState, input, options)
+    const record: ResourceAssignment = {
+      ...created.record,
+      id: existing.id,
+      audit: updateAudit(
+        existing.audit,
+        options.now ?? new Date(),
+        currentActorId(state),
+      ),
+    }
+    const nextRecords = cloneDomainCollections(created.state.records)
+    const createdIndex = nextRecords.resourceAssignments.findIndex(
+      (item) => item.id === created.record.id,
+    )
+    nextRecords.resourceAssignments[createdIndex] = record
+    return { state: normalizeDomainState(nextRecords), record }
+  }
+
+  archivePhase(
+    state: NormalizedDomainState,
+    phaseId: UUID,
+    options: PlanningMutationOptions = {},
+  ): PlanningMutationResult<ProjectPhase> {
+    const existing = state.indices.projectPhaseById.get(phaseId)
+    if (!existing?.audit.active)
+      throw new PlanningManagementError([
+        { field: "phaseId", message: "Fase niet gevonden." },
+      ])
+    if (
+      (state.indices.milestonesByProject.get(existing.projectId) ?? []).some(
+        (item) => item.audit.active && item.phaseId === phaseId,
+      ) ||
+      (state.indices.assignmentsByProject.get(existing.projectId) ?? []).some(
+        (item) => item.audit.active && item.phaseId === phaseId,
+      ) ||
+      (state.indices.phasesByProject.get(existing.projectId) ?? []).some(
+        (item) => item.audit.active && item.dependsOnPhaseId === phaseId,
+      )
+    )
+      throw new PlanningManagementError([
+        {
+          field: "phaseId",
+          message:
+            "Archiveer of verplaats eerst gekoppelde fases, mijlpalen en assettoewijzingen.",
+        },
+      ])
+    return this.archiveRecord(state, "projectPhases", phaseId, options)
+  }
+
+  archiveMilestone(
+    state: NormalizedDomainState,
+    milestoneId: UUID,
+    options: PlanningMutationOptions = {},
+  ): PlanningMutationResult<Milestone> {
+    return this.archiveRecord(state, "milestones", milestoneId, options)
+  }
+
+  archiveAssignment(
+    state: NormalizedDomainState,
+    assignmentId: UUID,
+    options: PlanningMutationOptions = {},
+  ): PlanningMutationResult<ResourceAssignment> {
+    return this.archiveRecord(
+      state,
+      "resourceAssignments",
+      assignmentId,
+      options,
+    )
+  }
+
+  archiveResource(
+    state: NormalizedDomainState,
+    resourceId: UUID,
+    options: PlanningMutationOptions = {},
+  ): PlanningMutationResult<Resource> {
+    if (
+      (state.indices.assignmentsByResource.get(resourceId) ?? []).some(
+        (item) => item.audit.active,
+      )
+    )
+      throw new PlanningManagementError([
+        {
+          field: "resourceId",
+          message: "Archiveer eerst de actieve toewijzingen van deze asset.",
+        },
+      ])
+    return this.archiveRecord(state, "resources", resourceId, options)
+  }
+
+  private archiveRecord<
+    K extends
+      "projectPhases" | "milestones" | "resources" | "resourceAssignments",
+  >(
+    state: NormalizedDomainState,
+    collection: K,
+    id: UUID,
+    options: PlanningMutationOptions,
+  ): PlanningMutationResult<NormalizedDomainState["records"][K][number]> {
+    const records = cloneDomainCollections(state.records)
+    const items = records[collection] as Array<
+      NormalizedDomainState["records"][K][number]
+    >
+    const index = items.findIndex((item) => item.id === id)
+    const existing = items[index]
+    if (!existing?.audit.active)
+      throw new PlanningManagementError([
+        { field: "record", message: "Planningrecord niet gevonden." },
+      ])
+    const record = {
+      ...existing,
+      audit: {
+        ...updateAudit(
+          existing.audit,
+          options.now ?? new Date(),
+          currentActorId(state),
+        ),
+        active: false,
+      },
+    } as NormalizedDomainState["records"][K][number]
+    items[index] = record
+    return { state: normalizeDomainState(records), record }
+  }
+
   applyTemplate(
     state: NormalizedDomainState,
     projectId: UUID,
@@ -615,8 +852,8 @@ export class PlanningManagementService {
           type: "role",
           name: `Projectteam ${project.code}`,
           role: "Projectteam",
-          capacityFte: Math.max(1, sizeProfileFte[project.size] * 2),
-          projectAvailabilityFte: Math.max(1, sizeProfileFte[project.size] * 2),
+          capacityFte: Math.max(1, projectSizeFte[project.size] * 2),
+          projectAvailabilityFte: Math.max(1, projectSizeFte[project.size] * 2),
         },
         options,
       )
@@ -631,7 +868,7 @@ export class PlanningManagementService {
             roleId: roleResult.record.id,
             startDate: phase.startDate,
             endDate: phase.endDate,
-            allocation: sizeProfileFte[project.size],
+            allocation: projectSizeFte[project.size],
             allocationMode: "indicative",
           },
           options,

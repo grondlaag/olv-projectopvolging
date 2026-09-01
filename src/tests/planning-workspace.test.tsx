@@ -133,10 +133,10 @@ describe("planningwerkruimte", () => {
     const summary = screen.getByRole("region", {
       name: "Samenvatting portfolioplanning",
     })
-    expect(summary).toHaveTextContent("3 van 3 projecten")
+    expect(summary).toHaveTextContent("3/3")
     expect(
-      within(summary).getByText("Planningitems").parentElement,
-    ).toHaveTextContent("2")
+      within(summary).getByText("Planning").parentElement,
+    ).toHaveTextContent("2 items")
     const projectToggle = screen.getByRole("button", {
       name: "Details tonen voor Renovatie verpleegafdeling",
     })
@@ -180,6 +180,89 @@ describe("planningwerkruimte", () => {
       expect(window.location.hash).toContain(`project=${testIds.projectOne}`)
       expect(window.location.hash).toContain("zoom=month")
     })
+    view.unmount()
+    router.dispose()
+  })
+
+  it("voegt timing, een fase en een assettoewijzing toe zonder routewissel", async () => {
+    window.location.hash = `#/projects/${testIds.projectOne}/planning`
+    const router = createAppRouter()
+    const view = render(<RouterProvider router={router} />)
+    await screen.findByRole("heading", { name: "Project-Gantt" })
+    const originalHash = window.location.hash
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Timingitem" }))
+    let panel = screen.getByRole("dialog", { name: "Timingitem toevoegen" })
+    fireEvent.change(within(panel).getByLabelText("Titel"), {
+      target: { value: "E2E timingtopic" },
+    })
+    fireEvent.change(within(panel).getByLabelText("Startdatum"), {
+      target: { value: "2026-10-01" },
+    })
+    fireEvent.change(within(panel).getByLabelText("Einddatum"), {
+      target: { value: "2026-10-20" },
+    })
+    fireEvent.click(within(panel).getByRole("button", { name: "Opslaan" }))
+    await waitFor(() =>
+      expect(
+        useAppStore
+          .getState()
+          .session!.state.records.topics.some(
+            (topic) => topic.title === "E2E timingtopic",
+          ),
+      ).toBe(true),
+    )
+    expect(window.location.hash).toBe(originalHash)
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Fase" }))
+    panel = screen.getByRole("dialog", { name: "Fase toevoegen" })
+    fireEvent.change(within(panel).getByLabelText("Naam"), {
+      target: { value: "E2E uitvoeringsfase" },
+    })
+    fireEvent.change(within(panel).getByLabelText("Startdatum"), {
+      target: { value: "2026-10-01" },
+    })
+    fireEvent.change(within(panel).getByLabelText("Einddatum"), {
+      target: { value: "2026-11-30" },
+    })
+    fireEvent.click(within(panel).getByRole("button", { name: "Opslaan" }))
+    expect(await screen.findByText("E2E uitvoeringsfase")).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Asset" }))
+    panel = screen.getByRole("dialog", { name: "Asset toevoegen" })
+    fireEvent.change(within(panel).getByLabelText("Naam"), {
+      target: { value: "E2E projectleider" },
+    })
+    fireEvent.click(within(panel).getByRole("button", { name: "Opslaan" }))
+    await waitFor(() =>
+      expect(
+        useAppStore
+          .getState()
+          .session!.state.records.resources.some(
+            (resource) => resource.name === "E2E projectleider",
+          ),
+      ).toBe(true),
+    )
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Toewijzing" }))
+    panel = screen.getByRole("dialog", { name: "Asset toewijzen" })
+    const resource = useAppStore
+      .getState()
+      .session!.state.records.resources.find(
+        (item) => item.name === "E2E projectleider",
+      )!
+    fireEvent.change(within(panel).getByLabelText("Asset"), {
+      target: { value: resource.id },
+    })
+    fireEvent.click(within(panel).getByRole("button", { name: "Opslaan" }))
+    await waitFor(() =>
+      expect(
+        useAppStore
+          .getState()
+          .session!.state.indices.assignmentsByProject.get(testIds.projectOne),
+      ).toHaveLength(1),
+    )
+    expect(window.location.hash).toBe(originalHash)
     view.unmount()
     router.dispose()
   })

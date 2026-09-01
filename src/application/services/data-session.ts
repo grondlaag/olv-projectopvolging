@@ -65,10 +65,31 @@ export function restoreDataSession(
   snapshot: RecoverableSessionSnapshot,
 ): DataFileSession {
   const legacy = snapshot.version === 1
+  const schemaUpgrade = snapshot.schemaVersion !== DATA_SCHEMA_VERSION
+  const records = structuredClone(snapshot.records)
+  if (schemaUpgrade) {
+    records.resources = records.resources.map((resource) => ({
+      ...resource,
+      weeklyCapacityHours:
+        typeof resource.weeklyCapacityHours === "number"
+          ? resource.weeklyCapacityHours
+          : resource.capacityFte * 40,
+      availabilityExceptions: Array.isArray(resource.availabilityExceptions)
+        ? resource.availabilityExceptions
+        : [],
+    }))
+    if (records.config[0])
+      records.config[0] = {
+        ...records.config[0],
+        schemaVersion: DATA_SCHEMA_VERSION,
+      }
+  }
   return {
-    state: normalizeDomainState(structuredClone(snapshot.records)),
+    state: normalizeDomainState(records),
     fileName: legacy ? recoveredJsonName(snapshot.fileName) : snapshot.fileName,
-    schemaVersion: legacy ? DATA_SCHEMA_VERSION : snapshot.schemaVersion,
+    schemaVersion: schemaUpgrade
+      ? DATA_SCHEMA_VERSION
+      : (snapshot.schemaVersion ?? DATA_SCHEMA_VERSION),
     format: "json",
     origin: legacy ? "legacy-recovery" : "recovery",
     issues: legacy
@@ -80,7 +101,19 @@ export function restoreDataSession(
               "Een bestaande lokale Excel-sessie is hersteld. Sla ze voortaan op als JSON.",
           },
         ]
-      : structuredClone(snapshot.issues),
+      : [
+          ...structuredClone(snapshot.issues),
+          ...(schemaUpgrade
+            ? [
+                {
+                  level: "Info" as const,
+                  code: "session.schema-upgraded",
+                  message:
+                    "De lokale sessie is bijgewerkt met weekcapaciteit en een capaciteitskalender.",
+                },
+              ]
+            : []),
+        ],
     hasBlockingIssues: legacy
       ? Boolean(snapshot.hasBlockingIssues)
       : snapshot.hasBlockingIssues,

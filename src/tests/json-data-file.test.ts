@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
   compareDomainStates,
   normalizeDomainState,
+  PlanningManagementService,
 } from "../application/services"
 import type { AuditFields, LocalDate, UUID } from "../domain"
 import { JsonDataFileGateway } from "../infrastructure/json"
@@ -73,7 +74,7 @@ describe("JSON-gegevensadapter", () => {
     expect(reimported.state.records.choiceLists[0]?.active).toBe(true)
   })
 
-  it("migreert schema 1.0 zonder bestaande planningitems te verplaatsen", async () => {
+  it("migreert schema 1.0 naar 1.2 zonder bestaande planningitems te verplaatsen", async () => {
     const gateway = new JsonDataFileGateway()
     const source = createPortfolioTestSession().state
     const legacy = JSON.parse(gateway.export(source).text) as {
@@ -95,10 +96,45 @@ describe("JSON-gegevensadapter", () => {
     )
 
     expect(migrated.hasBlockingIssues).toBe(false)
-    expect(migrated.schemaVersion).toBe("1.1.0")
+    expect(migrated.schemaVersion).toBe("1.2.0")
     expect(migrated.state.records.planning).toEqual(source.records.planning)
     expect(migrated.state.records.projectPhases).toEqual([])
     expect(migrated.state.records.milestones).toEqual([])
+  })
+
+  it("migreert schema 1.1-assets naar een weekkalender", async () => {
+    const gateway = new JsonDataFileGateway()
+    const source = createPortfolioTestSession().state
+    const resource = new PlanningManagementService().createResource(source, {
+      type: "human",
+      name: "Migratiepersoon",
+      capacityFte: 0.8,
+      projectAvailabilityFte: 0.5,
+      weeklyCapacityHours: 32,
+    })
+    const legacy = JSON.parse(gateway.export(resource.state).text) as {
+      schemaVersion: string
+      records: {
+        config: { schemaVersion: string }[]
+        resources: Record<string, unknown>[]
+      }
+    }
+    legacy.schemaVersion = "1.1.0"
+    legacy.records.config[0]!.schemaVersion = "1.1.0"
+    delete legacy.records.resources[0]!.weeklyCapacityHours
+    delete legacy.records.resources[0]!.availabilityExceptions
+
+    const migrated = await gateway.importText(
+      JSON.stringify(legacy),
+      "legacy-1.1.json",
+    )
+
+    expect(migrated.hasBlockingIssues).toBe(false)
+    expect(migrated.schemaVersion).toBe("1.2.0")
+    expect(migrated.state.records.resources[0]).toMatchObject({
+      weeklyCapacityHours: 32,
+      availabilityExceptions: [],
+    })
   })
 
   it("rapporteert corrupte JSON en verbroken relaties als blokkerend", async () => {
@@ -142,7 +178,7 @@ describe("JSON-gegevensadapter", () => {
     expect(exported.blob.type).toBe("application/json;charset=utf-8")
     expect(exported.text).toContain('\n  "format": "olv-projectopvolging"')
     expect(exported.text.endsWith("\n")).toBe(true)
-    expect(envelope.schemaVersion).toBe("1.1.0")
-    expect(envelope.records.config[0]?.schemaVersion).toBe("1.1.0")
+    expect(envelope.schemaVersion).toBe("1.2.0")
+    expect(envelope.records.config[0]?.schemaVersion).toBe("1.2.0")
   })
 })

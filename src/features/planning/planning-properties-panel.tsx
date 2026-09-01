@@ -25,7 +25,7 @@ import {
   type ResourceType,
   type UUID,
 } from "../../domain"
-import { todayAsLocalDate } from "../../utils"
+import { formatLocalDate, todayAsLocalDate } from "../../utils"
 
 const planningService = new PlanningManagementService()
 const journalService = new ProjectJournalService()
@@ -48,6 +48,130 @@ function numberValue(value: FormDataEntryValue | null): number {
   return Number(String(value ?? "0").replace(",", "."))
 }
 
+function ResourceAvailabilityEditor({ resource }: { resource: Resource }) {
+  const replaceDomainState = useAppStore((state) => state.replaceDomainState)
+  const [error, setError] = useState("")
+  const today = todayAsLocalDate()
+
+  function add(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError("")
+    const form = event.currentTarget
+    const data = new FormData(form)
+    const state = useAppStore.getState().session?.state
+    if (!state) return
+    try {
+      const result = planningService.addResourceAvailability(
+        state,
+        resource.id,
+        {
+          startDate: String(data.get("startDate")) as LocalDate,
+          endDate: String(data.get("endDate")) as LocalDate,
+          availabilityPercent: numberValue(data.get("availabilityPercent")),
+          reason: String(data.get("reason") ?? ""),
+        },
+      )
+      replaceDomainState(result.state)
+      form.reset()
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Opslaan is mislukt.")
+    }
+  }
+
+  function archive(id: UUID) {
+    const state = useAppStore.getState().session?.state
+    if (!state) return
+    try {
+      const result = planningService.archiveResourceAvailability(
+        state,
+        resource.id,
+        id,
+      )
+      replaceDomainState(result.state)
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : "Archiveren is mislukt.",
+      )
+    }
+  }
+
+  const active = resource.availabilityExceptions
+    .filter((item) => item.audit.active)
+    .sort((left, right) => left.startDate.localeCompare(right.startDate))
+
+  return (
+    <section className="planning-availability">
+      <header>
+        <span>Capaciteitskalender</span>
+        <h3>Afwezigheid of deeltijdse beschikbaarheid</h3>
+      </header>
+      {active.length ? (
+        <ul>
+          {active.map((item) => (
+            <li key={item.id}>
+              <div>
+                <strong>{item.reason}</strong>
+                <span>
+                  {formatLocalDate(item.startDate)} –{" "}
+                  {formatLocalDate(item.endDate)} · {item.availabilityPercent}%
+                  beschikbaar
+                </span>
+              </div>
+              <Button variant="tertiary" onClick={() => archive(item.id)}>
+                Archiveren
+              </Button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>Nog geen afwijkingen op de standaard weekcapaciteit.</p>
+      )}
+      <form
+        className="planning-form planning-form--availability"
+        onSubmit={add}
+      >
+        <label>
+          <span>Van</span>
+          <input name="startDate" type="date" defaultValue={today} required />
+        </label>
+        <label>
+          <span>Tot en met</span>
+          <input name="endDate" type="date" defaultValue={today} required />
+        </label>
+        <label>
+          <span>Beschikbaar (%)</span>
+          <input
+            name="availabilityPercent"
+            type="number"
+            min="0"
+            max="100"
+            defaultValue="0"
+            required
+          />
+        </label>
+        <label>
+          <span>Reden</span>
+          <input
+            name="reason"
+            placeholder="Bijv. verlof, opleiding of 50% inzet"
+            required
+          />
+        </label>
+        {error ? (
+          <p className="planning-form__error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <footer>
+          <Button type="submit" variant="secondary">
+            Periode toevoegen
+          </Button>
+        </footer>
+      </form>
+    </section>
+  )
+}
+
 export function PlanningPropertiesPanel({
   projectId,
   kind,
@@ -64,6 +188,9 @@ export function PlanningPropertiesPanel({
   const project = projectId
     ? session.state.indices.projectById.get(projectId)
     : undefined
+  const liveResource = resource
+    ? (session.state.indices.resourceById.get(resource.id) ?? resource)
+    : undefined
   const [error, setError] = useState("")
   const today = todayAsLocalDate()
   const phases = projectId
@@ -79,6 +206,12 @@ export function PlanningPropertiesPanel({
     .sort((left, right) =>
       left.displayName.localeCompare(right.displayName, "nl"),
     )
+  const availableResourceActors = actors.filter((actor) => {
+    const linked = session.state.records.resources.find(
+      (item) => item.audit.active && item.actorId === actor.id,
+    )
+    return !linked || linked.id === liveResource?.id
+  })
 
   function mutate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -138,6 +271,7 @@ export function PlanningPropertiesPanel({
           projectAvailabilityFte: numberValue(
             data.get("projectAvailabilityFte"),
           ),
+          weeklyCapacityHours: numberValue(data.get("weeklyCapacityHours")),
           ...(type === "human" && data.get("actorId")
             ? { actorId: String(data.get("actorId")) as UUID }
             : {}),
@@ -145,11 +279,11 @@ export function PlanningPropertiesPanel({
             ? { role: String(data.get("role")) }
             : {}),
         }
-        const result = resource
-          ? planningService.updateResource(state, resource.id, input)
+        const result = liveResource
+          ? planningService.updateResource(state, liveResource.id, input)
           : planningService.createResource(state, input)
         replaceDomainState(result.state)
-        onSaved(resource ? "Asset bijgewerkt" : "Asset toegevoegd")
+        onSaved(liveResource ? "Asset bijgewerkt" : "Asset toegevoegd")
       } else if (kind === "assignment") {
         if (!projectId) throw new Error("Project niet gevonden.")
         const selectedResource = state.indices.resourceById.get(
@@ -456,14 +590,14 @@ export function PlanningPropertiesPanel({
               <span>Naam</span>
               <input
                 name="name"
-                defaultValue={resource?.name}
+                defaultValue={liveResource?.name}
                 required
                 autoFocus
               />
             </label>
             <label>
               <span>Type</span>
-              <select name="type" defaultValue={resource?.type ?? "human"}>
+              <select name="type" defaultValue={liveResource?.type ?? "human"}>
                 {resourceTypes.map((value) => (
                   <option value={value} key={value}>
                     {value}
@@ -473,9 +607,9 @@ export function PlanningPropertiesPanel({
             </label>
             <label>
               <span>Gekoppelde actor (voor personen)</span>
-              <select name="actorId" defaultValue={resource?.actorId ?? ""}>
+              <select name="actorId" defaultValue={liveResource?.actorId ?? ""}>
                 <option value="">Geen</option>
-                {actors.map((actor) => (
+                {availableResourceActors.map((actor) => (
                   <option key={actor.id} value={actor.id}>
                     {actor.displayName}
                   </option>
@@ -484,7 +618,7 @@ export function PlanningPropertiesPanel({
             </label>
             <label>
               <span>Rolbenaming (voor rollen)</span>
-              <input name="role" defaultValue={resource?.role ?? ""} />
+              <input name="role" defaultValue={liveResource?.role ?? ""} />
             </label>
             <label>
               <span>Totale capaciteit (VTE)</span>
@@ -493,7 +627,7 @@ export function PlanningPropertiesPanel({
                 type="number"
                 min="0"
                 step="0.05"
-                defaultValue={resource?.capacityFte ?? 1}
+                defaultValue={liveResource?.capacityFte ?? 1}
                 required
               />
             </label>
@@ -504,7 +638,18 @@ export function PlanningPropertiesPanel({
                 type="number"
                 min="0"
                 step="0.05"
-                defaultValue={resource?.projectAvailabilityFte ?? 1}
+                defaultValue={liveResource?.projectAvailabilityFte ?? 1}
+                required
+              />
+            </label>
+            <label>
+              <span>Standaard weekcapaciteit (uren)</span>
+              <input
+                name="weeklyCapacityHours"
+                type="number"
+                min="0"
+                step="0.5"
+                defaultValue={liveResource?.weeklyCapacityHours ?? 40}
                 required
               />
             </label>
@@ -617,6 +762,9 @@ export function PlanningPropertiesPanel({
           </Button>
         </footer>
       </form>
+      {kind === "resource" && liveResource ? (
+        <ResourceAvailabilityEditor resource={liveResource} />
+      ) : null}
     </aside>
   )
 }

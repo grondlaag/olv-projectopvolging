@@ -203,6 +203,15 @@ export interface Resource extends AuditedEntity {
   role?: string
   capacityFte: number
   projectAvailabilityFte: number
+  weeklyCapacityHours: number
+  availabilityExceptions: ResourceAvailabilityException[]
+}
+
+export interface ResourceAvailabilityException extends AuditedEntity {
+  startDate: LocalDate
+  endDate: LocalDate
+  availabilityPercent: number
+  reason: string
 }
 
 export interface ResourceAssignment extends AuditedEntity {

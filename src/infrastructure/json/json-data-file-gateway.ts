@@ -62,14 +62,35 @@ function pathToString(path: readonly PropertyKey[]): string {
 function migrateLegacyEnvelope(source: unknown): unknown {
   if (!source || typeof source !== "object") return source
   const envelope = structuredClone(source) as Record<string, unknown>
-  if (envelope.schemaVersion !== "1.0.0") return envelope
+  if (!["1.0.0", "1.1.0"].includes(String(envelope.schemaVersion)))
+    return envelope
   const records = envelope.records
   if (!records || typeof records !== "object") return envelope
   const collections = records as Record<string, unknown>
-  collections.projectPhases = []
-  collections.milestones = []
-  collections.resources = []
-  collections.resourceAssignments = []
+  if (envelope.schemaVersion === "1.0.0") {
+    collections.projectPhases = []
+    collections.milestones = []
+    collections.resources = []
+    collections.resourceAssignments = []
+  }
+  if (Array.isArray(collections.resources)) {
+    collections.resources = collections.resources.map((value) => {
+      if (!value || typeof value !== "object") return value
+      const resource = value as Record<string, unknown>
+      const capacityFte =
+        typeof resource.capacityFte === "number" ? resource.capacityFte : 0
+      return {
+        ...resource,
+        weeklyCapacityHours:
+          typeof resource.weeklyCapacityHours === "number"
+            ? resource.weeklyCapacityHours
+            : capacityFte * 40,
+        availabilityExceptions: Array.isArray(resource.availabilityExceptions)
+          ? resource.availabilityExceptions
+          : [],
+      }
+    })
+  }
   if (Array.isArray(collections.config) && collections.config[0]) {
     ;(collections.config[0] as Record<string, unknown>).schemaVersion =
       JSON_DATA_SCHEMA_VERSION

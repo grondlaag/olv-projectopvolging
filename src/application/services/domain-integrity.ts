@@ -507,14 +507,45 @@ export function validateDomainIntegrity(
     if (
       resource.capacityFte < 0 ||
       resource.projectAvailabilityFte < 0 ||
-      resource.projectAvailabilityFte > resource.capacityFte
+      resource.projectAvailabilityFte > resource.capacityFte ||
+      resource.weeklyCapacityHours < 0 ||
+      resource.weeklyCapacityHours > resource.capacityFte * 40
     ) {
       add(
         "resources",
         "data.resource.capacity",
-        "Projectbeschikbaarheid moet tussen 0 en de totale capaciteit liggen.",
+        "Projectbeschikbaarheid en weekuren moeten binnen de totale capaciteit liggen.",
         resource.id,
       )
+    }
+    if (
+      resource.actorId &&
+      records.resources.some(
+        (other) =>
+          other.id !== resource.id &&
+          other.audit.active &&
+          other.actorId === resource.actorId,
+      )
+    )
+      add(
+        "resources",
+        "data.resource.actor-duplicate",
+        "Een actor kan maar aan één actieve personeelsasset gekoppeld zijn.",
+        resource.id,
+      )
+    for (const exception of resource.availabilityExceptions) {
+      if (
+        exception.endDate < exception.startDate ||
+        exception.availabilityPercent < 0 ||
+        exception.availabilityPercent > 100 ||
+        !exception.reason.trim()
+      )
+        add(
+          "resources",
+          "data.resource.availability",
+          "Een beschikbaarheidsuitzondering heeft een ongeldige periode, percentage of reden.",
+          resource.id,
+        )
     }
   }
 

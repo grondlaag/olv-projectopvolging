@@ -43,6 +43,8 @@ Pure domein- en applicationlogica:
 - planning, afhankelijkheden en cyclusdetectie;
 - strategische fases, sjablonen, mijlpalen, assettoewijzingen, maandcapaciteit
   en conflictberekening;
+- unieke actor-assetkoppeling, weekcapaciteit, afwezigheidsperiodes en
+  schema-1.1-naar-1.2-migratie;
 - globale planningssamenvatting en filtergebonden tellingen;
 - centsconversie, budgetaggregaties, topicdubbeltelling en mutaties;
 - overlegscope, deelnemers, agenda en verslagsnapshots;

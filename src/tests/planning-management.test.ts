@@ -256,6 +256,7 @@ describe("schema-1.1-fasering en resource-inzet", () => {
         actorId: testIds.actorOne,
         capacityFte: 1,
         projectAvailabilityFte: 0.5,
+        weeklyCapacityHours: 40,
       },
       { now, createUuid },
     )
@@ -361,6 +362,79 @@ describe("schema-1.1-fasering en resource-inzet", () => {
         createUuid,
       }),
     ).toThrow("gekoppelde fases")
+  })
+
+  it("verlaagt weekcapaciteit door afwezigheid en bewaakt één asset per actor", () => {
+    const person = service.createResource(
+      createPortfolioTestSession().state,
+      {
+        type: "human",
+        name: "Anna capaciteit",
+        actorId: testIds.actorOne,
+        capacityFte: 1,
+        projectAvailabilityFte: 1,
+        weeklyCapacityHours: 40,
+      },
+      { now, createUuid },
+    )
+    expect(() =>
+      service.createResource(person.state, {
+        type: "human",
+        name: "Dubbele Anna",
+        actorId: testIds.actorOne,
+        capacityFte: 1,
+        projectAvailabilityFte: 1,
+        weeklyCapacityHours: 40,
+      }),
+    ).toThrow("al aan een actieve personeelsasset")
+    const assigned = service.createAssignment(
+      person.state,
+      {
+        projectId: testIds.projectOne,
+        resourceType: "human",
+        resourceId: person.record.id,
+        startDate: "2026-09-07" as LocalDate,
+        endDate: "2026-09-11" as LocalDate,
+        allocation: 0.5,
+        allocationMode: "fte",
+      },
+      { now, createUuid },
+    )
+    const absent = service.addResourceAvailability(
+      assigned.state,
+      person.record.id,
+      {
+        startDate: "2026-09-07" as LocalDate,
+        endDate: "2026-09-13" as LocalDate,
+        availabilityPercent: 0,
+        reason: "Verlof",
+      },
+      { now, createUuid },
+    )
+    const week = buildResourceCapacity(
+      absent.state,
+      { startDate: "2026-09-07", endDate: "2026-09-13" },
+      "week",
+    )[0]!
+
+    expect(week).toMatchObject({
+      capacityFte: 0,
+      availabilityPercent: 0,
+      conflict: true,
+    })
+    const restored = service.archiveResourceAvailability(
+      absent.state,
+      person.record.id,
+      absent.record.id,
+      { now, createUuid },
+    )
+    expect(
+      buildResourceCapacity(
+        restored.state,
+        { startDate: "2026-09-07", endDate: "2026-09-13" },
+        "week",
+      )[0]?.capacityFte,
+    ).toBe(1)
   })
 })
 

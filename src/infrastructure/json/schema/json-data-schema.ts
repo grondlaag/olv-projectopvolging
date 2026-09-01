@@ -249,6 +249,16 @@ const milestoneSchema = z
   })
   .strict()
 
+const resourceAvailabilitySchema = z
+  .object({
+    ...audited,
+    startDate: localDateSchema,
+    endDate: localDateSchema,
+    availabilityPercent: z.number().min(0).max(100),
+    reason: z.string(),
+  })
+  .strict()
+
 const resourceSchema = z
   .object({
     ...audited,
@@ -258,6 +268,8 @@ const resourceSchema = z
     role: z.string().optional(),
     capacityFte: z.number().min(0),
     projectAvailabilityFte: z.number().min(0),
+    weeklyCapacityHours: z.number().min(0),
+    availabilityExceptions: z.array(resourceAvailabilitySchema),
   })
   .strict()
 

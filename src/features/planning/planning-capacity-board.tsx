@@ -1,10 +1,14 @@
-import type { ResourceCapacityPeriod } from "../../application/queries"
+import type {
+  CapacityGranularity,
+  ResourceCapacityPeriod,
+} from "../../application/queries"
 import { Button, EmptyState } from "../../design-system/components"
 import { useEscapeKey } from "../../design-system/patterns"
 import { formatLocalDate } from "../../utils"
 
 interface CapacityBoardProps {
   periods: readonly ResourceCapacityPeriod[]
+  granularity: CapacityGranularity
   onSelect: (period: ResourceCapacityPeriod) => void
   onSelectResource: (period: ResourceCapacityPeriod) => void
 }
@@ -16,6 +20,7 @@ function percentLabel(value: number): string {
 
 export function PlanningCapacityBoard({
   periods,
+  granularity,
   onSelect,
   onSelectResource,
 }: CapacityBoardProps) {
@@ -40,7 +45,7 @@ export function PlanningCapacityBoard({
     <div
       className="capacity-board"
       role="table"
-      aria-label="Capaciteit per maand"
+      aria-label={`Capaciteit per ${granularity === "week" ? "week" : "maand"}`}
     >
       <div
         className="capacity-board__row capacity-board__row--header"
@@ -53,8 +58,9 @@ export function PlanningCapacityBoard({
         {months.map((month) => (
           <span role="columnheader" key={month.startDate}>
             {new Intl.DateTimeFormat("nl-BE", {
-              month: "short",
-              year: "numeric",
+              ...(granularity === "week"
+                ? { day: "2-digit", month: "short" }
+                : { month: "short", year: "numeric" }),
             }).format(new Date(`${month.startDate}T00:00:00`))}
           </span>
         ))}
@@ -81,8 +87,8 @@ export function PlanningCapacityBoard({
             >
               <strong>{resource.name}</strong>
               <small>
-                {resource.type} · {resource.projectAvailabilityFte} VTE
-                beschikbaar
+                {resource.type} · {resource.projectAvailabilityFte} VTE ·{" "}
+                {resource.weeklyCapacityHours} u/week
               </small>
             </button>
           </div>
@@ -158,6 +164,12 @@ export function CapacityDetailPanel({
             {period.demandFte.toLocaleString("nl-BE")} van{" "}
             {period.capacityFte.toLocaleString("nl-BE")} VTE
           </small>
+          {period.availabilityPercent < 100 ? (
+            <small>
+              {Math.round(period.availabilityPercent)}% beschikbaar door
+              kalenderafwijkingen
+            </small>
+          ) : null}
         </div>
         <section className="capacity-detail__breakdown">
           <h3>Opbouw</h3>

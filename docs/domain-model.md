@@ -379,7 +379,11 @@ zijn acyclisch.
 ### Resource en ResourceAssignment
 
 Een resource beschrijft een persoon, rol, team, externe partij, ruimte of
-uitrusting met totale en voor projecten beschikbare VTE-capaciteit. Een
+uitrusting met totale en voor projecten beschikbare VTE-capaciteit. Schema 1.2
+voegt een standaard `weeklyCapacityHours` en ingebedde, auditbare
+`availabilityExceptions` toe. Een uitzondering bevat een periode, reden en het
+resterende beschikbaarheidspercentage. Een actieve actor kan aan maximaal één
+actieve personeelsasset gekoppeld zijn. Een
 `ResourceAssignment` koppelt precies één resource of rol aan een project en
 optioneel een fase, met een geldige periode en niet-negatieve inzet in VTE,
 uren, totaalvolume of indicatieve inzet.

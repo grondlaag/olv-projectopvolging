@@ -964,6 +964,70 @@
   border-top: var(--border-thin);
 }
 
+.planning-availability {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0 var(--space-6) var(--space-6);
+  padding-top: var(--space-6);
+  border-top: 3px solid var(--color-brand-muted);
+}
+
+.planning-availability header > span {
+  color: var(--color-ink-muted);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.planning-availability h3,
+.planning-availability p {
+  margin: 0;
+}
+
+.planning-availability > p {
+  color: var(--color-ink-muted);
+  font-size: var(--font-size-sm);
+}
+
+.planning-availability ul {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.planning-availability li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: var(--border-thin);
+  border-left: 3px solid var(--color-warning);
+  background: var(--color-warning-soft);
+}
+
+.planning-availability li > div {
+  display: grid;
+}
+
+.planning-availability li span {
+  color: var(--color-ink-muted);
+  font-size: var(--font-size-xs);
+}
+
+.planning-form--availability {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  padding: 0;
+}
+
+.planning-form--availability footer,
+.planning-form--availability .planning-form__error {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 70rem) {
   .planning-filters {
     grid-template-columns: repeat(3, minmax(9rem, 1fr));

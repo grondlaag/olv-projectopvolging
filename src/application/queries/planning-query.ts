@@ -775,10 +775,14 @@ export interface ResourceCapacityPeriod {
   endDate: string
   demandFte: number
   capacityFte: number
+  baseCapacityFte: number
+  availabilityPercent: number
   loadPercent: number
   conflict: boolean
   breakdown: readonly CapacityBreakdownItem[]
 }
+
+export type CapacityGranularity = "week" | "month"
 
 function monthEnd(monthStart: string): string {
   const value = new Date(`${monthStart}T00:00:00Z`)
@@ -787,9 +791,47 @@ function monthEnd(monthStart: string): string {
   return value.toISOString().slice(0, 10)
 }
 
+function startOfWeek(date: string): string {
+  const value = new Date(`${date}T00:00:00Z`)
+  const day = value.getUTCDay() || 7
+  value.setUTCDate(value.getUTCDate() - day + 1)
+  return value.toISOString().slice(0, 10)
+}
+
+function addCalendarDays(date: string, days: number): string {
+  const value = new Date(`${date}T00:00:00Z`)
+  value.setUTCDate(value.getUTCDate() + days)
+  return value.toISOString().slice(0, 10)
+}
+
+function resourceAvailability(
+  resource: Resource,
+  startDate: string,
+  endDate: string,
+): number {
+  let cursor = startDate
+  let total = 0
+  let count = 0
+  const active = resource.availabilityExceptions.filter(
+    (item) => item.audit.active,
+  )
+  while (cursor <= endDate) {
+    const covering = active.filter(
+      (item) => item.startDate <= cursor && item.endDate >= cursor,
+    )
+    total += covering.length
+      ? Math.min(...covering.map((item) => item.availabilityPercent))
+      : 100
+    count += 1
+    cursor = addCalendarDays(cursor, 1)
+  }
+  return count ? total / count : 100
+}
+
 export function buildResourceCapacity(
   state: NormalizedDomainState,
   range?: { startDate: string; endDate: string },
+  granularity: CapacityGranularity = "month",
 ): readonly ResourceCapacityPeriod[] {
   const active = state.records.resourceAssignments.filter(
     (item) => item.audit.active,
@@ -798,12 +840,21 @@ export function buildResourceCapacity(
   const start = range?.startDate ?? dates[0]
   const end = range?.endDate ?? dates.at(-1)
   if (!start || !end) return []
-  const cursor = new Date(`${start.slice(0, 7)}-01T00:00:00Z`)
+  const periodStart =
+    granularity === "week" ? startOfWeek(start) : `${start.slice(0, 7)}-01`
+  const cursor = new Date(`${periodStart}T00:00:00Z`)
   const periods: { startDate: string; endDate: string }[] = []
   while (cursor.toISOString().slice(0, 10) <= end) {
     const startDate = cursor.toISOString().slice(0, 10)
-    periods.push({ startDate, endDate: monthEnd(startDate) })
-    cursor.setUTCMonth(cursor.getUTCMonth() + 1)
+    periods.push({
+      startDate,
+      endDate:
+        granularity === "week"
+          ? addCalendarDays(startDate, 6)
+          : monthEnd(startDate),
+    })
+    if (granularity === "week") cursor.setUTCDate(cursor.getUTCDate() + 7)
+    else cursor.setUTCMonth(cursor.getUTCMonth() + 1)
   }
   const result: ResourceCapacityPeriod[] = []
   for (const resource of state.records.resources.filter(
@@ -834,7 +885,16 @@ export function buildResourceCapacity(
         },
       )
       const demandFte = breakdown.reduce((sum, item) => sum + item.demandFte, 0)
-      const capacityFte = resource.projectAvailabilityFte
+      const baseCapacityFte = Math.min(
+        resource.projectAvailabilityFte,
+        resource.weeklyCapacityHours / 40,
+      )
+      const availabilityPercent = resourceAvailability(
+        resource,
+        period.startDate,
+        period.endDate,
+      )
+      const capacityFte = baseCapacityFte * (availabilityPercent / 100)
       const loadPercent =
         capacityFte > 0
           ? (demandFte / capacityFte) * 100
@@ -848,6 +908,8 @@ export function buildResourceCapacity(
           ...period,
           demandFte,
           capacityFte,
+          baseCapacityFte,
+          availabilityPercent,
           loadPercent,
           conflict: loadPercent > 100,
           breakdown,

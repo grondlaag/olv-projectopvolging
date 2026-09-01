@@ -218,6 +218,11 @@ De productie-interface ondersteunt nu:
   conflictmarkering boven 100% en een uitsplitsing per project en fase;
 - bewerken en audit-safe archiveren vanuit hetzelfde rechterpaneel, zonder
   routewissel.
+- week- of maandweergave voor capaciteit, een standaard aantal uren per week
+  en auditbare afwezigheids- of deeltijdse periodes die de beschikbare
+  capaciteit proportioneel verlagen;
+- maximaal één actieve personeelsasset per actor, zodat actor- en
+  capaciteitsbeheer niet uit elkaar gaan lopen.
 
 De Gantt is read-only-first. Selecteren opent formulierbewerking in een
 zijpaneel; drag/drop, auto-scheduling en automatisch berekende

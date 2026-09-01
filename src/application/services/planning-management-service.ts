@@ -13,6 +13,7 @@ import {
   type Milestone,
   type MilestoneStatus,
   type Resource,
+  type ResourceAvailabilityException,
   type ResourceAssignment,
   type ResourceType,
   type AllocationMode,
@@ -86,6 +87,14 @@ export interface ResourceInput {
   role?: string
   capacityFte: number
   projectAvailabilityFte: number
+  weeklyCapacityHours: number
+}
+
+export interface ResourceAvailabilityInput {
+  startDate: LocalDate
+  endDate: LocalDate
+  availabilityPercent: number
+  reason: string
 }
 
 export interface ResourceAssignmentInput {
@@ -513,24 +522,40 @@ export class PlanningManagementService {
     if (
       input.capacityFte < 0 ||
       input.projectAvailabilityFte < 0 ||
-      input.projectAvailabilityFte > input.capacityFte
+      input.projectAvailabilityFte > input.capacityFte ||
+      input.weeklyCapacityHours < 0 ||
+      input.weeklyCapacityHours > input.capacityFte * 40
     )
       throw new PlanningManagementError([
         {
           field: "projectAvailabilityFte",
           message:
-            "Projectbeschikbaarheid moet tussen 0 en de totale capaciteit liggen.",
+            "Projectbeschikbaarheid en weekuren moeten binnen de totale capaciteit liggen.",
         },
       ])
     if (input.actorId && !state.indices.actorById.has(input.actorId))
       throw new PlanningManagementError([
         { field: "actorId", message: "Actor niet gevonden." },
       ])
+    if (
+      input.actorId &&
+      state.records.resources.some(
+        (item) => item.audit.active && item.actorId === input.actorId,
+      )
+    )
+      throw new PlanningManagementError([
+        {
+          field: "actorId",
+          message:
+            "Deze actor is al aan een actieve personeelsasset gekoppeld.",
+        },
+      ])
     const now = options.now ?? new Date()
     const record: Resource = {
       id: (options.createUuid ?? defaultUuid)(),
       ...input,
       name: input.name.trim(),
+      availabilityExceptions: [],
       audit: auditFields(now, currentActorId(state)),
     }
     const records = cloneDomainCollections(state.records)
@@ -556,18 +581,36 @@ export class PlanningManagementService {
     if (
       input.capacityFte < 0 ||
       input.projectAvailabilityFte < 0 ||
-      input.projectAvailabilityFte > input.capacityFte
+      input.projectAvailabilityFte > input.capacityFte ||
+      input.weeklyCapacityHours < 0 ||
+      input.weeklyCapacityHours > input.capacityFte * 40
     )
       throw new PlanningManagementError([
         {
           field: "projectAvailabilityFte",
           message:
-            "Projectbeschikbaarheid moet tussen 0 en de totale capaciteit liggen.",
+            "Projectbeschikbaarheid en weekuren moeten binnen de totale capaciteit liggen.",
         },
       ])
     if (input.actorId && !state.indices.actorById.has(input.actorId))
       throw new PlanningManagementError([
         { field: "actorId", message: "Actor niet gevonden." },
+      ])
+    if (
+      input.actorId &&
+      state.records.resources.some(
+        (item) =>
+          item.audit.active &&
+          item.id !== resourceId &&
+          item.actorId === input.actorId,
+      )
+    )
+      throw new PlanningManagementError([
+        {
+          field: "actorId",
+          message:
+            "Deze actor is al aan een actieve personeelsasset gekoppeld.",
+        },
       ])
     const record: Resource = {
       ...existing,
@@ -585,6 +628,85 @@ export class PlanningManagementService {
     records.resources[
       records.resources.findIndex((item) => item.id === resourceId)
     ] = record
+    return { state: normalizeDomainState(records), record }
+  }
+
+  addResourceAvailability(
+    state: NormalizedDomainState,
+    resourceId: UUID,
+    input: ResourceAvailabilityInput,
+    options: PlanningMutationOptions = {},
+  ): PlanningMutationResult<ResourceAvailabilityException> {
+    const resource = state.indices.resourceById.get(resourceId)
+    if (!resource?.audit.active)
+      throw new PlanningManagementError([
+        { field: "resourceId", message: "Asset niet gevonden." },
+      ])
+    assertDateRange(input.startDate, input.endDate)
+    if (input.availabilityPercent < 0 || input.availabilityPercent > 100)
+      throw new PlanningManagementError([
+        {
+          field: "availabilityPercent",
+          message: "Beschikbaarheid moet tussen 0 en 100 procent liggen.",
+        },
+      ])
+    if (!input.reason.trim())
+      throw new PlanningManagementError([
+        { field: "reason", message: "Reden is verplicht." },
+      ])
+    const now = options.now ?? new Date()
+    const record: ResourceAvailabilityException = {
+      id: (options.createUuid ?? defaultUuid)(),
+      ...input,
+      reason: input.reason.trim(),
+      audit: auditFields(now, currentActorId(state)),
+    }
+    const records = cloneDomainCollections(state.records)
+    const index = records.resources.findIndex((item) => item.id === resourceId)
+    records.resources[index] = {
+      ...records.resources[index]!,
+      availabilityExceptions: [
+        ...records.resources[index]!.availabilityExceptions,
+        record,
+      ],
+      audit: updateAudit(resource.audit, now, currentActorId(state)),
+    }
+    return { state: normalizeDomainState(records), record }
+  }
+
+  archiveResourceAvailability(
+    state: NormalizedDomainState,
+    resourceId: UUID,
+    availabilityId: UUID,
+    options: PlanningMutationOptions = {},
+  ): PlanningMutationResult<ResourceAvailabilityException> {
+    const resource = state.indices.resourceById.get(resourceId)
+    const existing = resource?.availabilityExceptions.find(
+      (item) => item.id === availabilityId && item.audit.active,
+    )
+    if (!resource?.audit.active || !existing)
+      throw new PlanningManagementError([
+        { field: "availabilityId", message: "Afwezigheid niet gevonden." },
+      ])
+    const now = options.now ?? new Date()
+    const record: ResourceAvailabilityException = {
+      ...existing,
+      audit: {
+        ...updateAudit(existing.audit, now, currentActorId(state)),
+        active: false,
+      },
+    }
+    const records = cloneDomainCollections(state.records)
+    const index = records.resources.findIndex((item) => item.id === resourceId)
+    records.resources[index] = {
+      ...records.resources[index]!,
+      availabilityExceptions: records.resources[
+        index
+      ]!.availabilityExceptions.map((item) =>
+        item.id === availabilityId ? record : item,
+      ),
+      audit: updateAudit(resource.audit, now, currentActorId(state)),
+    }
     return { state: normalizeDomainState(records), record }
   }
 
@@ -854,6 +976,8 @@ export class PlanningManagementService {
           role: "Projectteam",
           capacityFte: Math.max(1, projectSizeFte[project.size] * 2),
           projectAvailabilityFte: Math.max(1, projectSizeFte[project.size] * 2),
+          weeklyCapacityHours:
+            Math.max(1, projectSizeFte[project.size] * 2) * 40,
         },
         options,
       )

@@ -2,7 +2,7 @@
 
 ## Status
 
-Dit is het canonical operationele bestandscontract vanaf applicatieversie 1.1.0.
+Dit is het canonical operationele bestandscontract vanaf applicatieversie 1.2.0.
 Beslissing: [ADR-011](decisions/ADR-011-json-portable-data-files.md).
 
 ## Bestand
@@ -20,9 +20,9 @@ Operationele bestanden worden niet in Git of de Pages-build opgenomen.
 ```json
 {
   "format": "olv-projectopvolging",
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "exportedAt": "2026-08-16T12:00:00.000Z",
-  "appVersion": "1.1.0",
+  "appVersion": "1.2.0",
   "dataSetId": "00000000-0000-4000-8000-000000000001",
   "records": {
     "chapters": [],
@@ -95,7 +95,7 @@ kolommapping.
 | `planningDependencies` | PlanningDependency | twee planningentries |
 | `projectPhases` | ProjectPhase | project, optioneel eigenaar/voorganger |
 | `milestones` | Milestone | project, optioneel fase/eigenaar |
-| `resources` | Resource | optioneel actor |
+| `resources` | Resource | optioneel actor; ingebedde beschikbaarheidsuitzonderingen |
 | `resourceAssignments` | ResourceAssignment | project, optioneel fase, resource of rol |
 | `budgets` | BudgetRecord | project, optioneel topic/leverancier |
 | `budgetMutations` | BudgetMutation | budgetrecord, auteur |
@@ -203,12 +203,14 @@ notitie of verslaginvoer. Er ontstaat geen `entries`- of
 verwijst naar een `Update`. Daardoor kan een update worden afgesloten en
 heropend zonder extra collectie, schemawijziging of verlies van de brontekst.
 
-De huidige schemawaarde is `1.1.0`. Schema `1.0.0` wordt expliciet gemigreerd:
+De huidige schemawaarde is `1.2.0`. Schema `1.0.0` wordt expliciet gemigreerd:
 de vier nieuwe planningcollecties worden leeg toegevoegd en de envelope en
-Config krijgen versie `1.1.0`. Bestaande `PlanningEntry`-records en
+Config krijgen versie `1.2.0`. Bestaande `PlanningEntry`-records en
 `PlanningDependency`-records blijven ongewijzigd in hun oorspronkelijke
 collecties, zodat oudere mijlpalen en vrije planningitems bewerkbaar en
-verliesloos blijven. Andere onbekende versies worden geblokkeerd.
+verliesloos blijven. Schema `1.1.0` wordt eveneens expliciet gemigreerd:
+resources krijgen `weeklyCapacityHours = capacityFte × 40` en een lege
+`availabilityExceptions`-lijst. Andere onbekende versies worden geblokkeerd.
 
 Een toekomstige wijziging moet:
 
@@ -226,5 +228,5 @@ Operationele Excel-import en -export maken geen deel meer uit van dit contract.
 
 `Project.size` bevat optioneel `XS`, `S`, `M`, `L`, `XL` of `XXL`. Ontbreken
 betekent dat het project nog niet is ingeschaald. Het veld is achterwaarts
-compatibel binnen schema 1.0.0 en 1.1.0; oude bestanden worden bij openen
+compatibel binnen schema 1.0.0, 1.1.0 en 1.2.0; oude bestanden worden bij openen
 expliciet gemigreerd.

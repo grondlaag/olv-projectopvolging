@@ -81,6 +81,8 @@ export function PlanningPage() {
   const [newResourceOpen, setNewResourceOpen] = useState(false)
   const view =
     searchParameters.get("weergave") === "capaciteit" ? "capacity" : "planning"
+  const capacityGranularity =
+    searchParameters.get("capaciteit") === "month" ? "month" : "week"
   const today = todayAsLocalDate()
   const model = useMemo(
     () =>
@@ -101,7 +103,11 @@ export function PlanningPage() {
       ),
     )
     const selectedResourceId = filters.resourceId || filters.roleId
-    return buildResourceCapacity(session.state).flatMap((period) => {
+    return buildResourceCapacity(
+      session.state,
+      undefined,
+      capacityGranularity,
+    ).flatMap((period) => {
       if (selectedResourceId && period.resource.id !== selectedResourceId)
         return []
       const breakdown = period.breakdown.filter((item) =>
@@ -123,7 +129,7 @@ export function PlanningPage() {
         },
       ]
     })
-  }, [filters.resourceId, filters.roleId, model, session])
+  }, [capacityGranularity, filters.resourceId, filters.roleId, model, session])
   const rows = useMemo(() => {
     const result: PlanningDisplayRow[] = []
     for (const chapter of model) {
@@ -366,6 +372,12 @@ export function PlanningPage() {
     const parameters = new URLSearchParams(searchParameters)
     if (value === "capacity") parameters.set("weergave", "capaciteit")
     else parameters.delete("weergave")
+    setSearchParameters(parameters, { replace: true })
+  }
+  function selectCapacityGranularity(value: "week" | "month") {
+    const parameters = new URLSearchParams(searchParameters)
+    if (value === "month") parameters.set("capaciteit", "month")
+    else parameters.delete("capaciteit")
     setSearchParameters(parameters, { replace: true })
   }
   function selectZoom(value: PlanningZoom) {
@@ -670,7 +682,22 @@ export function PlanningPage() {
                     ),
                   )}
                 </fieldset>
-              ) : null}
+              ) : (
+                <fieldset className="planning-zoom">
+                  <legend>Capaciteitsperiode</legend>
+                  {(["week", "month"] as const).map((value) => (
+                    <label key={value}>
+                      <input
+                        type="radio"
+                        name="capacity-granularity"
+                        checked={capacityGranularity === value}
+                        onChange={() => selectCapacityGranularity(value)}
+                      />
+                      <span>{value === "week" ? "Week" : "Maand"}</span>
+                    </label>
+                  ))}
+                </fieldset>
+              )}
             </header>
             {view === "planning" ? (
               <PlanningGantt
@@ -723,7 +750,7 @@ export function PlanningPage() {
                           <strong>{resource.name}</strong>
                           <small>
                             {resource.type} · {resource.projectAvailabilityFte}{" "}
-                            VTE beschikbaar
+                            VTE · {resource.weeklyCapacityHours} u/week
                           </small>
                         </button>
                       ))}
@@ -737,6 +764,7 @@ export function PlanningPage() {
                 </section>
                 <PlanningCapacityBoard
                   periods={capacity}
+                  granularity={capacityGranularity}
                   onSelect={setSelectedCapacity}
                   onSelectResource={(period) =>
                     setSelectedResource(period.resource)

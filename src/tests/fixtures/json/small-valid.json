@@ -1,8 +1,8 @@
 {
   "format": "olv-projectopvolging",
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.2.0",
   "exportedAt": "2026-01-15T09:30:00.000Z",
-  "appVersion": "1.1.0",
+  "appVersion": "1.2.0",
   "dataSetId": "10000000-0000-4000-8000-000000000002",
   "records": {
     "chapters": [
@@ -181,6 +181,10 @@
         "type": "FinishToStart"
       }
     ],
+    "projectPhases": [],
+    "milestones": [],
+    "resources": [],
+    "resourceAssignments": [],
     "budgets": [
       {
         "id": "90000000-0000-4000-8000-000000000001",
@@ -219,7 +223,7 @@
           "updatedByActorId": "40000000-0000-4000-8000-000000000001",
           "active": true
         },
-        "schemaVersion": "1.0.0",
+        "schemaVersion": "1.2.0",
         "dataSetId": "10000000-0000-4000-8000-000000000002",
         "createdAt": "2026-01-15T09:30:00.000Z",
         "appVersion": "1.0.0-test",

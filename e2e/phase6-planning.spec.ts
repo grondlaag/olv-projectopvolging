@@ -160,8 +160,23 @@ test("fase-6-hoofdflow beheert planning, Gantt en JSON-roundtrip lokaal", async 
     page.getByRole("heading", { name: "Portfoliocapaciteit" }),
   ).toBeVisible()
   await expect(
-    page.getByRole("table", { name: "Capaciteit per maand" }),
+    page.getByRole("table", { name: "Capaciteit per week" }),
   ).toContainText("E2E projectleider")
+  await page
+    .getByRole("region", { name: "Assetregister" })
+    .getByRole("button", { name: /E2E projectleider/ })
+    .click()
+  propertiesPanel = page.getByRole("dialog", { name: "Asset bewerken" })
+  await propertiesPanel.getByLabel("Van").fill("2026-09-07")
+  await propertiesPanel.getByLabel("Tot en met").fill("2026-09-13")
+  await propertiesPanel.getByLabel("Beschikbaar (%)").fill("0")
+  await propertiesPanel.getByLabel("Reden").fill("E2E verlof")
+  await propertiesPanel
+    .getByRole("button", { name: "Periode toevoegen" })
+    .click()
+  await expect(propertiesPanel.getByText("E2E verlof")).toBeVisible()
+  await propertiesPanel.getByRole("button", { name: "Sluiten" }).click()
+  await expect(page.locator(".capacity-board__cell.is-conflict")).toHaveCount(1)
   await page.screenshot({
     path: "test-results/phase6-portfolio-gantt.png",
     fullPage: true,
